@@ -7,7 +7,12 @@ export default function Hero() {
 
   return (
     <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
-      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30" style={{backgroundImage: 'url(/haus-grundriss-zeichnen.jpg)'}}></div>
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
+        style={{
+          backgroundImage: 'url(/timpson-banner.jpg), url(/haus-grundriss-zeichnen.jpg)',
+        }}
+      ></div>
       <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/70 to-slate-900/80"></div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 lg:py-40">
