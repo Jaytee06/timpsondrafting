@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Send, CheckCircle2, Mail, Phone, MapPin } from 'lucide-react';
+import { Send, CheckCircle2, Mail, Phone, MapPin, Info } from 'lucide-react';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
@@ -96,6 +96,7 @@ export default function ContactForm() {
     phone: '',
     projectType: '',
     description: '',
+    consent: true,
     website: '', // Honeypot field
   });
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
@@ -150,14 +151,13 @@ export default function ContactForm() {
     //Matching CRM Lead structure
     try {
       const data = new FormData();
-      Object.keys(formData).forEach(key => {
-        if(key !== 'name' && key !== 'projectType')
-          data.append(key, formData[key as keyof typeof formData]);
-        else if(key === 'name')
-          data.append('full_name', formData.name.trim());
-        else if(key === 'projectType')
-          data.append('project_type', formData.projectType);
-      });
+      data.append('full_name', formData.name.trim());
+      data.append('email', formData.email);
+      data.append('phone', formData.phone);
+      data.append('project_type', formData.projectType);
+      data.append('description', formData.description);
+      data.append('consent_to_text', String(formData.consent));
+      data.append('website', formData.website);
       data.append('keyword', trackingParams.keyword);
       data.append('gclid', trackingParams.gclid);
       data.append('gbraid', trackingParams.gbraid);
@@ -190,12 +190,13 @@ export default function ContactForm() {
         throw new Error('Failed to submit form');
       }
 
-      // To-do: Setup conversion event under Timpson Drafting LP
-      // if (typeof window.gtag === 'function') {
-      //   window.gtag('event', 'conversion', {
-      //     send_to: 'G-BXQTF3KH70/{{conversion action 'ctd'}}',
-      //   });
-      // }
+      // Google Ads Conversion Tracking
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'conversion', {
+          send_to: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
+        });
+      }
+
 
       setSubmitted(true);
       setFormData({
@@ -204,6 +205,7 @@ export default function ContactForm() {
         phone: '',
         projectType: '',
         description: '',
+        consent: true,
         website: '',
       });
       setFiles(null);
@@ -222,9 +224,10 @@ export default function ContactForm() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
+    const { name, type } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value,
     });
   };
 
@@ -381,14 +384,42 @@ export default function ContactForm() {
                   </p>
                 </div>
               ) : (
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  {isLoading ? 'Sending...' : 'Get My Quote'}
-                  {!isLoading && <Send className="w-5 h-5" />}
-                </button>
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <label htmlFor="consent" className="flex items-start gap-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        id="consent"
+                        name="consent"
+                        checked={formData.consent}
+                        onChange={handleChange}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="leading-6">
+                        I agree to be contacted about my inquiry. Consent is not a condition of purchase. Message and data rates may apply.
+                      </span>
+                    </label>
+
+                    <details className="mt-3 text-xs text-slate-500">
+                      <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-slate-600 hover:text-slate-900">
+                        <Info className="h-4 w-4" />
+                        View full consent details
+                      </summary>
+                      <p className="mt-2 leading-5">
+                        By checking this box, you authorize Timpson Drafting & Design to contact you by phone call and SMS text message using the contact information you provide, including for follow-up on your quote request, scheduling, project communication, customer service, and marketing analytics attribution tied to your inquiry. You can reply STOP to opt out of texts at any time.
+                      </p>
+                    </details>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? 'Sending...' : 'Get My Quote'}
+                    {!isLoading && <Send className="w-5 h-5" />}
+                  </button>
+                </div>
               )}
             </form>
           </div>
