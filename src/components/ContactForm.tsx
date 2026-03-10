@@ -2,6 +2,92 @@ import { useState, useRef } from 'react';
 import { Send, CheckCircle2, Mail, Phone, MapPin } from 'lucide-react';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
+const TRACKING_STORAGE_KEY = 'td_tracking_params';
+
+type TrackingParams = {
+  keyword: string;
+  gclid: string;
+  gbraid: string;
+  wbraid: string;
+  campaignid: string;
+  utmSource: string;
+  utmCampaign: string;
+  utmTerm: string;
+};
+
+const EMPTY_TRACKING_PARAMS: TrackingParams = {
+  keyword: '',
+  gclid: '',
+  gbraid: '',
+  wbraid: '',
+  campaignid: '',
+  utmSource: '',
+  utmCampaign: '',
+  utmTerm: '',
+};
+
+const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value && value.trim()) return value.trim();
+  }
+  return '';
+};
+
+const readTrackingParams = (): TrackingParams => {
+  if (typeof window === 'undefined') return EMPTY_TRACKING_PARAMS;
+
+  let storedParams: Partial<TrackingParams> = {};
+  const rawStoredParams = window.sessionStorage.getItem(TRACKING_STORAGE_KEY);
+  if (rawStoredParams) {
+    try {
+      storedParams = JSON.parse(rawStoredParams) as Partial<TrackingParams>;
+    } catch {
+      storedParams = {};
+    }
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const currentParams: TrackingParams = {
+    keyword:
+      getFirstQueryParam(searchParams, ['keyword', 'kw', 'utm_term']) ||
+      storedParams.keyword ||
+      '',
+    gclid:
+      getFirstQueryParam(searchParams, ['gclid']) ||
+      storedParams.gclid ||
+      '',
+    gbraid:
+      getFirstQueryParam(searchParams, ['gbraid']) ||
+      storedParams.gbraid ||
+      '',
+    wbraid:
+      getFirstQueryParam(searchParams, ['wbraid']) ||
+      storedParams.wbraid ||
+      '',
+    campaignid:
+      getFirstQueryParam(searchParams, ['campaignid', 'campaign_id', 'utm_campaign']) ||
+      storedParams.campaignid ||
+      '',
+    utmSource:
+      getFirstQueryParam(searchParams, ['utm_source']) ||
+      storedParams.utmSource ||
+      '',
+    utmCampaign:
+      getFirstQueryParam(searchParams, ['utm_campaign', 'campaignid', 'campaign_id']) ||
+      storedParams.utmCampaign ||
+      storedParams.campaignid ||
+      '',
+    utmTerm:
+      getFirstQueryParam(searchParams, ['utm_term', 'keyword', 'kw']) ||
+      storedParams.utmTerm ||
+      storedParams.keyword ||
+      '',
+  };
+
+  window.sessionStorage.setItem(TRACKING_STORAGE_KEY, JSON.stringify(currentParams));
+  return currentParams;
+};
 
 export default function ContactForm() {
   const [formData, setFormData] = useState({
@@ -12,6 +98,7 @@ export default function ContactForm() {
     description: '',
     website: '', // Honeypot field
   });
+  const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
 
   const [submitted, setSubmitted] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
@@ -60,21 +147,39 @@ export default function ContactForm() {
       return;
     }
 
+    //Matching CRM Lead structure
     try {
       const data = new FormData();
       Object.keys(formData).forEach(key => {
-        data.append(key, formData[key as keyof typeof formData]);
+        if(key !== 'name' && key !== 'projectType')
+          data.append(key, formData[key as keyof typeof formData]);
+        else if(key === 'name')
+          data.append('full_name', formData.name.trim());
+        else if(key === 'projectType')
+          data.append('project_type', formData.projectType);
       });
+      data.append('keyword', trackingParams.keyword);
+      data.append('gclid', trackingParams.gclid);
+      data.append('gbraid', trackingParams.gbraid);
+      data.append('wbraid', trackingParams.wbraid);
+      data.append('campaignid', trackingParams.campaignid);
+      data.append('utm_source', trackingParams.utmSource);
+      data.append('utm_campaign', trackingParams.utmCampaign);
+      data.append('utm_term', trackingParams.utmTerm);
       data.append('adminEmail', ADMIN_EMAIL);
+      data.append('landingPageUrl', window.location.href);
+      data.append('referrer', document.referrer || '');
 
       if (files) {
-        Array.from(files).forEach(file => {
-          data.append('file', file);
-        });
+        for (let i = 0; i < files.length; i += 1) {
+          const file = files.item(i);
+          if (file) {
+            data.append('file', file);
+          }
+        }
       }
 
-      // TODO: Replace with your actual API Gateway URL
-      const API_ENDPOINT = 'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/tddFormSubmit';
+      const API_ENDPOINT = 'https://app.timpsondrafting.com/api/webhooks/event?apiKey=U2FsdGVkX1%2BReFsivY3REPgy9sV4HxDF7kjb91a9tdJ2a2IjPueKPkWqtKmQYcE0OBaIAwC91d4bH%2FOoHc71rw%3D%3D';
 
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
@@ -84,6 +189,13 @@ export default function ContactForm() {
       if (!response.ok) {
         throw new Error('Failed to submit form');
       }
+
+      // To-do: Setup conversion event under Timpson Drafting LP
+      // if (typeof window.gtag === 'function') {
+      //   window.gtag('event', 'conversion', {
+      //     send_to: 'G-BXQTF3KH70/{{conversion action 'ctd'}}',
+      //   });
+      // }
 
       setSubmitted(true);
       setFormData({
