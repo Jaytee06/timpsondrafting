@@ -1,0 +1,54 @@
+# CRM Send Email Workflow
+
+## Node Type
+
+System runbook.
+
+## Purpose
+
+This file defines how an agent sends an email from inside the CRM.
+
+## Preconditions
+
+- the correct lead record is open
+- an email address is present and usable
+- the intended message matches the current branch or follow-up objective
+
+## Required Human Inputs
+
+Document the exact UI steps here:
+
+- button or tab to open the email composer: email button next to the lead's email field
+- whether email templates exist in the CRM: yes, use `Custom Message` for these qualification emails
+- where the subject field appears: `TODO`
+- where the message body field appears: `TODO`
+- where attachments are added: `TODO`
+- where send confirmation appears: `TODO`
+
+## Standard Procedure
+
+1. Open the correct lead.
+2. Click the email button next to the lead's email field.
+3. Select the `Custom Message` email template.
+4. Fill in the appropriate subject for the lead state.
+5. Fill in the message body using the matching script and the lead's known details.
+6. Verify recipient, subject, and body.
+7. Press `Send`.
+8. Reload the lead or workspace view.
+9. Confirm the sent message appears in the lead history or activity log.
+10. Update notes or status if the workflow requires it.
+
+## Content Guidance
+
+Use the communication and qualification docs in:
+
+- [../../processes/communications/email/README.md](../../processes/communications/email/README.md)
+- [../../processes/communications/email/qualification/scripts.md](../../processes/communications/email/qualification/scripts.md)
+- [../../processes/communications/email/qualification/templates.md](../../processes/communications/email/qualification/templates.md)
+
+## Escalation Rules
+
+- email composer is unavailable
+- the CRM cannot send from the expected mailbox
+- send confirmation is missing
+- the lead should not be emailed due to contact or consent uncertainty
