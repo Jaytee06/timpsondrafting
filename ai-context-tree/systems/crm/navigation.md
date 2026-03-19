@@ -19,13 +19,14 @@ If a major navigation or authentication step fails:
 
 Current known values:
 
-- development CRM URL: `http://localhost:4930`
+- production CRM URL: `https://app.timpsondrafting.com`
 - CRM base URL: `https://app.timpsondrafting.com/op/ws/kbCGfx2A`
-- login URL if different: `https://app.timpsondrafting.com/auth/login` (redirect target when not authenticated)
+- login URL if different: `https://app.timpsondrafting.com/auth/login` unless the app redirects internally
 - expected landing page after login: workspace at `https://app.timpsondrafting.com/op/ws/kbCGfx2A`
 - whether Chrome should reuse an existing session or sign in each time: reuse existing authenticated browser session when available
+- operating assumption: navigate directly to the CRM workspace in the browser and complete the task through the UI
 
-Additional inputs to confirm from the live UI:
+Additional inputs to confirm from the production UI:
 
 - login method: email + password form
 - whether MFA exists and what type: `TODO` (not observed yet)
@@ -55,7 +56,7 @@ Do not store raw bearer tokens in this documentation tree.
 
 ## UI Anchors To Document
 
-Replace these placeholders once the CRM is documented from the live UI:
+Replace these placeholders once the CRM is documented from the production UI:
 
 - top navigation labels: `TODO`
 - left sidebar labels: `TODO`

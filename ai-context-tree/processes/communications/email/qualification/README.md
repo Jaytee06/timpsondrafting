@@ -56,6 +56,12 @@ Examples:
 
 Stay here when you are selecting a branch or editing shared qualification rules.
 
+Before staying in email, first verify that text is not the primary allowed channel for this lead.
+
+If `consent_to_text` is checked and a usable phone path exists, route toward the text subtree instead of starting normal email qualification.
+
+If neither usable email nor usable phone exists, leave a concise CRM comment documenting the contact problem and do not pretend the lead is contactable.
+
 Descend into `branches/` when handling one specific outcome.
 
 Descend into `service_specific/` when the lead is already classifiable, but the next question set depends on the service type, such as a home addition lead that needs addition-specific scope details.

@@ -83,6 +83,16 @@ Use a runbook in `systems/` when the agent needs human-equivalent UI instruction
 - which button or field to use
 - how to complete a CRM action step by step
 
+For CRM qualification work, prefer browser navigation and browser interfacing skills first.
+
+Do not assume the agent should start or manage infrastructure as part of normal CRM work. The default assumption is that the browser should be pointed at `app.timpsondrafting.com` and the task should be completed through the UI.
+
+Likely reusable CRM skills include:
+
+- field inspection: identify which entity fields exist, which are qualification-relevant, and which are marketing-only context
+- qualification field review: confirm core fields such as project type, description, contact method, timeline, and location before choosing a branch
+- activity and communication history review: inspect the entity history controls near the bottom of the record, switch between available history types, and expand entries to read full context
+
 Use a skill when the workflow is repetitive, fragile, or benefits from reusable bundled instructions or scripts.
 
 A future CRM skill would likely use `systems/crm/` as its primary reference subtree once the UI details are fully documented and stable.

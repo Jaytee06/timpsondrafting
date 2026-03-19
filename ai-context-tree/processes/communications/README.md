@@ -35,6 +35,12 @@ This domain is responsible for:
 - whether contactability is questionable,
 - whether escalation to another channel is appropriate.
 
+Current routing rule:
+
+- if `consent_to_text` is checked and a usable phone exists, route into the text pipeline
+- otherwise use email when a usable email exists
+- if neither usable email nor usable phone is available, leave a concise CRM comment explaining the contact problem
+
 ## Child Nodes
 
 - `email/`: email-specific operating rules and qualification workflow.

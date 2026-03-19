@@ -34,7 +34,12 @@ This channel is responsible for:
 
 ## Relationship To Sibling Nodes
 
-This subtree is commonly entered from the email `text_fallback` branch. It should assume that email handling has already established some context and should not restart the workflow unnecessarily.
+This subtree may be entered in two common ways:
+
+- directly from `fresh` when text consent is already checked and a usable phone path exists
+- from the email `text_fallback` branch after email stops being the best path
+
+It should assume that prior qualification handling may already have established useful context and should not restart the workflow unnecessarily.
 
 ## Escalation Rules
 

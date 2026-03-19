@@ -29,11 +29,12 @@ The exact UI format may be tables, grouped rows, kanban-style columns, or filter
 
 ## Primary Agent Focus
 
-The Qualification Agent's main operational responsibility is the `Fresh` table.
+The Qualification Agent's main operational responsibility is the `Fresh` and `Contacted` status areas.
 
 That means the agent should primarily:
 
 - open entities in `Fresh`
+- review entities in `Contacted`
 - determine current state
 - decide what information is missing
 - choose the right communication path
@@ -62,9 +63,11 @@ It may include:
 - comments
 - other entity updates
 
+For `Contacted` review work, conversation history is especially important because the agent must determine whether the client has replied to an earlier request.
+
 ## Required Human Inputs
 
-Document the live UI once confirmed:
+Document the production UI once confirmed:
 
 - label of the workspace page: `Lead Pipelines`
 - view modes visible: `List`, `Board`, `Auto Dialer`, `View`
@@ -72,12 +75,9 @@ Document the live UI once confirmed:
 - grouping control label: `Group By Status (default)`
 - whether statuses appear as tables, tabs, or columns: grouped status sections with tables in `List` view
 - whether `Fresh` is the default first table: yes, `Fresh` appears as the first status section
+- whether `Contacted` is reviewed by the same qualification role: yes, the qualification role should review `Contacted` leads for replies and newly supplied information
 - whether rows open in a drawer or full page: row click opens a right-side lead drawer
-- whether rows can be reassigned directly from the board: status appears as a chip-like control in the drawer header (shows `Fresh`), but the exact control type/options still need verification `TODO`
-
-Observed note:
-
-- A toast error appeared: `Error: You do not have permissions to access companies`. If this blocks work, route to [auth_and_permissions.md](auth_and_permissions.md) and [troubleshooting.md](troubleshooting.md).
+- whether rows can be reassigned directly from the board: opening a row shows the current status at the top of the drawer as a dropdown control; the visible label is the lead's current workspace status and the dropdown list contains the other available statuses
 
 ## Related References
 
@@ -98,4 +98,4 @@ If CRM work becomes repetitive enough, this node is a natural reference point fo
 
 - the workspace does not show pipeline groupings as expected
 - status areas do not match the documented status model
-- the `Fresh` queue is not the correct starting point for qualification work
+- the `Fresh` or `Contacted` queue is not the correct starting point for qualification work

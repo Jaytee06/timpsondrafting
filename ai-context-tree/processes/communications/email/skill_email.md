@@ -37,6 +37,8 @@ Expect some or all of:
 - use or update local templates,
 - recommend text fallback if email is not viable and text is permitted.
 
+Do not force an email-first workflow when `consent_to_text` is already present and a usable phone path exists.
+
 ## Disallowed Local Decisions
 
 - redefine global states,
@@ -52,6 +54,7 @@ Hand off sideways to `../text/` when:
 
 - email is unavailable or failing,
 - text consent exists,
+- direct text routing from `fresh` is the documented first channel,
 - the fallback rule applies.
 
 Hand off upward when:
