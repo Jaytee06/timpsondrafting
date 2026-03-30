@@ -48,15 +48,17 @@ Document the exact UI details here:
 - whether it is a dropdown, chips, or board column: dropdown select
 - whether save happens automatically: does not appear to auto-save; the lead drawer has an explicit `Save` button
 - where change history can be verified: `activity` section inside entity detail view
+- current observed interaction: when the row is opened, the drawer header shows the current workspace status as the selected dropdown value and the arrow reveals the remaining statuses
 
 ## Standard Procedure
 
 1. Open the correct lead.
-2. Locate the `workspace_status` dropdown in the entity detail view.
-3. Choose the correct next status.
-4. Save if needed.
-5. Verify the updated value is visible.
-6. Confirm the `activity` section reflects the action if the CRM records status changes.
+2. Locate the `workspace_status` dropdown at the top of the entity detail drawer.
+3. Confirm the currently displayed value matches the lead's present status.
+4. Click the dropdown arrow and choose the correct next status from the remaining options.
+5. Press `Save`.
+6. Verify the updated value is visible in the drawer header after save.
+7. Confirm the `activity` section reflects the action if the CRM records status changes.
 
 ## Escalation Rules
 

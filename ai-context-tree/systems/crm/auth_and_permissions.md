@@ -53,7 +53,7 @@ If testing credentials exist, they must be supplied through an approved operator
 
 Document the real auth model here:
 
-- development CRM URL: `http://localhost:4930`
+- CRM URL: `https://app.timpsondrafting.com`
 - CRM workspace URL: `https://app.timpsondrafting.com/op/ws/kbCGfx2A`
 - login method: email + password form at `https://app.timpsondrafting.com/auth/login` when not already authenticated
 - whether Chrome session reuse is expected: yes, when a valid browser session already exists
@@ -76,6 +76,7 @@ Before relying on a CRM session, confirm:
 - the account can open a lead
 - the account can send email if required
 - the account can edit `workspace_status` if required
+- the account can leave a comment if the workflow requires extra context such as a `lost_na` flag reason
 
 If any checklist item fails, route to [troubleshooting.md](troubleshooting.md) and treat the CRM as not ready for autonomous operation until resolved.
 

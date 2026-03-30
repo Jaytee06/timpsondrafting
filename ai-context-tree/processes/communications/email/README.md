@@ -19,6 +19,8 @@ Email is responsible for:
 - maintaining a professional external tone and message quality,
 - deciding when email should yield to text fallback or closure.
 
+Email is not the default first channel when text consent is already present and a usable phone path exists.
+
 ## Expected Inputs
 
 - lead identity and project details,
@@ -56,6 +58,8 @@ Agents may:
 ## Routing Guidance
 
 Stay here when the task is generally about email operations.
+
+Before staying here, verify that the lead should actually be handled through email rather than direct text routing from `fresh`.
 
 Descend into `qualification/` when the task is about required fields, decision rules, or branch selection.
 

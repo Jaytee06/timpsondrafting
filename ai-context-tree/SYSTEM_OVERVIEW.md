@@ -8,7 +8,8 @@ Global system map.
 
 This system exists to convert website traffic into qualified residential drafting leads for Timpson Drafting & Design.
 
-The production behavior currently centers on:
+
+The current development behavior centers on:
 
 - a single-page marketing site,
 - lead capture through the contact form,
@@ -21,7 +22,7 @@ The production behavior currently centers on:
 
 ### Frontend Site
 
-The frontend is the active intake surface. It:
+The frontend is the active local intake surface. It:
 
 - presents the business offer,
 - guides visitors to request a quote,
@@ -38,6 +39,8 @@ The CRM endpoint is the current system of record for submitted web leads. Agents
 - the form payload structure matters,
 - attribution fields are intentionally preserved for marketing analysis,
 - changes to field names are integration-sensitive.
+- newly created leads are placed into the CRM workspace in `fresh`
+- downstream agents are responsible for selecting the correct next workspace status and communication branch from there
 
 ### Legacy Or Alternate Backend
 
@@ -53,7 +56,7 @@ Unless confirmed otherwise, agents should treat this backend as reference infras
 ## Core Entities
 
 - `Lead`: the prospective customer record assembled from form data and attribution metadata.
-- `Workspace Status`: the working status label applied as the lead moves through outreach, qualification, estimating, and closeout.
+- `Workspace Status`: the status an entity belongs to inside a CRM workspace as it moves through outreach, qualification, estimating, and closeout.
 - `System User`: the authenticated account concept for CRM access, permissions, and future user types.
 
 Entity definitions live in `entities/`.

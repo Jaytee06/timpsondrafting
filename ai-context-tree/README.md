@@ -47,6 +47,8 @@ This tree is currently grounded in a small lead-generation system:
 
 The system docs here are intentionally operational. They are not general theory docs. They are meant to help an agent act correctly inside this repo and adjacent intake workflows.
 
+For CRM qualification tasks, the agent should operate the CRM through browser navigation and UI interaction. Do not start or manage a development server unless a task explicitly says to do that.
+
 ## Local Visualization
 
 To open a standalone graph window for this tree without running the main app:

@@ -8,6 +8,12 @@ Global lifecycle contract.
 
 This document defines the coarse workflow phases that sit underneath the workspace status model. It is intentionally separate from `workspace_status`, because workflow reasoning and CRM status labels are not the same thing.
 
+Operational CRM rule:
+
+- leads arrive into a workspace
+- every entity in a workspace belongs to one workspace status
+- new CRM-integrated leads should enter the workspace in `fresh`
+
 ## Workflow Phases
 
 ### 1. Captured
@@ -32,6 +38,8 @@ The lead exists but has not yet been worked into a meaningful workspace status o
 
 This is the default post-capture review state for operational agents.
 
+In the CRM, this commonly corresponds to the first-pass handling that occurs while the lead is still in `fresh`.
+
 ### 3. Missing Information
 
 The lead lacks required information for qualification or follow-up.
@@ -52,6 +60,7 @@ Examples:
 - malformed email,
 - unreachable or obviously invalid phone,
 - bounced or rejected outbound response.
+- no usable email and no usable phone.
 
 ### 5. Qualified
 
@@ -74,7 +83,9 @@ The system is waiting on the lead after outreach.
 
 ### 8. Text Fallback
 
-Email outreach is insufficient or unavailable, and the next appropriate branch is SMS or phone-driven follow-up if consent and contact data allow it.
+Text becomes the primary next branch when text consent is present and a usable phone path exists.
+
+This may happen immediately from `fresh` when consent to text is checked, rather than only after email has been attempted.
 
 ### 9. Closed Or Archived
 
@@ -116,6 +127,11 @@ Typical mapping:
 - strong opportunities map to `qualified`,
 - quoted work maps to `estimate_sent`,
 - final outcomes map to `won` or `lost_na`.
+
+Practical interpretation:
+
+- `fresh` is the default intake status for newly created CRM leads
+- the agent working `fresh` is responsible for verifying contact fields, understanding what information is already present, and choosing the next communication branch
 
 ## Escalation Rules
 

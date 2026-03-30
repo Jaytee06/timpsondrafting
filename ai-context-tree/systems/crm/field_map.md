@@ -25,6 +25,23 @@ Document the exact CRM field names here:
 - project stage: `TODO`
 - existing plans or files: `TODO`
 
+## Qualification-Relevant Versus Supporting Fields
+
+Qualification agents should prioritize:
+
+- project type
+- description
+- email
+- phone
+- project location
+- timeline
+- square footage or dimensions when relevant
+- project stage
+- existing plans or files
+- communication preference if already known
+
+Marketing and attribution fields may still matter, but they are supporting context rather than the primary qualification decision inputs.
+
 ## Attribution Fields
 
 If visible in the CRM, document where these appear:

@@ -8,7 +8,7 @@ Role contract.
 
 The Qualification Agent is responsible for turning raw lead submissions into clear operational routing decisions.
 
-In the current CRM operating model, this role is primarily responsible for working entities in the `Fresh` table of the `Lead Pipelines` workspace.
+In the current CRM operating model, this role is responsible for working entities in the `Fresh` and `Contacted` status areas of the `Lead Pipelines` workspace.
 
 ## Responsibilities
 
@@ -21,7 +21,9 @@ In the current CRM operating model, this role is primarily responsible for worki
 - identify obvious spam, solicitation, or non-customer submissions early,
 - determine the current workspace status,
 - choose the correct communication branch,
+- route to text when text consent is present and the phone path is usable,
 - request missing information when needed,
+- review `Contacted` leads for replies and newly supplied qualification details,
 - capture preferred communication channel once the lead is qualified enough to continue,
 - preserve attribution and consent context.
 
@@ -36,6 +38,12 @@ Expect:
 - current process node,
 - state-machine definitions,
 - local branch rules.
+
+Primary execution mode for CRM work:
+
+- use browser navigation and browser UI interaction inside `app.timpsondrafting.com`
+- work the visible CRM interface directly
+- do not start or troubleshoot the CRM environment unless the task explicitly shifts into setup or debugging
 
 ## Allowed Local Decisions
 
@@ -71,25 +79,40 @@ The Qualification Agent may not:
 
 1. Read the local node `README.md`.
 2. Confirm which entity definitions apply.
-3. If working in CRM, begin with [../systems/crm/lead_pipelines.md](../systems/crm/lead_pipelines.md) and the `Fresh` table unless a different queue is explicitly assigned.
+3. If working in CRM, begin with [../systems/crm/lead_pipelines.md](../systems/crm/lead_pipelines.md) and the `Fresh` or `Contacted` status area, depending on which queue needs action.
 4. Open the lead and go to the entity detail view.
-5. In the entity detail view, use the `activity` area and switch it to `Communication`.
-6. Identify the newest meaningful outbound message and the newest meaningful inbound message, including their timestamps and channels.
-7. If a newer inbound reply exists, digest that reply before making any status or follow-up decision.
-8. Extract any newly learned lead facts from the reply and treat them as current evidence for qualification.
-9. If the reply leaves contradictions, ambiguities, or missing fields, send a targeted clarification request instead of pausing the lead or assuming a human must immediately take over.
-10. If the lead has already given substantive new information, do not use a generic `no_response` template. Ask only for the specific mismatch or remaining blocking fields.
-11. Check the current state against [../STATE_MACHINE.md](../STATE_MACHINE.md), using the newest meaningful communication event rather than an older outbound message as the primary timing reference.
-12. If the lead is obvious spam, solicitation, or otherwise non-actionable, do not run the normal qualification loop.
-   Current implementation `TODO`: decide whether this should set a dedicated spam/non-actionable lead field, move the lead to `Lost - N/A` / `lost_na`, or both.
-13. Descend to the narrowest process node that owns the decision.
-14. Choose the branch that best explains the next action.
-15. Ask for missing information or communication preference when the documented threshold is met.
-16. Before sending, verify that the final subject and body are professional, complete, and free of placeholder or junk text.
-17. If send verification fails, attempt at most one clean retry.
-18. If CRM evidence and external evidence disagree, report a verification conflict instead of claiming no send occurred.
-19. Move the entity into the correct next `workspace_status`.
-20. Escalate if the decision would change a shared contract, if the composer cannot reliably preserve the reviewed message, if verification remains conflicted after one clean retry, or if normal clarification work has been exhausted and real human judgment is now required.
+5. Check the current state against [../STATE_MACHINE.md](../STATE_MACHINE.md).
+6. Before making a qualification decision, inspect the lead drawer carefully.
+   - Scroll through the entity fields rather than relying only on the initially visible fields.
+   - Distinguish qualification-relevant fields from marketing or attribution fields.
+   - Always check whether core qualification fields such as project type, description, location, timeline, email, and phone are present.
+   - Use marketing and attribution data as supporting context, not as a substitute for qualification fields.
+7. Review communication history and activity history before deciding on outreach or status.
+   - These controls appear near the bottom of the entity.
+   - In the entity detail view, switch the `activity` area to `Communication` when message history matters.
+   - Use the history-type dropdown to inspect the available history categories.
+   - Expand individual entries when more context is available.
+   - For `Contacted` leads, switch `Show activity type` to `Conversations`.
+8. Identify the newest meaningful outbound message and the newest meaningful inbound message, including their timestamps and channels.
+9. If a newer inbound reply exists, digest that reply before making any status or follow-up decision.
+10. Extract any newly learned lead facts from the reply and treat them as current evidence for qualification.
+11. If the reply leaves contradictions, ambiguities, or missing fields, send a targeted clarification request instead of pausing the lead or assuming a human must immediately take over.
+12. If the lead has already given substantive new information, do not use a generic `no_response` template. Ask only for the specific mismatch or remaining blocking fields.
+13. Use the newest meaningful communication event rather than an older outbound message as the primary timing reference.
+14. If the lead is obvious spam, solicitation, or otherwise non-actionable, do not run the normal qualification loop.
+   Move it to `Lost - N/A` / `lost_na` unless a more specific non-actionable path is documented later.
+15. Choose the communication branch from verified contact data.
+   - If text consent is checked and the phone is usable, route into the text pipeline.
+   - Otherwise use email when a usable email exists.
+   - If neither usable phone nor usable email exists, leave a concise CRM comment documenting the contact problem and treat the lead as not normally contactable.
+16. Descend to the narrowest process node that owns the decision.
+17. Choose the branch that best explains the next action.
+18. Ask for missing information or communication preference when the documented threshold is met.
+19. Before sending, verify that the final subject and body are professional, complete, and free of placeholder or junk text.
+20. If send verification fails, attempt at most one clean retry.
+21. If CRM evidence and external evidence disagree, report a verification conflict instead of claiming no send occurred.
+22. Move the entity into the correct next `workspace_status`.
+23. Escalate if the decision would change a shared contract, if the composer cannot reliably preserve the reviewed message, if verification remains conflicted after one clean retry, or if normal clarification work has been exhausted and real human judgment is now required.
 
 ## Exit Criteria
 

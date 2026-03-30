@@ -62,6 +62,7 @@ Important checks:
 - project descriptions may be too vague for qualification,
 - spam may survive lightweight frontend validation,
 - attribution fields may be absent on organic traffic.
+- consent to text should be used as a routing signal, not ignored as passive metadata
 
 ## Allowed Local Decisions
 
@@ -71,6 +72,8 @@ Agents working with a lead may:
 - classify contactability,
 - decide whether more information is required,
 - choose the appropriate communication branch,
+- route to text when `consent_to_text` is present and a usable phone path exists,
+- leave a concise comment when no usable email or phone path exists and the lead cannot be contacted normally,
 - preserve attribution metadata through downstream handling.
 
 Agents should not:

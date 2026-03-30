@@ -12,8 +12,10 @@ Use these scripts when the lead is in `Fresh`, initial contact has not yet been 
 
 ## Usage Rules
 
+- read the entity fields and the description field before choosing or drafting a script
 - pick the narrowest script that matches the missing information
 - personalize the message with the lead's known name, project type, and any concrete scope detail already present
+- only ask for information that is still missing or still ambiguous from the visible CRM context
 - ask for only a few missing fields at a time
 - keep the tone concise and operational
 - keep the message professional enough to send directly to a customer without apology or cleanup
@@ -22,9 +24,20 @@ Use these scripts when the lead is in `Fresh`, initial contact has not yet been 
 - never send placeholder, junk, test, or draft-fragment text
 - every message should contain a complete greeting, clear reason for writing, and clear next requested action
 
+Do not send a script as a rigid checklist if the CRM already answers some of the questions.
+
+Adapt the script to the entity:
+
+- omit questions already answered by the current fields or description
+- prefer conditional wording when only part of the information is missing
+- if the description already identifies the project type, do not ask for project type again
+- if the description suggests a service-specific branch such as an addition, use that branch and only ask for the missing addition details
+
 ## Script: Generic Initial Contact
 
 Use when the lead is real and contactable, but the current details are too thin for qualification.
+
+This is the default script for `Test Scenario 1` when the developer test lead is the first valid email case being exercised.
 
 Suggested subject:
 
@@ -34,7 +47,7 @@ Suggested body:
 
 `Hi [First Name],`
 
-`Thanks for reaching out to Timpson Drafting & Design about your project. To help us review it, please reply with a few details:`
+`Thanks for reaching out to Timpson Drafting & Design about your project. To help us review it, please reply with the missing details below:`
 
 - `project type`
 - `project location`
@@ -42,6 +55,8 @@ Suggested body:
 - `timeline`
 
 `Once we have that, we can follow up with next steps.`
+
+Use only the bullets that are still missing from the current record.
 
 ## Script: Home Addition Initial Contact
 
@@ -55,7 +70,7 @@ Suggested body:
 
 `Hi [First Name],`
 
-`Thanks for reaching out about your addition project. To help us review it, please reply with:`
+`Thanks for reaching out about your addition project. To help us review it, please reply with the missing details below:`
 
 - `what kind of addition you want to build`
 - `the approximate size or dimensions`
@@ -64,6 +79,8 @@ Suggested body:
 - `anything important about how it connects to the existing house`
 
 `Once we have that, we can review next steps with you.`
+
+Do not ask for addition details that are already clear from the entity fields or description.
 
 ## Script: Contradictory Reply Clarification
 

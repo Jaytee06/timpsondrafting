@@ -8,6 +8,25 @@ System runbook root.
 
 This subtree documents how an agent should operate the CRM user interface and related workspace actions.
 
+Primary operating mode:
+
+- use browser navigation and browser interaction against the CRM UI
+- treat the CRM as an existing browser-accessed system
+- use `https://app.timpsondrafting.com/op/ws/kbCGfx2A` as the default workspace entry point unless a different workspace is explicitly assigned
+- do not start, restart, or manage CRM infrastructure unless the task explicitly requires server work
+- do not substitute API-only or mock-data-only handling when the task is to work the CRM UI
+
+Selector note:
+
+- until explicit UI selectors are documented, agents should use semantic browser navigation based on visible labels and stable layout cues
+- if the CRM is updated later with stable attributes such as `data-test-id`, record them in these runbooks and prefer them over visual matching
+
+History note:
+
+- entity communication history and activity history are found near the bottom of the opened record
+- a dropdown in that area switches between available history types
+- individual entries can usually be expanded for more detail and should be reviewed before making routing decisions
+
 ## Scope
 
 Use this subtree when the task requires browser or desktop-level interaction with the CRM, including:

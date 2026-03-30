@@ -31,14 +31,6 @@ This file captures common CRM operating problems and how an agent should respond
 - check for automation or permissions blocking the change
 - inspect change history if available
 
-### Permission Toast Or Access Error
-
-If the UI shows an error like `Error: You do not have permissions to access companies`:
-
-- confirm the active account has the permissions required for the current workflow in [auth_and_permissions.md](auth_and_permissions.md)
-- retry the action after dismissing the toast
-- if core lead views are blocked, escalate and document the missing permission boundary
-
 ### Email Cannot Be Sent
 
 - verify the correct mailbox is connected
