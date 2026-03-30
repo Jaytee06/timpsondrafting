@@ -13,10 +13,13 @@ A valid outreach attempt was made, but the lead has not replied within the expec
 - at least one prior email was sent,
 - no usable response has been received,
 - the lead remains open.
+- no newer substantive reply is present in the communication history.
 
 ## Local Objective
 
 Determine whether to wait longer, send one more follow-up, switch channels, or close the lead.
+
+Do not use this branch when the lead has already replied with meaningful project details, even if the reply still leaves contradictions or missing fields.
 
 ## Allowed Local Decisions
 

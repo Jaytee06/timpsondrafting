@@ -8,11 +8,22 @@ System runbook.
 
 This file defines how an agent sends an email from inside the CRM.
 
+## Failure Interpretation
+
+Treat send outcomes conservatively:
+
+- `verified_send`: the intended reviewed message is confirmed in the CRM activity log or equivalent send record.
+- `blocked_send`: the composer is malformed, unstable, unavailable, or cannot preserve the reviewed message well enough to attempt a valid send.
+- `verification_conflict`: evidence suggests an email may have been sent, but the available systems do not agree on whether the correct reviewed message actually went out.
+
+Do not collapse `verification_conflict` into `no send occurred`.
+
 ## Preconditions
 
 - the correct lead record is open
 - an email address is present and usable
 - the intended message matches the current branch or follow-up objective
+- the final outbound content has been reviewed for professionalism and completeness
 
 ## Required Human Inputs
 
@@ -33,10 +44,40 @@ Document the exact UI steps here:
 4. Fill in the appropriate subject for the lead state.
 5. Fill in the message body using the matching script and the lead's known details.
 6. Verify recipient, subject, and body.
-7. Press `Send`.
-8. Reload the lead or workspace view.
-9. Confirm the sent message appears in the lead history or activity log.
-10. Update notes or status if the workflow requires it.
+7. Re-read the exact final subject and body visible in the composer before pressing `Send`.
+8. Confirm the message is professional and complete:
+   - no placeholder text such as `asdf`, `def`, `test`, or draft fragments
+   - no empty or malformed subject
+   - no stale composer content from another lead or earlier attempt
+   - clear opening, project context, and next requested action
+9. If the composer content is malformed, unstable, or inconsistent with the intended reviewed message, do not send. Reset the composer and treat the attempt as blocked.
+10. Press `Send`.
+11. Reload the lead or workspace view.
+12. Confirm the sent message appears in the lead history or activity log.
+13. If possible, confirm the sent message content matches the reviewed subject and body, not just that an event exists.
+14. Update notes or status if the workflow requires it.
+
+## Retry Rule
+
+If a send attempt closes, errors, or fails verification:
+
+1. Perform at most one clean retry.
+2. A clean retry means:
+   - reopen the composer from scratch
+   - reselect `Custom Message`
+   - re-enter the reviewed recipient, subject, and body
+   - re-read the final visible subject and body before sending again
+3. Do not rely on repeated retries, DOM-only field state, or forced dirty-state tricks as a normal operating method.
+4. If the clean retry also fails or remains ambiguous, stop retrying and escalate.
+
+## Verification Rule
+
+If CRM evidence and external evidence disagree:
+
+- report the outcome as `verification_conflict`
+- describe exactly what each source showed
+- do not claim that no email was sent unless the evidence actually supports that conclusion
+- do not move status as though the intended reviewed message was verified
 
 ## Content Guidance
 
@@ -46,9 +87,21 @@ Use the communication and qualification docs in:
 - [../../processes/communications/email/qualification/scripts.md](../../processes/communications/email/qualification/scripts.md)
 - [../../processes/communications/email/qualification/templates.md](../../processes/communications/email/qualification/templates.md)
 
+Outbound lead email should be professional by default:
+
+- concise but complete
+- personalized to the lead and project
+- free of placeholder, junk, or debugging text
+- limited to the actual next question or action needed
+- safe to stand on its own if the lead forwards it or reads it without extra context
+
 ## Escalation Rules
 
 - email composer is unavailable
 - the CRM cannot send from the expected mailbox
 - send confirmation is missing
+- the actual sent content does not match the reviewed content
+- the composer appears to send malformed, placeholder, or stale draft content
+- CRM and external email evidence conflict about whether the intended message was sent
+- more than one clean retry would be required to continue
 - the lead should not be emailed due to contact or consent uncertainty

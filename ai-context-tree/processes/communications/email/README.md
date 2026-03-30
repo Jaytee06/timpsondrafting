@@ -16,6 +16,7 @@ Email is responsible for:
 - applying email-specific qualification checks,
 - choosing the correct response branch,
 - using templates appropriate to the lead state,
+- maintaining a professional external tone and message quality,
 - deciding when email should yield to text fallback or closure.
 
 ## Expected Inputs
@@ -45,6 +46,7 @@ Agents may:
 
 - inspect templates,
 - classify branch conditions,
+- enforce professional send quality before any outbound message is sent,
 - route to sibling `text/` when policy allows.
 
 ## Child Nodes

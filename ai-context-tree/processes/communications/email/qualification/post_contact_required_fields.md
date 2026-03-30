@@ -18,6 +18,7 @@ Use this node after the lead has moved beyond raw intake and the next goal is to
 - current workspace status
 - current communication channel
 - prior responses from the lead
+- any contradictions between older stored fields and the newest lead reply
 
 ## Required Post-Contact Fields
 
@@ -36,6 +37,8 @@ Use this node after the lead has moved beyond raw intake and the next goal is to
 - known site or permitting constraints
 
 If the service type is known and requires more detailed scoping, descend into a service-specific follow-up node before treating the lead as fully qualified.
+
+If the newest lead reply contradicts older stored lead data, do not treat the contradiction itself as a stopping condition. Resolve it through a narrower clarification question before escalating to human review.
 
 Current service-specific reference:
 
@@ -57,6 +60,8 @@ Typical progression:
 - move to `contacted` once outreach begins or a follow-up exchange is active,
 - move to `qualified` once the lead is in scope and the key post-contact fields are substantially known,
 - move to `estimate_sent` only after the estimate has actually been delivered.
+
+If the lead is responsive but still ambiguous, keep the lead in `contacted` while clarification continues.
 
 ## Escalation Rules
 

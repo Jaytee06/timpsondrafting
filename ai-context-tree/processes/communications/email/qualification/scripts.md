@@ -16,7 +16,11 @@ Use these scripts when the lead is in `Fresh`, initial contact has not yet been 
 - personalize the message with the lead's known name, project type, and any concrete scope detail already present
 - ask for only a few missing fields at a time
 - keep the tone concise and operational
+- keep the message professional enough to send directly to a customer without apology or cleanup
 - use the CRM's `Custom Message` email template when sending these scripts from the UI
+- if a lead already sent a substantive reply, do not send a generic `no_response` message; send the narrowest clarification needed next
+- never send placeholder, junk, test, or draft-fragment text
+- every message should contain a complete greeting, clear reason for writing, and clear next requested action
 
 ## Script: Generic Initial Contact
 
@@ -61,8 +65,30 @@ Suggested body:
 
 `Once we have that, we can review next steps with you.`
 
+## Script: Contradictory Reply Clarification
+
+Use when the lead already replied with real project details, but the reply conflicts with older stored lead data or leaves one or two blocking questions unresolved.
+
+Suggested subject:
+
+`One quick clarification about your project`
+
+Suggested body:
+
+`Hi [First Name],`
+
+`Thanks for the details. I want to confirm one point before we move forward.`
+
+`Our earlier record shows [older project type or detail], but your latest reply describes [newer project type or detail]. Which one is correct?`
+
+`Also, please reply with [the one or two remaining blocking details], and send any sketches, plans, or photos you mentioned if available.`
+
+`Once we have that, we can keep moving with next steps.`
+
 ## Escalation Rules
 
 - no existing script fits the missing-information pattern
 - the required questions would be too long for one email
+- the composer appears to replace the reviewed message with junk or stale draft content
+- CRM and external email evidence disagree about whether the reviewed message actually sent
 - the script would introduce a new shared policy rather than a local wording change
