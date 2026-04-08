@@ -3,6 +3,8 @@ import Reviews from './components/Reviews';
 import Services from './components/Services';
 import Pricing from './components/Pricing';
 import ContactForm from './components/ContactForm';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsAndConditions from './components/TermsAndConditions';
 import Footer from './components/Footer';
 
 function App() {
@@ -13,6 +15,8 @@ function App() {
       <Services />
       <Pricing />
       <ContactForm />
+      <PrivacyPolicy />
+      <TermsAndConditions />
       <Footer />
     </div>
   );

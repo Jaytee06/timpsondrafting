@@ -47,6 +47,22 @@ export default function Footer() {
                   Get a Quote
                 </button>
               </li>
+              <li>
+                <a
+                  href="#privacy-policy"
+                  className="text-slate-400 hover:text-emerald-400 transition-colors"
+                >
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#terms-and-conditions"
+                  className="text-slate-400 hover:text-emerald-400 transition-colors"
+                >
+                  Terms &amp; Conditions
+                </a>
+              </li>
             </ul>
           </div>
 

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Send, CheckCircle2, Mail, Phone, MapPin, Info } from 'lucide-react';
+import { Send, CheckCircle2, Mail, Phone, MapPin } from 'lucide-react';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
@@ -96,7 +96,7 @@ export default function ContactForm() {
     phone: '',
     projectType: '',
     description: '',
-    consent: true,
+    consent: false,
     website: '', // Honeypot field
   });
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
@@ -205,7 +205,7 @@ export default function ContactForm() {
         phone: '',
         projectType: '',
         description: '',
-        consent: true,
+        consent: false,
         website: '',
       });
       setFiles(null);
@@ -396,20 +396,32 @@ export default function ContactForm() {
                         className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="leading-6">
-                        I agree to be contacted about my inquiry. Consent is not a condition of purchase. Message and data rates may apply.
+                        I agree to receive SMS from Timpson Drafting about my inquiry,
+                        updates, scheduling, and service-related communication. Message
+                        frequency varies. Message and data rates may apply. Reply STOP to
+                        opt out and HELP for help. Consent is not a condition of purchase.
                       </span>
                     </label>
-
-                    <details className="mt-3 text-xs text-slate-500">
-                      <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-slate-600 hover:text-slate-900">
-                        <Info className="h-4 w-4" />
-                        View full consent details
-                      </summary>
-                      <p className="mt-2 leading-5">
-                        By checking this box, you authorize Timpson Drafting & Design to contact you by phone call and SMS text message using the contact information you provide, including for follow-up on your quote request, scheduling, project communication, customer service, and marketing analytics attribution tied to your inquiry. You can reply STOP to opt out of texts at any time.
-                      </p>
-                    </details>
                   </div>
+
+                  <p className="text-xs leading-5 text-slate-500">
+                    By submitting this form, you confirm the phone number above is yours and,
+                    if checked, you consent to receive SMS from Timpson Drafting. See our
+                    {' '}
+                    <a href="#privacy-policy" className="font-medium text-emerald-700 hover:text-emerald-800">
+                      Privacy Policy
+                    </a>
+                    {' '}
+                    and
+                    {' '}
+                    <a
+                      href="#terms-and-conditions"
+                      className="font-medium text-emerald-700 hover:text-emerald-800"
+                    >
+                      Terms &amp; Conditions
+                    </a>
+                    .
+                  </p>
 
                   <button
                     type="submit"
