@@ -6,6 +6,7 @@ import ContactForm from './components/ContactForm';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
 import Footer from './components/Footer';
+import ChatWidget from './components/ChatWidget';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <PrivacyPolicy />
       <TermsAndConditions />
       <Footer />
+      <ChatWidget />
     </div>
   );
 }

@@ -1,0 +1,14 @@
+{
+  "name": "timpson-drafting-chat-mvp-aws",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:lambdas": "node scripts/package-lambdas.mjs",
+    "zip:lambdas": "node scripts/package-lambdas.mjs --zip"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.821.0",
+    "@aws-sdk/client-sqs": "^3.821.0",
+    "@aws-sdk/lib-dynamodb": "^3.821.0"
+  }
+}
