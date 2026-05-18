@@ -37,6 +37,13 @@ This file captures common CRM operating problems and how an agent should respond
 - verify the lead has a usable email address
 - verify the CRM send UI actually completed
 
+### Text Widget Does Not Open
+
+- verify the `chat` icon next to the phone field was used, not the `phone` icon
+- if the call widget is open, close or collapse it
+- refresh the browser page and reopen the same lead before retrying the `chat` action
+- stop after one clean post-refresh retry and report `blocked_send` if no SMS composer appears
+
 ### Required Field Is Missing
 
 - check whether it lives in another tab or custom-fields section

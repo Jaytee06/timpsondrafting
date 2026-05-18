@@ -58,6 +58,7 @@ Use this subtree when the task requires browser or desktop-level interaction wit
 - `leads_inbox.md`
 - `lead_detail_view.md`
 - `send_email.md`
+- `send_text.md`
 - `update_workspace_status.md`
 - `troubleshooting.md`
 

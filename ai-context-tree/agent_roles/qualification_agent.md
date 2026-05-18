@@ -24,6 +24,7 @@ In the current CRM operating model, this role is responsible for working entitie
 - route to text when text consent is present and the phone path is usable,
 - request missing information when needed,
 - review `Contacted` leads for replies and newly supplied qualification details,
+- run the canonical ordered qualification discovery sequence before classifying a lead as `qualified`,
 - capture preferred communication channel once the lead is qualified enough to continue,
 - preserve attribution and consent context.
 
@@ -52,6 +53,7 @@ The Qualification Agent may:
 - classify a lead into existing states,
 - choose among documented branch outcomes,
 - interpret communication chronology and treat the newest meaningful inbound reply as primary evidence,
+- treat the ordered qualification discovery questions as the gating structure for `qualified`,
 - send a narrower clarification follow-up when reply content is incomplete, contradictory, or newly redirects the scope,
 - choose a targeted clarification message instead of a generic follow-up when the lead has already provided substantive new information,
 - perform one clean retry when a professional reviewed message fails to send or verify cleanly,
@@ -96,23 +98,27 @@ The Qualification Agent may not:
 8. Identify the newest meaningful outbound message and the newest meaningful inbound message, including their timestamps and channels.
 9. If a newer inbound reply exists, digest that reply before making any status or follow-up decision.
 10. Extract any newly learned lead facts from the reply and treat them as current evidence for qualification.
-11. If the reply leaves contradictions, ambiguities, or missing fields, send a targeted clarification request instead of pausing the lead or assuming a human must immediately take over.
-12. If the lead has already given substantive new information, do not use a generic `no_response` template. Ask only for the specific mismatch or remaining blocking fields.
-13. Use the newest meaningful communication event rather than an older outbound message as the primary timing reference.
-14. If the lead is obvious spam, solicitation, or otherwise non-actionable, do not run the normal qualification loop.
+11. Compare the current evidence against the canonical ordered qualification discovery sequence in [../processes/communications/email/qualification/post_contact_required_fields.md](../processes/communications/email/qualification/post_contact_required_fields.md).
+   - Preserve the order of that question structure.
+   - Treat equivalent already-supplied information as satisfying a question even if the customer did not answer it verbatim.
+   - Treat explicit answers such as `first time`, `no builder yet`, or `still figuring out land` as valid qualification evidence rather than missing data.
+12. If the reply leaves contradictions, ambiguities, or missing discovery answers, send a targeted clarification request instead of pausing the lead or assuming a human must immediately take over.
+13. If the lead has already given substantive new information, do not use a generic `no_response` template. Ask only for the specific mismatch or remaining blocking fields.
+14. Use the newest meaningful communication event rather than an older outbound message as the primary timing reference.
+15. If the lead is obvious spam, solicitation, or otherwise non-actionable, do not run the normal qualification loop.
    Move it to `Lost - N/A` / `lost_na` unless a more specific non-actionable path is documented later.
-15. Choose the communication branch from verified contact data.
-   - If text consent is checked and the phone is usable, route into the text pipeline.
+16. Choose the communication branch from verified contact data.
+   - If text consent is checked and the phone is usable, route into the text pipeline and use the CRM `chat` icon, not the adjacent `phone` call icon.
    - Otherwise use email when a usable email exists.
    - If neither usable phone nor usable email exists, leave a concise CRM comment documenting the contact problem and treat the lead as not normally contactable.
-16. Descend to the narrowest process node that owns the decision.
-17. Choose the branch that best explains the next action.
-18. Ask for missing information or communication preference when the documented threshold is met.
-19. Before sending, verify that the final subject and body are professional, complete, and free of placeholder or junk text.
-20. If send verification fails, attempt at most one clean retry.
-21. If CRM evidence and external evidence disagree, report a verification conflict instead of claiming no send occurred.
-22. Move the entity into the correct next `workspace_status`.
-23. Escalate if the decision would change a shared contract, if the composer cannot reliably preserve the reviewed message, if verification remains conflicted after one clean retry, or if normal clarification work has been exhausted and real human judgment is now required.
+17. Descend to the narrowest process node that owns the decision.
+18. Choose the branch that best explains the next action.
+19. Ask for the next unanswered discovery question or communication preference when the documented threshold is met.
+20. Before sending, verify that the final subject and body are professional, complete, and free of placeholder or junk text.
+21. If send verification fails, attempt at most one clean retry.
+22. If CRM evidence and external evidence disagree, report a verification conflict instead of claiming no send occurred.
+23. Move the entity into the correct next `workspace_status`.
+24. Escalate if the decision would change a shared contract, if the composer cannot reliably preserve the reviewed message, if verification remains conflicted after one clean retry, or if normal clarification work has been exhausted and real human judgment is now required.
 
 ## Exit Criteria
 

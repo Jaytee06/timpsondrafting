@@ -18,6 +18,8 @@ Email is not the best current communication path, and SMS or phone-based follow-
 
 Transfer responsibility from the email branch to the text communication branch with enough context to avoid re-qualifying from scratch.
 
+In the CRM UI, use the text workflow in [../../../../../systems/crm/send_text.md](../../../../../systems/crm/send_text.md). The correct phone-field action is the `chat` icon, not the adjacent `phone` icon that opens the call widget.
+
 ## Required Handoff Context
 
 - lead identity,

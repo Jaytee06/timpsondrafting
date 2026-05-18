@@ -63,7 +63,7 @@ For each entity, the agent should ask:
    - Move the lead to `Lost - N/A` / `lost_na`.
 10. Decide whether the entity is real, in scope, and contactable.
 11. Verify the contact fields and consent signals before choosing a channel.
-   - If `consent_to_text` is checked and the phone is usable, route the lead into the text pipeline.
+   - If `consent_to_text` is checked and the phone is usable, route the lead into the text pipeline and use the CRM `chat` icon, not the `phone` call icon.
    - Otherwise use email when a usable email exists.
    - If neither usable email nor usable phone exists, add a concise CRM comment explaining the contact problem.
 12. Inspect which fields are already present, including any facts learned from the latest reply.

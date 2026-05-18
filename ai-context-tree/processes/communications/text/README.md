@@ -41,6 +41,12 @@ This subtree may be entered in two common ways:
 
 It should assume that prior qualification handling may already have established useful context and should not restart the workflow unnecessarily.
 
+## CRM UI Routing
+
+When texting from the CRM, follow [../../../systems/crm/send_text.md](../../../systems/crm/send_text.md).
+
+The text widget is opened from the `chat` icon beside the phone field. The adjacent `phone` icon opens the call/dialer widget and must not be treated as SMS outreach.
+
 ## Escalation Rules
 
 - text consent is unclear,

@@ -19,8 +19,15 @@ Document the exact CRM field names here:
 - description: `TODO`
 - workspace status: `TODO`
 - communication preference: `TODO`
+- project priorities / what matters most: `TODO`
+- prior process experience: `TODO`
+- land status: `TODO`
+- builder status: `TODO`
 - timeline: `TODO`
 - square footage: `TODO`
+- budget range: `TODO`
+- biggest concern: `TODO`
+- plans ready goal: `TODO`
 - project location: `TODO`
 - project stage: `TODO`
 - existing plans or files: `TODO`
@@ -36,6 +43,13 @@ Qualification agents should prioritize:
 - project location
 - timeline
 - square footage or dimensions when relevant
+- project priorities
+- prior process experience
+- land status
+- builder status
+- budget range
+- biggest concern
+- plans ready goal
 - project stage
 - existing plans or files
 - communication preference if already known
@@ -62,6 +76,8 @@ If the CRM uses different labels than the docs, preserve both:
 
 - business meaning
 - CRM label
+
+If the CRM has no dedicated field for one of the ordered qualification answers, preserve that answer in notes, comments, or the communication history summary rather than dropping it from the qualification record.
 
 ## Escalation Rules
 

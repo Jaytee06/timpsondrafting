@@ -35,12 +35,13 @@ Request the minimum missing details needed to understand the addition:
 - approximate size of the addition
 - whether it is single-story, upper-story, or otherwise tied into the existing roof structure
 - what part of the existing home is being expanded or reworked
-- project location
-- current project stage
+- land status if the site situation is not yet clear
 - whether the lead has existing plans, sketches, surveys, or photos
 
 ## Strongly Preferred Addition Fields
 
+- project location
+- current project stage
 - target timeline
 - whether the work is for more living space, a garage conversion, a bedroom/bathroom expansion, or another use
 - whether structural openings or major interior rework are expected in the existing home
@@ -54,8 +55,11 @@ Keep the first clarification request short and specific.
 For an addition lead, the first message should usually ask for:
 
 - the kind of addition being planned
+- what matters most in the project
+- whether this is their first time through the process
+- whether land is already secured
+- whether a builder is already involved
 - approximate square footage or dimensions
-- the property address or city
 - whether any sketches, plans, or photos already exist
 
 If the lead replies and still leaves estimate-blocking gaps, send one narrower follow-up for the remaining unknowns instead of repeating the whole questionnaire.
@@ -65,8 +69,11 @@ If the lead replies and still leaves estimate-blocking gaps, send one narrower f
 `Thanks for reaching out about your addition project. To help us review it, please reply with:`
 
 - `what kind of addition you want to build,`
+- `what matters most to you in the project,`
+- `whether you've gone through this process before,`
+- `whether you already have land secured,`
+- `whether you're working with a builder yet,`
 - `the approximate size or dimensions,`
-- `the property location,`
 - `whether you have any existing plans, sketches, or photos,`
 - `and anything important about how it connects to the existing house.`
 

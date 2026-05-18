@@ -23,6 +23,7 @@ Use these scripts when the lead is in `Fresh`, initial contact has not yet been 
 - if a lead already sent a substantive reply, do not send a generic `no_response` message; send the narrowest clarification needed next
 - never send placeholder, junk, test, or draft-fragment text
 - every message should contain a complete greeting, clear reason for writing, and clear next requested action
+- keep the qualification sequence aligned with the canonical ordered discovery questions in `post_contact_required_fields.md`
 
 Do not send a script as a rigid checklist if the CRM already answers some of the questions.
 
@@ -32,6 +33,23 @@ Adapt the script to the entity:
 - prefer conditional wording when only part of the information is missing
 - if the description already identifies the project type, do not ask for project type again
 - if the description suggests a service-specific branch such as an addition, use that branch and only ask for the missing addition details
+
+## Canonical Qualification Sequence
+
+Once the lead is real and contactable, keep qualification aligned with this ordered discovery structure:
+
+1. `Tell me a little about what you're trying to build.`
+2. `What matters most to you in this project?`
+3. `Have you gone through this process before, or is this your first time?`
+4. `Do you already have land secured, or are you still figuring that out?`
+5. `Are you working with a builder yet?`
+6. `Roughly how big are you thinking (square footage)?`
+7. `Do you have a budget range in mind?`
+8. `What's your biggest concern or thing you want to get right?`
+9. `If everything went smoothly, when would you love to have plans ready?`
+10. `Anything else you want me to know before we get started?`
+
+Do not force the whole list into one message. Ask only the next unanswered questions that fit the current stage of the conversation.
 
 ## Script: Generic Initial Contact
 
@@ -49,10 +67,10 @@ Suggested body:
 
 `Thanks for reaching out to Timpson Drafting & Design about your project. To help us review it, please reply with the missing details below:`
 
-- `project type`
-- `project location`
-- `approximate size or square footage`
-- `timeline`
+- `what you're trying to build`
+- `what matters most to you in the project`
+- `whether you've gone through this process before`
+- `whether you already have land secured`
 
 `Once we have that, we can follow up with next steps.`
 
@@ -73,8 +91,11 @@ Suggested body:
 `Thanks for reaching out about your addition project. To help us review it, please reply with the missing details below:`
 
 - `what kind of addition you want to build`
+- `what matters most to you in the project`
+- `whether you've gone through this process before`
+- `whether you already have land secured`
+- `whether you're already working with a builder`
 - `the approximate size or dimensions`
-- `the project location`
 - `whether you have any plans, sketches, or photos`
 - `anything important about how it connects to the existing house`
 
@@ -98,7 +119,7 @@ Suggested body:
 
 `Our earlier record shows [older project type or detail], but your latest reply describes [newer project type or detail]. Which one is correct?`
 
-`Also, please reply with [the one or two remaining blocking details], and send any sketches, plans, or photos you mentioned if available.`
+`Also, please reply with [the next one or two unanswered discovery questions], and send any sketches, plans, or photos you mentioned if available.`
 
 `Once we have that, we can keep moving with next steps.`
 

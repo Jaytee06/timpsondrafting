@@ -22,19 +22,45 @@ Use this node after the lead has moved beyond raw intake and the next goal is to
 
 ## Required Post-Contact Fields
 
-- clearer `project_type` if still ambiguous
+- enough detail to answer `Tell me a little about what you're trying to build?`
+- `project_priorities`
+- `prior_process_experience`
+- `land_status`
+- `builder_status`
 - approximate `square_footage` or project size
-- `project_location`
-- current `project_stage`
-- enough scope detail to understand what is being designed or drafted
-- preferred communication channel for next steps
+- `budget_range`
+- `biggest_concern`
+- `plans_ready_goal`
+- `additional_notes` when the lead has extra context they want preserved
 
 ## Strongly Preferred Fields
 
+- clearer `project_type` if still ambiguous
+- `project_city`
+- `project_state`
+- current `project_stage`
 - target `timeline`
-- whether the lead has `existing_plans_or_files`
+- whether the lead has `files`
 - whether the requester is the homeowner, contractor, or another decision-maker
 - known site or permitting constraints
+- preferred communication channel for next steps
+
+## Ordered Qualification Questions
+
+These questions define the canonical qualification structure. Ask them in this order, skipping only the ones already answered by the lead's current record or reply history:
+
+1. `Tell me a little about what you're trying to build.`
+2. `What matters most to you in this project?`
+3. `Have you gone through this process before, or is this your first time?`
+4. `Do you already have land secured, or are you still figuring that out?`
+5. `Are you working with a builder yet?`
+6. `Roughly how big are you thinking (square footage)?`
+7. `Do you have a budget range in mind?`
+8. `What's your biggest concern or thing you want to get right?`
+9. `If everything went smoothly, when would you love to have plans ready?`
+10. `Anything else you want me to know before we get started?`
+
+If the lead answers with a clear `not yet`, `still figuring that out`, `first time`, or similar early-stage response, treat that as usable qualification evidence rather than missing data.
 
 If the service type is known and requires more detailed scoping, descend into a service-specific follow-up node before treating the lead as fully qualified.
 
@@ -58,7 +84,7 @@ Typical progression:
 
 - use `fresh` for newly captured leads not yet worked,
 - move to `contacted` once outreach begins or a follow-up exchange is active,
-- move to `qualified` once the lead is in scope and the key post-contact fields are substantially known,
+- move to `qualified` once the lead is in scope and the ordered qualification questions are substantially answered,
 - move to `estimate_sent` only after the estimate has actually been delivered.
 
 If the lead is responsive but still ambiguous, keep the lead in `contacted` while clarification continues.

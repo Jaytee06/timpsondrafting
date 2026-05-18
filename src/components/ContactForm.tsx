@@ -26,6 +26,54 @@ const EMPTY_TRACKING_PARAMS: TrackingParams = {
   utmTerm: '',
 };
 
+const PROJECT_TYPE_OPTIONS = [
+  'Build a custom home',
+  'Modify an existing plan',
+  'Addition or remodel',
+  "Not sure - I'd like some guidance",
+] as const;
+
+const TIMELINE_OPTIONS = [
+  'As soon as possible',
+  '1-3 months',
+  'No rush / just exploring',
+] as const;
+
+const CRM_FILE_UPLOAD_KEY = 'files';
+
+type ContactFormState = {
+  name: string;
+  phone: string;
+  email: string;
+  projectCity: string;
+  projectState: string;
+  projectType: string;
+  timeline: string;
+  description: string;
+  consent: boolean;
+  website: string;
+};
+
+const INITIAL_FORM_DATA: ContactFormState = {
+  name: '',
+  phone: '',
+  email: '',
+  projectCity: '',
+  projectState: '',
+  projectType: '',
+  timeline: '',
+  description: '',
+  consent: false,
+  website: '',
+};
+
+const getOptionCardClass = (selected: boolean) =>
+  `flex h-full cursor-pointer rounded-xl border p-4 transition-all ${
+    selected
+      ? 'border-emerald-500 bg-emerald-50 shadow-sm ring-1 ring-emerald-200'
+      : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
+  }`;
+
 const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
   for (const key of keys) {
     const value = params.get(key);
@@ -90,15 +138,7 @@ const readTrackingParams = (): TrackingParams => {
 };
 
 export default function ContactForm() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    projectType: '',
-    description: '',
-    consent: false,
-    website: '', // Honeypot field
-  });
+  const [formData, setFormData] = useState<ContactFormState>(INITIAL_FORM_DATA);
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
 
   const [submitted, setSubmitted] = useState(false);
@@ -106,11 +146,10 @@ export default function ContactForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(e.target.files);
-    }
+    setFiles(e.target.files && e.target.files.length > 0 ? e.target.files : null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,22 +167,46 @@ export default function ContactForm() {
     }
 
     // Validation
-    const phoneRegex = /^[\d\s()+-]{10,}$/;
-    if (!phoneRegex.test(formData.phone)) {
+    const digitsOnly = formData.phone.replace(/\D/g, '');
+    if (digitsOnly.length < 10) {
       setErrorMessage('Please enter a valid phone number (at least 10 digits).');
       setIsLoading(false);
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!emailRegex.test(formData.email.trim())) {
       setErrorMessage('Please enter a valid email address.');
       setIsLoading(false);
       return;
     }
 
-    if (formData.description.length < 20) {
-      setErrorMessage('Please provide a clearer description (at least 20 characters).');
+    if (formData.name.trim().length < 2) {
+      setErrorMessage('Please enter your name.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.projectCity.trim()) {
+      setErrorMessage('Please enter your project city.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.projectState.trim()) {
+      setErrorMessage('Please enter your project state.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.projectType) {
+      setErrorMessage('Please select what you are looking to do.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.timeline) {
+      setErrorMessage('Please select your timeline.');
       setIsLoading(false);
       return;
     }
@@ -152,10 +215,13 @@ export default function ContactForm() {
     try {
       const data = new FormData();
       data.append('full_name', formData.name.trim());
-      data.append('email', formData.email);
-      data.append('phone', formData.phone);
+      data.append('email', formData.email.trim());
+      data.append('phone', formData.phone.trim());
       data.append('project_type', formData.projectType);
-      data.append('description', formData.description);
+      data.append('project_city', formData.projectCity.trim());
+      data.append('project_state', formData.projectState.trim());
+      data.append('timeline', formData.timeline);
+      data.append('description', formData.description.trim());
       data.append('consent_to_text', String(formData.consent));
       data.append('website', formData.website);
       data.append('keyword', trackingParams.keyword);
@@ -171,10 +237,11 @@ export default function ContactForm() {
       data.append('referrer', document.referrer || '');
 
       if (files) {
+        data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }));
         for (let i = 0; i < files.length; i += 1) {
           const file = files.item(i);
           if (file) {
-            data.append('file', file);
+            data.append(CRM_FILE_UPLOAD_KEY, file);
           }
         }
       }
@@ -199,15 +266,7 @@ export default function ContactForm() {
 
 
       setSubmitted(true);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        description: '',
-        consent: false,
-        website: '',
-      });
+      setFormData(INITIAL_FORM_DATA);
       setFiles(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -222,13 +281,13 @@ export default function ContactForm() {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, type } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value,
-    });
+    const { name, type, value, checked } = e.target;
+    setFormData((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   return (
@@ -236,40 +295,41 @@ export default function ContactForm() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-            Get a Free Quote
+            Tell Us About Your Project
           </h2>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-            Fast response. No obligation. Local expertise.
+            Share a few details and any reference files you have. We&apos;ll follow up with next
+            steps.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                {/* Honeypot Field - Hidden */}
-                <div className="hidden">
-                  <label htmlFor="website">Website</label>
-                  <input
-                    type="text"
-                    id="website"
-                    name="website" // Must match state key
-                    value={formData.website}
-                    onChange={handleChange}
-                    autoComplete="off"
-                    tabIndex={-1}
-                  />
-                </div>
+              <div className="hidden">
+                <label htmlFor="website">Website</label>
+                <input
+                  type="text"
+                  id="website"
+                  name="website"
+                  value={formData.website}
+                  onChange={handleChange}
+                  autoComplete="off"
+                  tabIndex={-1}
+                />
+              </div>
 
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Full Name *
+                    Name *
                   </label>
                   <input
                     type="text"
                     id="name"
                     name="name"
                     required
+                    autoComplete="name"
                     value={formData.name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
@@ -278,82 +338,172 @@ export default function ContactForm() {
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
-                    placeholder="john@example.com"
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <div>
                   <label htmlFor="phone" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Phone Number *
+                    Phone *
                   </label>
                   <input
                     type="tel"
                     id="phone"
                     name="phone"
                     required
+                    autoComplete="tel"
                     value={formData.phone}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
                     placeholder="(555) 123-4567"
                   />
                 </div>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    autoComplete="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    placeholder="john@example.com"
+                  />
+                </div>
 
                 <div>
-                  <label htmlFor="projectType" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Project Type *
+                  <label htmlFor="projectCity" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Project City *
                   </label>
-                  <select
-                    id="projectType"
-                    name="projectType"
+                  <input
+                    type="text"
+                    id="projectCity"
+                    name="projectCity"
                     required
-                    value={formData.projectType}
+                    autoComplete="address-level2"
+                    value={formData.projectCity}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none bg-white"
-                  >
-                    <option value="">Select a project type</option>
-                    <option value="new-home">New Home</option>
-                    <option value="garage">Garage / Carport</option>
-                    <option value="addition">Home Addition</option>
-                    <option value="remodel">Remodel / Renovation</option>
-                    <option value="adu">ADU / Guest House</option>
-                    <option value="asbuilt">As-Built Drawings</option>
-                    <option value="other">Other</option>
-                  </select>
+                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    placeholder="St. George"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="projectState" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Project State *
+                  </label>
+                  <input
+                    type="text"
+                    id="projectState"
+                    name="projectState"
+                    required
+                    autoComplete="address-level1"
+                    value={formData.projectState}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    placeholder="UT"
+                  />
                 </div>
               </div>
 
+              <fieldset className="mb-6">
+                <legend className="block text-sm font-semibold text-slate-700 mb-3">
+                  What are you looking to do? *
+                </legend>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {PROJECT_TYPE_OPTIONS.map((option) => {
+                    const selected = formData.projectType === option;
+
+                    return (
+                      <label key={option} className={getOptionCardClass(selected)}>
+                        <input
+                          type="radio"
+                          name="projectType"
+                          value={option}
+                          checked={selected}
+                          onChange={handleChange}
+                          className="sr-only"
+                        />
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${
+                              selected ? 'border-emerald-600 bg-white' : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${
+                                selected ? 'bg-emerald-600' : 'bg-transparent'
+                              }`}
+                            />
+                          </span>
+                          <span className="text-sm font-medium text-slate-800 leading-6">{option}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset className="mb-6">
+                <legend className="block text-sm font-semibold text-slate-700 mb-3">
+                  What&apos;s your timeline? *
+                </legend>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {TIMELINE_OPTIONS.map((option) => {
+                    const selected = formData.timeline === option;
+
+                    return (
+                      <label key={option} className={getOptionCardClass(selected)}>
+                        <input
+                          type="radio"
+                          name="timeline"
+                          value={option}
+                          checked={selected}
+                          onChange={handleChange}
+                          className="sr-only"
+                        />
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${
+                              selected ? 'border-emerald-600 bg-white' : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${
+                                selected ? 'bg-emerald-600' : 'bg-transparent'
+                              }`}
+                            />
+                          </span>
+                          <span className="text-sm font-medium text-slate-800 leading-6">{option}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
               <div className="mb-6">
-                <label htmlFor="description" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Project Description *
+                <label htmlFor="description" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Project details
+                  <span className="ml-2 font-medium text-slate-500">Optional</span>
                 </label>
                 <textarea
                   id="description"
                   name="description"
-                  required
                   value={formData.description}
                   onChange={handleChange}
-                  rows={6}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none resize-none"
-                  placeholder="Tell us about your project. Include details like square footage, location, timeline, and any specific requirements..."
+                  rows={5}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-800 outline-none transition-colors resize-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  placeholder="Share anything helpful about the project, such as scope, square footage, existing conditions, or questions you want to discuss."
                 />
               </div>
 
-              <div className="mb-6">
+              <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/80 p-5">
                 <label htmlFor="file" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Attach Files (Optional)
+                  Upload anything you have (sketches, plans, inspiration)
+                  <span className="ml-2 font-medium text-slate-500">Optional</span>
                 </label>
                 <input
                   type="file"
@@ -362,25 +512,40 @@ export default function ContactForm() {
                   multiple
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                  className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-emerald-500 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-emerald-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                   accept=".pdf,.jpg,.jpeg,.png,.dwg"
                 />
-                <p className="text-sm text-slate-500 mt-2">
-                  Upload existing plans, sketches, or reference images (PDF, JPG, PNG, DWG)
+                <p className="mt-2 text-sm text-slate-500">
+                  Share sketches, existing plans, reference photos, or inspiration images if you
+                  have them.
                 </p>
+                {selectedFileNames.length > 0 && (
+                  <ul className="mt-3 space-y-1 text-sm text-slate-600">
+                    {selectedFileNames.map((fileName, index) => (
+                      <li key={`${fileName}-${index}`}>{fileName}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {errorMessage && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+                <div
+                  role="alert"
+                  className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm"
+                >
                   {errorMessage}
                 </div>
               )}
 
               {submitted ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+                <div
+                  role="status"
+                  className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3"
+                >
                   <CheckCircle2 className="w-6 h-6 text-emerald-600" />
                   <p className="text-emerald-800 font-medium">
-                    Thank you! We'll get back to you within 24 hours.
+                    Thank you. Your project details were sent successfully, and we&apos;ll follow up
+                    soon.
                   </p>
                 </div>
               ) : (
@@ -428,7 +593,7 @@ export default function ContactForm() {
                     disabled={isLoading}
                     className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
                   >
-                    {isLoading ? 'Sending...' : 'Get My Quote'}
+                    {isLoading ? 'Sending...' : 'Submit Project Details'}
                     {!isLoading && <Send className="w-5 h-5" />}
                   </button>
                 </div>
@@ -447,7 +612,9 @@ export default function ContactForm() {
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Phone</p>
-                    <a href="tel:43531953311" className="text-emerald-600 hover:text-emerald-700 font-medium">43531953311</a>
+                    <a href="tel:+14353195331" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                      (435) 319-5331
+                    </a>
                   </div>
                 </div>
 

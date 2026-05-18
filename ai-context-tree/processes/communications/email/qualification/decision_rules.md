@@ -63,6 +63,7 @@ Choose `missing_fields` when:
 - contactability is acceptable,
 - the inquiry is relevant,
 - but required project or identity context is too weak.
+- or one or more unanswered items from the ordered qualification discovery structure still block a normal next step.
 - or the newest reply introduces contradictions or ambiguity that can be resolved with one or more targeted clarification questions.
 
 This is a common outcome for entities first opened from `Fresh`.
@@ -97,6 +98,7 @@ Choose `qualified` when:
 
 - the lead is contactable,
 - the project is in scope,
+- the ordered qualification discovery structure is substantially answered,
 - the available information is sufficient for normal follow-up,
 - any material contradictions in the lead record have been resolved enough to continue without guessing,
 - no narrower exception branch better explains the case.

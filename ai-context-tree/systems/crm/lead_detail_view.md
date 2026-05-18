@@ -27,6 +27,9 @@ Observed UI:
 - opening that dropdown should reveal the remaining available statuses for reassignment
 - lower sections of the drawer may require scrolling before all fields and history become visible
 - the email action is triggered from the email icon next to the lead's email field
+- the SMS/text action is triggered from the `chat` icon next to the lead's phone field
+- the `phone` icon next to the phone field opens the call widget, not the text widget
+- if the `chat` action fails because the page is stale or an old call widget is hanging around, refresh the browser page and reopen the lead before retrying text
 - comments can be added at the very bottom of the lead
 
 ## Checklist
@@ -65,6 +68,8 @@ Document the exact CRM screen regions or tabs here:
 - expandable history entries: entries in the history area can usually be expanded to reveal additional context
 - comment entry point: very bottom of the lead; use the comment control there when a manual comment is needed
 - email composer entry point: email icon next to the lead's email field; this opens the email tool near the bottom-middle of the screen
+- text composer entry point: `chat` icon next to the lead's phone field; do not use the adjacent `phone` icon
+- call-widget warning: a `twilio-phone-ca` panel with `Ready`, `Mute`, `Keypad`, `call`, or `Disconnected` is the call widget and does not satisfy text outreach
 - attachments location: `TODO`
 - custom fields section: `TODO`
 
@@ -125,6 +130,8 @@ After reviewing a lead, the agent should be able to answer:
 - whether the status should change
 
 For the main qualification loop from `Fresh`, see [../../processes/communications/email/qualification/fresh_queue_workflow.md](../../processes/communications/email/qualification/fresh_queue_workflow.md).
+
+For CRM text outreach, see [send_text.md](send_text.md).
 
 ## Escalation Rules
 

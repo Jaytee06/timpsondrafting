@@ -33,22 +33,40 @@ The current frontend and adjacent systems may provide:
 
 Later qualification or follow-up may also introduce:
 
+- `project_priorities`
+- `prior_process_experience`
+- `land_status`
+- `builder_status`
 - `square_footage`
-- `project_location`
+- `budget_range`
+- `biggest_concern`
+- `plans_ready_goal`
+- `project_city`
+- `project_state`
 - `project_stage`
 - `timeline`
-- `existing_plans_or_files`
+- `files`
+- `additional_notes`
 - `communication_preference`
 
 ## Operational Meaning
 
-A lead should answer, at minimum:
+For a lead to be considered fully qualified, the system should be able to answer:
 
 - who is asking,
 - how they can be contacted,
 - what project they are asking about,
+- what matters most to them in the project,
+- whether this is their first time through the process or not,
+- whether land is secured yet,
+- whether a builder is already involved,
+- roughly how large the project should be,
+- whether they have a budget range in mind,
+- what they most want to get right,
+- when they would ideally like plans ready,
+- anything else they want the team to know before starting,
 - whether text outreach is permitted,
-- what communication channel they prefer for next steps,
+- what communication channel they prefer for next steps, if already known,
 - what attribution context accompanied the submission.
 
 ## Validation Notes

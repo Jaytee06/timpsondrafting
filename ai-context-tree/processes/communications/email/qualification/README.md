@@ -50,7 +50,7 @@ Examples:
 - invalid email plus otherwise good data usually goes to `invalid_email`.
 - usable email but weak project detail usually goes to `missing_fields`.
 - no email response after allowed attempts goes to `no_response`.
-- strong information and usable contact method goes to `qualified`.
+- usable contact data plus substantially answered ordered discovery questions goes to `qualified`.
 
 ## Routing Guidance
 
@@ -65,5 +65,7 @@ If neither usable email nor usable phone exists, leave a concise CRM comment doc
 Descend into `branches/` when handling one specific outcome.
 
 Descend into `service_specific/` when the lead is already classifiable, but the next question set depends on the service type, such as a home addition lead that needs addition-specific scope details.
+
+Keep the shared qualification threshold aligned with the ordered discovery structure in [post_contact_required_fields.md](post_contact_required_fields.md). Do not mark a lead `qualified` just because a few scope details are present if the ordered discovery sequence is still mostly unanswered.
 
 Escalate upward if the change would affect non-email qualification logic too.

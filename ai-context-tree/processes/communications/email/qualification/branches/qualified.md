@@ -13,7 +13,8 @@ The lead is in scope, contactable, and sufficiently detailed for normal follow-u
 - real person or business identifier,
 - usable email or alternate contact path,
 - clear project type or understandable project description,
-- enough scope detail to continue without guessing.
+- enough scope detail to continue without guessing,
+- the ordered qualification discovery questions have been answered substantially enough to continue normal follow-up.
 
 ## Local Objective
 
