@@ -75,9 +75,14 @@ For each entity, the agent should ask:
    - If the lead is missing service-specific scope details for a known project type, use the matching service-specific follow-up reference before drafting the message.
 17. If the lead is real and responsive but still blocked by one or more unresolved questions, keep working the clarification loop rather than treating the case as done.
 18. If communication preference is not known and the lead is progressing, ask for it when appropriate.
-19. Move the entity into the correct next `workspace_status`.
-20. Under `Test Scenario 1`, after the developer test email has been sent, return to the remaining `Fresh` rows and clear obvious spam or testing data into `lost_na`.
-21. Leave enough history or notes that the next worker does not need to reconstruct the decision.
+19. Preserve qualification facts that do not have a clear CRM field.
+   - Save visible CRM fields first when they exist, such as `Project City`, `Project State`, or `Timeline`.
+   - Then switch the activity area back to `Comments` and add a succinct delta comment for new facts that live only in the latest conversation, such as budget range, project priorities, biggest concern, constraints, decision-maker context, files availability, or preferred communication channel.
+   - Do not re-summarize facts already captured in earlier comments unless the latest reply corrects, contradicts, or materially updates them.
+   - Also comment the current remaining blocker when the agent sends a targeted follow-up, focusing on what changed and what still blocks qualification.
+20. Move the entity into the correct next `workspace_status`.
+21. Under `Test Scenario 1`, after the developer test email has been sent, return to the remaining `Fresh` rows and clear obvious spam or testing data into `lost_na`.
+22. Leave enough history or notes that the next worker does not need to reconstruct the decision.
 
 ## Test Scenario 1
 
@@ -109,7 +114,7 @@ If a message is short, awkward, or poorly written but still appears to request d
 
 Do not add a separate comment for routine status changes alone. The CRM activity log already captures those changes.
 
-Add a comment at the very bottom of the lead only when extra context is useful.
+Add a comment at the very bottom of the lead when extra context is useful or when qualification facts are not represented by editable lead fields.
 
 This is especially useful when moving a lead to `lost_na` or when no usable email or phone exists.
 
@@ -117,11 +122,15 @@ Minimum comment content:
 
 - what specific signal caused a move to `lost_na`, if applicable
 - what contact problem prevents normal follow-up, if applicable
+- newly learned qualification facts that do not have dedicated visible fields, if applicable
+- the remaining qualification or estimate-readiness blocker, if applicable
 - what the next worker should know without re-reading the entire record
 
 Keep the comment brief and operational.
 
-- one short sentence is preferred
+- one or two short sentences are preferred
+- write the comment as an update from the latest event, not a full lead recap
+- omit older comment highlights unless they are newly changed or needed to explain the next action
 - avoid spilling unnecessary detail into the comment
 
 ## Common Outcomes From Fresh
@@ -160,6 +169,19 @@ For `Contacted` leads:
 6. Determine who last replied.
 7. If the client replied with the information that was requested, use that reply to continue qualification and update the lead accordingly.
 8. If the last message was from the business and the client has not replied yet, keep the lead aligned with the waiting state rather than pretending new qualification data arrived.
+9. If the client replied with only part of the qualification sequence, ask only for the next highest-value missing field instead of restarting the full question set.
+10. After extracting the reply, switch the activity area back to `Comments` and add a succinct qualification comment when the reply contains new facts not saved into visible CRM fields.
+11. Prefer a narrow follow-up that advances estimate-readiness with minimal friction.
+12. After sending that follow-up, add or update a succinct comment with only the new facts from this pass and the specific remaining blocker unless the visible fields and conversation history already make the next action obvious.
+
+Typical ordering after a real reply:
+
+1. extract what the lead already answered
+2. map those answers into the canonical qualification fields
+3. identify the next most important missing field
+4. send one concise follow-up focused on that field
+5. switch back to `Comments` and preserve any no-field facts plus the remaining blocker
+6. keep the lead in `Contacted` until the documented threshold for `qualified` is met
 
 ## Suggested Additional Branches
 

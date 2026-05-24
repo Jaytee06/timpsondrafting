@@ -79,6 +79,27 @@ If the CRM uses different labels than the docs, preserve both:
 
 If the CRM has no dedicated field for one of the ordered qualification answers, preserve that answer in notes, comments, or the communication history summary rather than dropping it from the qualification record.
 
+Operational rule:
+
+- Prefer structured visible fields when a clear field exists.
+- Use CRM comments for qualification answers or estimate-readiness facts that have no clear field.
+- When both exist, save the structured field and comment only the additional context that the field cannot express.
+- Comments should be written after reviewing the latest conversation and after saving any field updates.
+- A comment should let the next qualification worker or estimator understand what changed in the latest pass without rereading the full conversation thread.
+- Comments should be succint and well organized.
+
+Common no-field or context-heavy facts to preserve in comments:
+
+- budget range,
+- what matters most / design priorities,
+- biggest concern,
+- additional notes,
+- preferred communication channel,
+- whether the requester is the homeowner, builder, contractor, or another decision-maker,
+- site, permitting, HOA, utility, access, slope, zoning, or jurisdiction constraints,
+- file, sketch, plan, photo, survey, or inspiration availability,
+- any ambiguity, contradiction, correction, joke, or informal answer that needs normalization.
+
 ## Escalation Rules
 
 - a required business field has no CRM equivalent

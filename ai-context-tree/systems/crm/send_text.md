@@ -69,6 +69,17 @@ Document the exact UI steps here:
 11. Confirm the sent text appears in the CRM conversation/activity history.
 12. Update notes or status only if the workflow requires it and the send is verified.
 
+## CRM Verification Notes
+
+For text verification:
+
+- use the lead drawer `Activity` area
+- set `Show activity type` to `Conversations`
+- inspect the newest SMS/text conversation entry
+- prefer exact visible message content over row-level icons or timing badges
+
+If the call widget was opened by mistake, do not treat that as communication history. Close it, refresh, reopen the lead, and retry the `chat` action only once.
+
 ## Retry Rule
 
 If the text widget does not open or the call widget opens instead:

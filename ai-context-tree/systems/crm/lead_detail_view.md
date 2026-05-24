@@ -16,6 +16,7 @@ Current known behavior:
 2. Click the row.
 3. Review the full entity structure in the opened detail view (currently a right-side drawer).
 4. In the drawer's `activity` area, switch to `Communication` before reviewing message history.
+5. If the lead is in `Contacted`, set `Show activity type` to `Conversations` before deciding who last replied.
 
 The opened entity should expose editable fields rather than a read-only summary.
 
@@ -31,6 +32,21 @@ Observed UI:
 - the `phone` icon next to the phone field opens the call widget, not the text widget
 - if the `chat` action fails because the page is stale or an old call widget is hanging around, refresh the browser page and reopen the lead before retrying text
 - comments can be added at the very bottom of the lead
+- to add a lead comment after reviewing conversations, switch the activity dropdown back from `Conversations` or `Communication` to `Comments`, use the comment editor at the bottom of the drawer, then post the comment
+
+## Recovery Sequence
+
+If the drawer is stale, the wrong widget is open, or the visible UI no longer matches the intended action:
+
+1. Refresh the CRM browser page.
+2. Reopen the same lead by stable identifiers such as phone number and email.
+3. Reconfirm the current `workspace_status`.
+4. Scroll back through the entity fields before deciding anything is missing.
+5. Return to the `activity` area.
+6. Set `Show activity type` to `Conversations` when reply review or send verification matters.
+7. Expand the newest relevant conversation entry before deciding the next action.
+
+Use this recovery sequence instead of guessing from a partially stale drawer state.
 
 ## Checklist
 
@@ -79,6 +95,8 @@ Treat the `activity` section as the running log of the entity.
 
 When message history matters, switch the `activity` area to `Communication` and treat that communication history as the primary evidence for outbound attempts and lead replies.
 
+When the agent has finished reading a meaningful reply or sending a qualification follow-up, switch the `activity` area back to `Comments` before leaving the lead if any qualification facts need to be preserved outside dedicated fields.
+
 The newest meaningful communication event controls the next decision. If a newer inbound reply exists, do not justify the current state from an older outbound message alone.
 
 Use it to confirm:
@@ -102,21 +120,45 @@ Also review the communication and activity history controls near the bottom of t
 - determine who last sent the conversation message before choosing the next action
 - if the client replied with requested details, use that information to continue qualification
 
+## Verification Hierarchy
+
+When CRM evidence is mixed, use the strongest available source first:
+
+1. strongest: expanded `Conversations` entries in the activity timeline that show exact outbound or inbound content
+2. medium: collapsed conversation summaries that still show channel, timestamp, recipient, sender, or unread count
+3. weaker: row-level `mail_outline`, `send`, `arrow_back`, `arrow_forward`, or unread badges in the pipeline table
+4. weakest: composer close behavior alone or assumptions based on a clicked send button
+
+Do not treat row icons alone as sufficient proof of the actual reviewed message content when a stronger conversation view is available.
+
 Comments can be added at the very bottom of the lead.
 
 Do not add a separate comment for routine status changes alone. The CRM activity log already captures status changes.
 
-Use a manual comment mainly when extra human context is useful, especially when moving a lead to `lost_na`.
+Use a manual comment when extra human context is useful, especially when moving a lead to `lost_na`, or when the lead gives qualification/estimate-readiness information that does not map cleanly to visible lead fields.
+
+After each meaningful inbound response and after each agent follow-up that advances qualification, add a succinct comment when one or more of these are true:
+
+- the lead supplied an ordered qualification answer with no dedicated CRM field,
+- the lead supplied estimate-readiness context such as budget, design priorities, constraints, decision-maker status, files availability, permitting/site concerns, or communication preference,
+- the agent asked a next-step question and the next worker needs to know what remains unresolved without rereading the full conversation,
+- the reply contains a joke, contradiction, correction, or informal wording that should be normalized for operational use.
+
+Do not duplicate values that were just saved into visible CRM fields unless the comment needs to connect those fields to broader estimate context.
+
+Do not re-summarize earlier CRM comments. Treat each new comment as a concise update from the latest meaningful event: what changed, what was newly learned, and what remains to do. Repeat prior facts only when the new reply changes, contradicts, or depends on them.
 
 Keep comments concise:
 
-- one short sentence is usually enough
-- include the decision and the reason
+- one or two short sentences are usually enough
+- include newly learned facts and the remaining blocker or next action
 - avoid repeating the full lead history or copying large parts of the description
 
 Suggested comment pattern:
 
 - `Marked lost_na due to obvious spam/testing data: [short reason].`
+- `Qualification update: [new or changed facts]. Remaining before estimate: [missing item or next action].`
+- `Reply summary: [normalized lead answer]. Asked next for [specific missing field/question].`
 
 ## Decision Output
 

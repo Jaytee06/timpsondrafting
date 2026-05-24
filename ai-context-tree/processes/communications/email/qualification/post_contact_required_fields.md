@@ -19,6 +19,7 @@ Use this node after the lead has moved beyond raw intake and the next goal is to
 - current communication channel
 - prior responses from the lead
 - any contradictions between older stored fields and the newest lead reply
+- latest CRM comment summary when visible fields do not contain all qualification answers
 
 ## Required Post-Contact Fields
 
@@ -65,6 +66,37 @@ If the lead answers with a clear `not yet`, `still figuring that out`, `first ti
 If the service type is known and requires more detailed scoping, descend into a service-specific follow-up node before treating the lead as fully qualified.
 
 If the newest lead reply contradicts older stored lead data, do not treat the contradiction itself as a stopping condition. Resolve it through a narrower clarification question before escalating to human review.
+
+## Comment Preservation Requirement
+
+Some qualification answers do not have dedicated CRM fields. Do not drop those answers just because they cannot be saved into the lead form.
+
+After each meaningful lead response, preserve no-field answers in a succinct CRM comment after saving any visible fields that do exist. Switch the lead activity area back to `Comments`, then post a delta-oriented operational update that captures only what is new, changed, or still blocking from the latest exchange:
+
+- newly learned qualification facts,
+- facts relevant to estimate readiness,
+- any remaining blocker or next question,
+- any normalized interpretation of informal, joking, contradictory, or corrected language.
+
+Do not re-summarize older comment highlights or restate the full lead history. Older comments remain part of the CRM record. Repeat an older fact only when the newest reply changes it, contradicts it, or makes it necessary to explain the current qualification decision.
+
+Examples of facts that usually need comment preservation unless a visible CRM field exists:
+
+- `budget_range`,
+- `project_priorities`,
+- `biggest_concern`,
+- `additional_notes`,
+- communication preference,
+- decision-maker or homeowner/contractor role,
+- file/sketch/photo availability,
+- site, permitting, HOA, utility, slope, access, or other constraints,
+- estimate-readiness judgment.
+
+Preferred comment shape:
+
+`Qualification update: [new or changed facts]. Remaining before estimate: [missing item or next action].`
+
+If the agent sends a follow-up because the reply is still incomplete, the comment should state the question just asked and why it matters. If the lead becomes qualified, the comment should state the newest facts that changed the qualification decision and any caveat the estimator should know, without replaying older summaries.
 
 Current service-specific reference:
 

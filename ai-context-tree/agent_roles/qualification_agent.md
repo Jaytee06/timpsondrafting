@@ -95,6 +95,7 @@ The Qualification Agent may not:
    - Use the history-type dropdown to inspect the available history categories.
    - Expand individual entries when more context is available.
    - For `Contacted` leads, switch `Show activity type` to `Conversations`.
+   - If the drawer seems stale, the wrong widget is open, or the controls no longer match the intended action, refresh the page, reopen the same lead, and re-enter the `activity` area before continuing.
 8. Identify the newest meaningful outbound message and the newest meaningful inbound message, including their timestamps and channels.
 9. If a newer inbound reply exists, digest that reply before making any status or follow-up decision.
 10. Extract any newly learned lead facts from the reply and treat them as current evidence for qualification.
@@ -104,6 +105,7 @@ The Qualification Agent may not:
    - Treat explicit answers such as `first time`, `no builder yet`, or `still figuring out land` as valid qualification evidence rather than missing data.
 12. If the reply leaves contradictions, ambiguities, or missing discovery answers, send a targeted clarification request instead of pausing the lead or assuming a human must immediately take over.
 13. If the lead has already given substantive new information, do not use a generic `no_response` template. Ask only for the specific mismatch or remaining blocking fields.
+   - Prefer one narrow follow-up question over a broad restart of the full discovery sequence.
 14. Use the newest meaningful communication event rather than an older outbound message as the primary timing reference.
 15. If the lead is obvious spam, solicitation, or otherwise non-actionable, do not run the normal qualification loop.
    Move it to `Lost - N/A` / `lost_na` unless a more specific non-actionable path is documented later.
@@ -114,11 +116,18 @@ The Qualification Agent may not:
 17. Descend to the narrowest process node that owns the decision.
 18. Choose the branch that best explains the next action.
 19. Ask for the next unanswered discovery question or communication preference when the documented threshold is met.
-20. Before sending, verify that the final subject and body are professional, complete, and free of placeholder or junk text.
-21. If send verification fails, attempt at most one clean retry.
-22. If CRM evidence and external evidence disagree, report a verification conflict instead of claiming no send occurred.
-23. Move the entity into the correct next `workspace_status`.
-24. Escalate if the decision would change a shared contract, if the composer cannot reliably preserve the reviewed message, if verification remains conflicted after one clean retry, or if normal clarification work has been exhausted and real human judgment is now required.
+20. Preserve no-field qualification facts in CRM comments.
+   - Save visible structured fields first when clear fields exist and are empty, or are corrected/clarified in the communication.
+   - If the latest reply includes new budget, priorities, biggest concern, additional notes, site constraints, decision-maker context, file availability, preferred channel, or estimate-readiness context that has no dedicated visible field, switch the activity area back to `Comments` and add a succinct delta comment.
+   - Do not re-summarize older comment highlights. Only repeat an older fact when the newest reply changes it, contradicts it, or the fact is needed to explain the current next action.
+   - If the agent sends a follow-up because qualification is still incomplete, comment the specific new information learned and the remaining blocker.
+   - Do not add comments for routine status changes alone.
+21. Before sending, verify that the final subject and body are professional, complete, and free of placeholder or junk text.
+22. If send verification fails, attempt at most one clean retry.
+23. If CRM evidence and external evidence disagree, report a verification conflict instead of claiming no send occurred.
+   - Prefer the expanded `Conversations` timeline over row-level icons when deciding whether the intended message actually sent or the lead actually replied.
+24. Move the entity into the correct next `workspace_status`.
+25. Escalate if the decision would change a shared contract, if the composer cannot reliably preserve the reviewed message, if verification remains conflicted after one clean retry, or if normal clarification work has been exhausted and real human judgment is now required.
 
 ## Exit Criteria
 
