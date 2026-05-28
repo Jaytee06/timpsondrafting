@@ -262,6 +262,10 @@ export default function ContactForm() {
         window.gtag('event', 'conversion', {
           send_to: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
         });
+        window.gtag('event', 'generate_lead', {
+          send_to: 'G-BXQTF3KH70',
+          method: 'contact_form',
+        });
       }
 
 
