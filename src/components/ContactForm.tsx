@@ -82,6 +82,18 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
   return '';
 };
 
+const fireLeadTrackingEvents = () => {
+  if (typeof window.gtag !== 'function') return;
+
+  window.gtag('event', 'conversion', {
+    send_to: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
+  });
+  window.gtag('event', 'generate_lead', {
+    send_to: 'G-BXQTF3KH70',
+    method: 'contact_form',
+  });
+};
+
 const readTrackingParams = (): TrackingParams => {
   if (typeof window === 'undefined') return EMPTY_TRACKING_PARAMS;
 
@@ -257,17 +269,7 @@ export default function ContactForm() {
         throw new Error('Failed to submit form');
       }
 
-      // Google Ads Conversion Tracking
-      if (typeof window.gtag === 'function') {
-        window.gtag('event', 'conversion', {
-          send_to: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
-        });
-        window.gtag('event', 'generate_lead', {
-          send_to: 'G-BXQTF3KH70',
-          method: 'contact_form',
-        });
-      }
-
+      fireLeadTrackingEvents();
 
       setSubmitted(true);
       setFormData(INITIAL_FORM_DATA);
@@ -287,10 +289,10 @@ export default function ContactForm() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, type, value, checked } = e.target;
+    const { name, type, value } = e.target;
     setFormData((current) => ({
       ...current,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
