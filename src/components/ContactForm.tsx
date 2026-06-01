@@ -43,6 +43,56 @@ const TIMELINE_OPTIONS = [
 
 const CRM_FILE_UPLOAD_KEY = 'files';
 
+type SitelinkPrefill = {
+  heading: string;
+  description: string;
+  detail: string;
+  projectType?: (typeof PROJECT_TYPE_OPTIONS)[number];
+  timeline?: (typeof TIMELINE_OPTIONS)[number];
+};
+
+const TYPE_PREFILLS: Record<string, SitelinkPrefill> = {
+  custom: {
+    heading: 'Custom Home Design',
+    description: 'Turn your vision into expert plans.',
+    detail: 'Full 3D residential design docs.',
+    projectType: 'Build a custom home',
+  },
+  modify: {
+    heading: 'Modify Existing Plans',
+    description: 'Need changes to a stock plan?',
+    detail: 'Professional edits for permit prep.',
+    projectType: 'Modify an existing plan',
+  },
+  addition: {
+    heading: 'Home Addition Drafting',
+    description: 'Expand your home with expert plans.',
+    detail: 'Designs for additions and remodels.',
+    projectType: 'Addition or remodel',
+  },
+  'not-sure': {
+    heading: 'Need Design Guidance?',
+    description: 'Expert advice for your home vision.',
+    detail: 'Map out your project with a pro.',
+    projectType: "Not sure - I'd like some guidance",
+  },
+};
+
+const TIMELINE_PREFILLS: Record<string, SitelinkPrefill> = {
+  asap: {
+    heading: 'Start Your Project ASAP',
+    description: 'Fast-track your permit-ready docs.',
+    detail: 'Reliable plans for urgent projects.',
+    timeline: 'As soon as possible',
+  },
+  exploring: {
+    heading: 'Explore Design Options',
+    description: 'In the early research phase?',
+    detail: 'Get inspired and plan your dream.',
+    timeline: 'No rush / just exploring',
+  },
+};
+
 type ContactFormState = {
   name: string;
   phone: string;
@@ -67,6 +117,38 @@ const INITIAL_FORM_DATA: ContactFormState = {
   description: '',
   consent: false,
   website: '',
+};
+
+const getSitelinkPrefill = () => {
+  if (typeof window === 'undefined') return null;
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const href = window.location.href.toLowerCase();
+  const type = searchParams.get('type')?.trim().toLowerCase();
+  const timeline = searchParams.get('timeline')?.trim().toLowerCase();
+
+  if (type && TYPE_PREFILLS[type]) return TYPE_PREFILLS[type];
+  if (timeline && TIMELINE_PREFILLS[timeline]) return TIMELINE_PREFILLS[timeline];
+
+  for (const [key, prefill] of Object.entries(TYPE_PREFILLS)) {
+    if (href.includes(`type=${key}`)) return prefill;
+  }
+
+  for (const [key, prefill] of Object.entries(TIMELINE_PREFILLS)) {
+    if (href.includes(`timeline=${key}`)) return prefill;
+  }
+
+  return null;
+};
+
+const getInitialFormData = (): ContactFormState => {
+  const sitelinkPrefill = getSitelinkPrefill();
+
+  return {
+    ...INITIAL_FORM_DATA,
+    projectType: sitelinkPrefill?.projectType || '',
+    timeline: sitelinkPrefill?.timeline || '',
+  };
 };
 
 const getOptionCardClass = (selected: boolean) =>
@@ -155,7 +237,8 @@ const readTrackingParams = (): TrackingParams => {
 };
 
 export default function ContactForm() {
-  const [formData, setFormData] = useState<ContactFormState>(INITIAL_FORM_DATA);
+  const [sitelinkPrefill] = useState<SitelinkPrefill | null>(() => getSitelinkPrefill());
+  const [formData, setFormData] = useState<ContactFormState>(() => getInitialFormData());
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
 
   const [submitted, setSubmitted] = useState(false);
@@ -277,7 +360,7 @@ export default function ContactForm() {
       fireLeadTrackingEvents();
 
       setSubmitted(true);
-      setFormData(INITIAL_FORM_DATA);
+      setFormData(getInitialFormData());
       setFiles(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -301,16 +384,20 @@ export default function ContactForm() {
     }));
   };
 
+  const heading = sitelinkPrefill?.heading || 'Tell Us About Your Project';
+  const description = sitelinkPrefill
+    ? `${sitelinkPrefill.description} ${sitelinkPrefill.detail}`
+    : 'Share a few details and any reference files you have. We\'ll follow up with next steps.';
+
   return (
     <section id="contact" className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-            Tell Us About Your Project
+            {heading}
           </h2>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-            Share a few details and any reference files you have. We&apos;ll follow up with next
-            steps.
+            {description}
           </p>
         </div>
 
