@@ -3,6 +3,8 @@ import { Send, CheckCircle2, Mail, Phone, MapPin } from 'lucide-react';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
+const GA4_MEASUREMENT_ID = 'G-BXQTF3KH70';
+const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
 
 type TrackingParams = {
   keyword: string;
@@ -85,11 +87,14 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
 const fireLeadTrackingEvents = () => {
   if (typeof window.gtag !== 'function') return;
 
+  // Google Ads conversion. This needs the Ads conversion label.
   window.gtag('event', 'conversion', {
-    send_to: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
+    send_to: GOOGLE_ADS_CONVERSION_ID,
   });
+
+  // GA4 recommended event. Keep the destination explicit for Tag Assistant visibility.
   window.gtag('event', 'generate_lead', {
-    send_to: 'G-BXQTF3KH70',
+    send_to: GA4_MEASUREMENT_ID,
     method: 'contact_form',
   });
 };
