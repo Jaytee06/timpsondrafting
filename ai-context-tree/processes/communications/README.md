@@ -8,6 +8,10 @@ Process domain.
 
 This node owns outbound and inbound communication behavior after a lead exists.
 
+Primary role: [../../agent_roles/qualification_agent.md](../../agent_roles/qualification_agent.md).
+
+Primary system branch: [../../systems/crm/](../../systems/crm/README.md).
+
 ## Responsibilities
 
 This domain is responsible for:
@@ -43,8 +47,8 @@ Current routing rule:
 
 ## Child Nodes
 
-- `email/`: email-specific operating rules and qualification workflow.
-- `text/`: text-message-specific operating rules and fallback behavior.
+- [email/](email/README.md): email-specific operating rules and qualification workflow.
+- [text/](text/README.md): text-message-specific operating rules and fallback behavior.
 
 ## Routing Guidance
 

@@ -8,6 +8,10 @@ System runbook root.
 
 This subtree documents how an agent should operate the CRM user interface and related workspace actions.
 
+Primary role: [../../agent_roles/qualification_agent.md](../../agent_roles/qualification_agent.md).
+
+Primary process branch: [../../processes/communications/](../../processes/communications/README.md).
+
 Primary operating mode:
 
 - use browser navigation and browser interaction against the CRM UI
@@ -51,16 +55,16 @@ Use this subtree when the task requires browser or desktop-level interaction wit
 
 ## Child Nodes
 
-- `navigation.md`
-- `auth_and_permissions.md`
-- `lead_pipelines.md`
-- `field_map.md`
-- `leads_inbox.md`
-- `lead_detail_view.md`
-- `send_email.md`
-- `send_text.md`
-- `update_workspace_status.md`
-- `troubleshooting.md`
+- [navigation.md](navigation.md)
+- [auth_and_permissions.md](auth_and_permissions.md)
+- [lead_pipelines.md](lead_pipelines.md)
+- [field_map.md](field_map.md)
+- [leads_inbox.md](leads_inbox.md)
+- [lead_detail_view.md](lead_detail_view.md)
+- [send_email.md](send_email.md)
+- [send_text.md](send_text.md)
+- [update_workspace_status.md](update_workspace_status.md)
+- [troubleshooting.md](troubleshooting.md)
 
 ## Routing Guidance
 

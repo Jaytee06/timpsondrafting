@@ -16,10 +16,10 @@ Root context node.
 - Start with [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md) for the global map.
 - Read [STATE_MACHINE.md](STATE_MACHINE.md) for the lead lifecycle.
 - Read [SKILLS_INDEX.md](SKILLS_INDEX.md) for available skills, tools, and escalation rules.
-- Descend into `entities/` when you need domain definitions.
-- Descend into `processes/` when you need workflow rules.
-- Descend into `systems/` when you need browser or software operation runbooks.
-- Descend into `agent_roles/` when you need role-specific operating guidance.
+- Descend into [entities/](entities/README.md) when you need domain definitions.
+- Descend into [processes/](processes/README.md) when you need workflow rules.
+- Descend into [systems/](systems/README.md) when you need browser or software operation runbooks.
+- Descend into [agent_roles/](agent_roles/README.md) when you need role-specific operating guidance.
 
 Authentication and permission concepts should usually begin in `entities/system_user.md` and `systems/crm/auth_and_permissions.md`.
 
@@ -43,11 +43,14 @@ This tree is currently grounded in a small lead-generation system:
 - lightweight Google Analytics and Google Ads attribution capture,
 - a lead form with validation and anti-spam behavior,
 - submission into a custom CRM webhook,
-- optional legacy/serverless backend email-processing context.
+- optional legacy/serverless backend email-processing context,
+- a marketing optimization loop that compares Google Ads performance, competitor pressure, and landing page message fit.
 
 The system docs here are intentionally operational. They are not general theory docs. They are meant to help an agent act correctly inside this repo and adjacent intake workflows.
 
 For CRM qualification tasks, the agent should operate the CRM through browser navigation and UI interaction. Do not start or manage a development server unless a task explicitly says to do that.
+
+For Google Ads marketing tasks, start with [agent_roles/marketing_agent.md](agent_roles/marketing_agent.md), then route into [processes/marketing/](processes/marketing/README.md) for strategy and [systems/google_ads/](systems/google_ads/README.md) for account UI steps.
 
 ## Local Visualization
 

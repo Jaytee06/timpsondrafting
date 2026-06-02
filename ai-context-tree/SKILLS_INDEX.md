@@ -37,7 +37,8 @@ Use caution:
 - changing auth or permission assumptions,
 - modifying conversion tracking,
 - changing consent language,
-- altering lead qualification logic without updating state docs.
+- altering lead qualification logic without updating state docs,
+- changing paid-search budgets, bidding strategy, or conversion actions.
 
 ### Communications
 
@@ -53,6 +54,25 @@ Escalate if:
 - a change impacts compliance,
 - a change alters shared entity definitions,
 - a change affects cross-channel routing rules.
+
+### Marketing
+
+Allowed:
+
+- inspect Google Ads reports, exports, or authenticated UI when access is available,
+- summarize campaign performance deltas,
+- review search terms, search categories, and Auction Insights,
+- identify landing page and SEO opportunities,
+- update local marketing strategy docs,
+- draft ad copy, negative keywords, keyword expansions, and landing page copy ideas,
+- implement landing page copy changes when explicitly requested and within verified service scope.
+
+Escalate if:
+
+- a requested action changes budget, billing, bidding strategy, conversion tracking, account access, or campaign structure,
+- the agent lacks data needed to support a performance claim,
+- a landing page claim requires business, legal, licensing, pricing, or timeline confirmation,
+- paid-search metrics conflict with CRM lead quality or sales feedback.
 
 ## Available Session Skills
 
@@ -87,6 +107,13 @@ For CRM qualification work, prefer browser navigation and browser interfacing sk
 
 Do not assume the agent should start or manage infrastructure as part of normal CRM work. The default assumption is that the browser should be pointed at `app.timpsondrafting.com` and the task should be completed through the UI.
 
+For Google Ads work, prefer authenticated Google Ads UI access or explicit exports. If neither is available, request the specific data described in `processes/marketing/google_ads_data_contract.md` and avoid guessing.
+
+Role-specific routing:
+
+- CRM qualification work should start with [agent_roles/qualification_agent.md](agent_roles/qualification_agent.md).
+- Google Ads and landing page optimization work should start with [agent_roles/marketing_agent.md](agent_roles/marketing_agent.md).
+
 Likely reusable CRM skills include:
 
 - field inspection: identify which entity fields exist, which are qualification-relevant, and which are marketing-only context
@@ -96,3 +123,5 @@ Likely reusable CRM skills include:
 Use a skill when the workflow is repetitive, fragile, or benefits from reusable bundled instructions or scripts.
 
 A future CRM skill would likely use `systems/crm/` as its primary reference subtree once the UI details are fully documented and stable.
+
+A future marketing skill would likely use `agent_roles/marketing_agent.md`, `processes/marketing/weekly_probe.md`, and `systems/google_ads/weekly_probe_runbook.md` as its primary reference set.
