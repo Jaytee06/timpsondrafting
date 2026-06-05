@@ -95,10 +95,10 @@ export default function PrivacyPolicy() {
               or
               {' '}
               <a
-                href="tel:4353193311"
+                href="tel:+14353195331"
                 className="font-medium text-emerald-700 hover:text-emerald-800"
               >
-                435-319-3311
+                (435) 319-5331
               </a>
               .
             </p>

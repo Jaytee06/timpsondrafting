@@ -71,7 +71,9 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
                 <Phone className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <span className="text-slate-400">43531953311</span>
+                <a href="tel:+14353195331" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  (435) 319-5331
+                </a>
               </li>
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -79,7 +81,14 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <span className="text-slate-400">Serving the local area</span>
+                <a
+                  href="https://maps.google.com/?q=10+Central+St+Suite+205,+Colorado+City,+AZ+86021"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-400 hover:text-emerald-400 transition-colors"
+                >
+                  10 Central St Suite 205<br />Colorado City, AZ 86021
+                </a>
               </li>
             </ul>
           </div>

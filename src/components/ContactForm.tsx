@@ -5,6 +5,8 @@ const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
 const GA4_MEASUREMENT_ID = 'G-BXQTF3KH70';
 const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
+const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
+const CRM_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_WEBHOOK_API_KEY;
 
 type TrackingParams = {
   keyword: string;
@@ -346,9 +348,14 @@ export default function ContactForm() {
         }
       }
 
-      const API_ENDPOINT = 'https://app.timpsondrafting.com/api/webhooks/event?apiKey=U2FsdGVkX1%2BReFsivY3REPgy9sV4HxDF7kjb91a9tdJ2a2IjPueKPkWqtKmQYcE0OBaIAwC91d4bH%2FOoHc71rw%3D%3D';
+      if (!CRM_WEBHOOK_URL || !CRM_WEBHOOK_API_KEY) {
+        throw new Error('Missing CRM webhook configuration');
+      }
 
-      const response = await fetch(API_ENDPOINT, {
+      const apiEndpoint = new URL(CRM_WEBHOOK_URL);
+      apiEndpoint.searchParams.set('apiKey', CRM_WEBHOOK_API_KEY);
+
+      const response = await fetch(apiEndpoint.toString(), {
         method: 'POST',
         body: data,
       });
