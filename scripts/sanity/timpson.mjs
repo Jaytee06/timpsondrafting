@@ -10,7 +10,7 @@ const CONFIG = {
   webhookApiKeyEnv: 'VITE_CRM_WEBHOOK_API_KEY',
   updateWebhookApiKeyEnv: 'VITE_CRM_UPDATE_WEBHOOK_API_KEY',
   webhookDryRunEnv: 'VITE_CRM_WEBHOOK_DRY_RUN',
-  expectedWebhookUrl: 'http://app.timpsondrafting.com/api/webhooks/event',
+  expectedWebhookUrl: 'https://app.timpsondrafting.com/api/webhooks/event',
   testLeadId: '6a1deb6701670f0ab73a56d3',
   testExternalId: 'timpson-sanity-test-001',
   ga4MeasurementId: 'G-BXQTF3KH70',
@@ -273,9 +273,8 @@ async function runLiveApiCheck(env) {
   if (!apiKey) fail(`Missing ${CONFIG.webhookApiKeyEnv} in .env or .env.local`);
   if (!webhookUrl || !apiKey) return;
 
-  const normalizedWebhookUrl = webhookUrl.replace(/^https:\/\//, 'http://');
-  if (normalizedWebhookUrl !== CONFIG.expectedWebhookUrl) {
-    fail(`${CONFIG.webhookUrlEnv} expected ${CONFIG.expectedWebhookUrl} or https equivalent, got ${webhookUrl}`);
+  if (webhookUrl !== CONFIG.expectedWebhookUrl) {
+    fail(`${CONFIG.webhookUrlEnv} expected ${CONFIG.expectedWebhookUrl}, got ${webhookUrl}`);
     return;
   }
 

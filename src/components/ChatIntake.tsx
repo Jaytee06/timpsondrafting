@@ -255,7 +255,7 @@ export default function ChatIntake({
     }
 
     const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-    apiEndpoint.searchParams.set('apiKey', CRM_UPDATE_WEBHOOK_API_KEY);
+    apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_UPDATE_WEBHOOK_API_KEY));
 
     const data = new FormData();
     Object.entries({

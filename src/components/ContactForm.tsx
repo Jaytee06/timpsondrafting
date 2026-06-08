@@ -432,7 +432,7 @@ export default function ContactForm() {
       }
 
       const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-      apiEndpoint.searchParams.set('apiKey', CRM_WEBHOOK_API_KEY);
+      apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_WEBHOOK_API_KEY));
 
       if (CRM_WEBHOOK_DRY_RUN) {
         return '';
