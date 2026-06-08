@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { Send, CheckCircle2, Mail, Phone, MapPin } from 'lucide-react';
+import { Send, CheckCircle2, Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
+import ChatIntake from './ChatIntake';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
@@ -7,6 +8,7 @@ const GA4_MEASUREMENT_ID = 'G-BXQTF3KH70';
 const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
 const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
 const CRM_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_WEBHOOK_API_KEY;
+const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
 
 type TrackingParams = {
   keyword: string;
@@ -107,6 +109,23 @@ type ContactFormState = {
   consent: boolean;
   website: string;
 };
+
+type SubmittedLead = {
+  leadId: string;
+  formSnapshot: Record<string, string | boolean>;
+};
+
+type LeadDraft = {
+  crmId?: string;
+  fields: Record<string, string | boolean>;
+  fieldStatus: Record<string, 'empty' | 'provided'>;
+  missingRequiredFields: string[];
+};
+
+type FieldPatches = Partial<Pick<
+  ContactFormState,
+  'projectType' | 'projectCity' | 'projectState' | 'timeline' | 'description'
+>>;
 
 const INITIAL_FORM_DATA: ContactFormState = {
   name: '',
@@ -238,15 +257,125 @@ const readTrackingParams = (): TrackingParams => {
   return currentParams;
 };
 
+const buildFormSnapshot = (
+  formData: ContactFormState,
+  trackingParams: TrackingParams
+): Record<string, string | boolean> => ({
+  hasFullName: Boolean(formData.name.trim()),
+  hasEmail: Boolean(formData.email.trim()),
+  hasPhone: Boolean(formData.phone.trim()),
+  projectType: formData.projectType,
+  projectCity: formData.projectCity.trim(),
+  projectState: formData.projectState.trim(),
+  timeline: formData.timeline,
+  description: formData.description.trim(),
+  consentToText: formData.consent,
+  keyword: trackingParams.keyword,
+  gclid: trackingParams.gclid,
+  gbraid: trackingParams.gbraid,
+  wbraid: trackingParams.wbraid,
+  campaignid: trackingParams.campaignid,
+  utmSource: trackingParams.utmSource,
+  utmCampaign: trackingParams.utmCampaign,
+  utmTerm: trackingParams.utmTerm,
+  landingPageUrl: window.location.href,
+  referrer: document.referrer || '',
+});
+
+const getRequiredFieldErrors = (formData: ContactFormState) => {
+  const errors: Record<string, string> = {};
+  const digitsOnly = formData.phone.replace(/\D/g, '');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (formData.website) errors.website = 'Spam detected.';
+  if (formData.name.trim().length < 2) errors.name = 'Please enter your name.';
+  if (digitsOnly.length < 10) errors.phone = 'Please enter a valid phone number (at least 10 digits).';
+  if (!emailRegex.test(formData.email.trim())) errors.email = 'Please enter a valid email address.';
+  if (!formData.projectCity.trim()) errors.projectCity = 'Please enter your project city.';
+  if (!formData.projectState.trim()) errors.projectState = 'Please enter your project state.';
+  if (!formData.projectType) errors.projectType = 'Please select what you are looking to do.';
+  if (!formData.timeline) errors.timeline = 'Please select your timeline.';
+
+  return errors;
+};
+
+const getMissingRequiredFields = (formData: ContactFormState) =>
+  Object.keys(getRequiredFieldErrors(formData)).filter((field) => field !== 'website');
+
+const getFirstRequiredFieldError = (formData: ContactFormState) => {
+  const errors = getRequiredFieldErrors(formData);
+  return Object.values(errors).find(Boolean) || '';
+};
+
+const buildLeadDraft = (
+  formData: ContactFormState,
+  trackingParams: TrackingParams,
+  crmId?: string
+): LeadDraft => {
+  const fieldStatus = {
+    name: formData.name.trim() ? 'provided' : 'empty',
+    email: formData.email.trim() ? 'provided' : 'empty',
+    phone: formData.phone.trim() ? 'provided' : 'empty',
+    projectCity: formData.projectCity.trim() ? 'provided' : 'empty',
+    projectState: formData.projectState.trim() ? 'provided' : 'empty',
+    projectType: formData.projectType ? 'provided' : 'empty',
+    timeline: formData.timeline ? 'provided' : 'empty',
+    description: formData.description.trim() ? 'provided' : 'empty',
+    consent: formData.consent ? 'provided' : 'empty',
+  } satisfies LeadDraft['fieldStatus'];
+
+  return {
+    crmId,
+    fields: {
+      hasFullName: Boolean(formData.name.trim()),
+      hasEmail: Boolean(formData.email.trim()),
+      hasPhone: Boolean(formData.phone.trim()),
+      projectType: formData.projectType,
+      projectCity: formData.projectCity.trim(),
+      projectState: formData.projectState.trim(),
+      timeline: formData.timeline,
+      description: formData.description.trim(),
+      consentToText: formData.consent,
+      keyword: trackingParams.keyword,
+      campaignid: trackingParams.campaignid,
+    },
+    fieldStatus,
+    missingRequiredFields: getMissingRequiredFields(formData),
+  };
+};
+
+const readCrmLeadId = async (response: Response) => {
+  const text = await response.text();
+  if (!text.trim()) return '';
+
+  try {
+    const body = JSON.parse(text);
+    return String(
+      body.id ||
+      body._id ||
+      body.entityId ||
+      body.entity_id ||
+      body.data?.id ||
+      body.data?._id ||
+      ''
+    );
+  } catch {
+    return '';
+  }
+};
+
 export default function ContactForm() {
   const [sitelinkPrefill] = useState<SitelinkPrefill | null>(() => getSitelinkPrefill());
   const [formData, setFormData] = useState<ContactFormState>(() => getInitialFormData());
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
 
   const [submitted, setSubmitted] = useState(false);
+  const [submittedLead, setSubmittedLead] = useState<SubmittedLead | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const draftLeadIdRef = useRef(`draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
 
@@ -254,66 +383,9 @@ export default function ContactForm() {
     setFiles(e.target.files && e.target.files.length > 0 ? e.target.files : null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage('');
+  const createCrmLead = async ({ resetForm }: { resetForm: boolean }) => {
+    if (submittedLead?.leadId) return submittedLead.leadId;
 
-    // Honeypot check
-    if (formData.website) {
-      // Spam detected - simulate success
-      setSubmitted(true);
-      setIsLoading(false);
-      setTimeout(() => setSubmitted(false), 5000);
-      return;
-    }
-
-    // Validation
-    const digitsOnly = formData.phone.replace(/\D/g, '');
-    if (digitsOnly.length < 10) {
-      setErrorMessage('Please enter a valid phone number (at least 10 digits).');
-      setIsLoading(false);
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      setErrorMessage('Please enter a valid email address.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.name.trim().length < 2) {
-      setErrorMessage('Please enter your name.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.projectCity.trim()) {
-      setErrorMessage('Please enter your project city.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.projectState.trim()) {
-      setErrorMessage('Please enter your project state.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.projectType) {
-      setErrorMessage('Please select what you are looking to do.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.timeline) {
-      setErrorMessage('Please select your timeline.');
-      setIsLoading(false);
-      return;
-    }
-
-    //Matching CRM Lead structure
     try {
       const data = new FormData();
       data.append('full_name', formData.name.trim());
@@ -355,6 +427,10 @@ export default function ContactForm() {
       const apiEndpoint = new URL(CRM_WEBHOOK_URL);
       apiEndpoint.searchParams.set('apiKey', CRM_WEBHOOK_API_KEY);
 
+      if (CRM_WEBHOOK_DRY_RUN) {
+        return '';
+      }
+
       const response = await fetch(apiEndpoint.toString(), {
         method: 'POST',
         body: data,
@@ -364,21 +440,53 @@ export default function ContactForm() {
         throw new Error('Failed to submit form');
       }
 
+      const leadId = await readCrmLeadId(response);
+      const formSnapshot = buildFormSnapshot(formData, trackingParams);
+
       fireLeadTrackingEvents();
 
       setSubmitted(true);
-      setFormData(getInitialFormData());
-      setFiles(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (leadId) {
+        setSubmittedLead({ leadId, formSnapshot });
       }
-      setTimeout(() => setSubmitted(false), 5000);
+      if (resetForm) {
+        setFormData(getInitialFormData());
+        setFiles(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+      return leadId;
     } catch (error) {
       console.error('Submission error:', error);
       setErrorMessage('Something went wrong. Please try again or contact us directly.');
-    } finally {
-      setIsLoading(false);
+      return '';
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMessage('');
+
+    // Honeypot check
+    if (formData.website) {
+      // Spam detected - simulate success
+      setSubmitted(true);
+      setIsLoading(false);
+      setTimeout(() => setSubmitted(false), 5000);
+      return;
+    }
+
+    const validationMessage = getFirstRequiredFieldError(formData);
+    if (validationMessage) {
+      setErrorMessage(validationMessage);
+      setIsLoading(false);
+      return;
+    }
+
+    await createCrmLead({ resetForm: true });
+    setIsLoading(false);
   };
 
   const handleChange = (
@@ -391,10 +499,37 @@ export default function ContactForm() {
     }));
   };
 
+  const handleFieldPatches = (fieldPatches: FieldPatches) => {
+    setFormData((current) => ({
+      ...current,
+      ...Object.fromEntries(
+        Object.entries(fieldPatches).filter(([key, value]) => {
+          const typedKey = key as keyof FieldPatches;
+          return typeof value === 'string' && value.trim() && !current[typedKey];
+        })
+      ),
+    }));
+  };
+
+  const ensureCrmLead = async () => {
+    if (submittedLead?.leadId) return submittedLead.leadId;
+    const missingRequiredFields = getMissingRequiredFields(formData);
+    if (missingRequiredFields.length > 0 || formData.website) {
+      return '';
+    }
+    return createCrmLead({ resetForm: false });
+  };
+
   const heading = sitelinkPrefill?.heading || 'Tell Us About Your Project';
   const description = sitelinkPrefill
     ? `${sitelinkPrefill.description} ${sitelinkPrefill.detail}`
     : 'Share a few details and any reference files you have. We\'ll follow up with next steps.';
+  const currentFormSnapshot = buildFormSnapshot(formData, trackingParams);
+  const activeChatLead: SubmittedLead = submittedLead || {
+    leadId: draftLeadIdRef.current,
+    formSnapshot: currentFormSnapshot,
+  };
+  const leadDraft = buildLeadDraft(formData, trackingParams, submittedLead?.leadId);
 
   return (
     <section id="contact" className="py-20 bg-slate-50">
@@ -411,6 +546,25 @@ export default function ContactForm() {
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
+                    Project lead form
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Complete the fields below, or use chat to add extra project context.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChatOpen(true)}
+                  aria-label="Open AI project chat"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                </button>
+              </div>
+
               <div className="hidden">
                 <label htmlFor="website">Website</label>
                 <input
@@ -643,15 +797,44 @@ export default function ContactForm() {
               )}
 
               {submitted ? (
-                <div
-                  role="status"
-                  className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3"
-                >
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  <p className="text-emerald-800 font-medium">
-                    Thank you. Your project details were sent successfully, and we&apos;ll follow up
-                    soon.
-                  </p>
+                <div>
+                  <div
+                    role="status"
+                    className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3"
+                  >
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    <p className="text-emerald-800 font-medium">
+                      Thank you. Your project details were sent successfully, and we&apos;ll follow up
+                      soon.
+                    </p>
+                  </div>
+
+                  {submittedLead ? (
+                    <button
+                      type="button"
+                      onClick={() => setChatOpen(true)}
+                      className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Add AI follow-up details
+                    </button>
+                  ) : (
+                    <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                      Your lead was submitted. AI follow-up is unavailable because the CRM response
+                      did not include a lead ID.
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmitted(false);
+                      setSubmittedLead(null);
+                    }}
+                    className="mt-6 inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    Submit another project
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -760,6 +943,17 @@ export default function ContactForm() {
           </div>
         </div>
       </div>
+
+      <ChatIntake
+        leadId={activeChatLead.leadId}
+        formSnapshot={activeChatLead.formSnapshot}
+        leadDraft={leadDraft}
+        ensureCrmLead={ensureCrmLead}
+        onFieldPatches={handleFieldPatches}
+        isOpen={chatOpen}
+        onOpen={() => setChatOpen(true)}
+        onClose={() => setChatOpen(false)}
+      />
     </section>
   );
 }
