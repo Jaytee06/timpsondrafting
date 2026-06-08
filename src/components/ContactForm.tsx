@@ -112,6 +112,7 @@ type ContactFormState = {
 
 type SubmittedLead = {
   leadId: string;
+  externalId: string;
   formSnapshot: Record<string, string | boolean>;
 };
 
@@ -357,12 +358,16 @@ const readCrmLeadId = async (response: Response) => {
       body.entity_id ||
       body.data?.id ||
       body.data?._id ||
+      body.imports?.[0]?.id ||
       ''
     );
   } catch {
     return '';
   }
 };
+
+const createExternalId = () =>
+  `td-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 export default function ContactForm() {
   const [sitelinkPrefill] = useState<SitelinkPrefill | null>(() => getSitelinkPrefill());
@@ -375,7 +380,8 @@ export default function ContactForm() {
   const [files, setFiles] = useState<FileList | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const draftLeadIdRef = useRef(`draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+  const externalIdRef = useRef(createExternalId());
+  const draftLeadIdRef = useRef(`draft-${externalIdRef.current}`);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
 
@@ -388,6 +394,7 @@ export default function ContactForm() {
 
     try {
       const data = new FormData();
+      data.append('external_id', externalIdRef.current);
       data.append('full_name', formData.name.trim());
       data.append('email', formData.email.trim());
       data.append('phone', formData.phone.trim());
@@ -447,7 +454,7 @@ export default function ContactForm() {
 
       setSubmitted(true);
       if (leadId) {
-        setSubmittedLead({ leadId, formSnapshot });
+        setSubmittedLead({ leadId, externalId: externalIdRef.current, formSnapshot });
       }
       if (resetForm) {
         setFormData(getInitialFormData());
@@ -527,6 +534,7 @@ export default function ContactForm() {
   const currentFormSnapshot = buildFormSnapshot(formData, trackingParams);
   const activeChatLead: SubmittedLead = submittedLead || {
     leadId: draftLeadIdRef.current,
+    externalId: externalIdRef.current,
     formSnapshot: currentFormSnapshot,
   };
   const leadDraft = buildLeadDraft(formData, trackingParams, submittedLead?.leadId);
@@ -946,6 +954,7 @@ export default function ContactForm() {
 
       <ChatIntake
         leadId={activeChatLead.leadId}
+        externalId={activeChatLead.externalId}
         formSnapshot={activeChatLead.formSnapshot}
         leadDraft={leadDraft}
         ensureCrmLead={ensureCrmLead}

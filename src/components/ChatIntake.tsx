@@ -44,6 +44,7 @@ type FieldPatches = Partial<{
 
 type ChatIntakeProps = {
   leadId: string;
+  externalId: string;
   formSnapshot: Record<string, string | boolean>;
   leadDraft: LeadDraft;
   skipCrmUpdate?: boolean;
@@ -78,6 +79,7 @@ const appendPayloadValue = (data: FormData, key: string, value: unknown) => {
 
 export default function ChatIntake({
   leadId,
+  externalId,
   formSnapshot,
   leadDraft,
   skipCrmUpdate = false,
@@ -258,6 +260,7 @@ export default function ChatIntake({
     const data = new FormData();
     Object.entries({
       ...payload,
+      external_id: externalId,
       id: crmLeadId,
       _id: crmLeadId,
     }).forEach(([key, value]) => appendPayloadValue(data, key, value));

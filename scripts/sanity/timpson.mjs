@@ -12,10 +12,12 @@ const CONFIG = {
   webhookDryRunEnv: 'VITE_CRM_WEBHOOK_DRY_RUN',
   expectedWebhookUrl: 'http://app.timpsondrafting.com/api/webhooks/event',
   testLeadId: '6a1deb6701670f0ab73a56d3',
+  testExternalId: 'timpson-sanity-test-001',
   ga4MeasurementId: 'G-BXQTF3KH70',
   googleAdsConfigId: 'AW-17998095514',
   googleAdsConversionSendTo: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
   adminEmail: 'admin@timpsondrafting.com',
+  crmOrigin: 'https://app.timpsondrafting.com/',
 };
 
 const failures = [];
@@ -98,6 +100,7 @@ function runStaticChecks() {
   assertIncludes(contactForm, `window.gtag('event', 'generate_lead'`, 'ContactForm fires GA4 generate_lead event');
   assertIncludes(contactForm, `send_to: GA4_MEASUREMENT_ID`, 'GA4 event uses configured measurement ID');
   assertIncludes(contactForm, `method: 'contact_form'`, 'GA4 generate_lead method is contact_form');
+  assertIncludes(contactForm, `data.append('external_id', externalIdRef.current)`, 'Form payload includes stable external_id for CRM webhook lookup');
   assertIncludes(contactForm, `data.append('adminEmail', ADMIN_EMAIL)`, 'Form payload includes adminEmail');
   assertIncludes(contactForm, `data.append('gclid', trackingParams.gclid)`, 'Form payload preserves gclid');
   assertIncludes(contactForm, `data.append('gbraid', trackingParams.gbraid)`, 'Form payload preserves gbraid');
@@ -117,11 +120,13 @@ function runStaticChecks() {
   assertIncludes(contactForm, `apiEndpoint.searchParams.set('apiKey', CRM_WEBHOOK_API_KEY)`, 'ContactForm appends API key as apiKey query param');
   assertIncludes(contactForm, `fetch(apiEndpoint.toString()`, 'ContactForm posts to env-derived API endpoint');
   assertIncludes(contactForm, `readCrmLeadId(response)`, 'ContactForm reads returned CRM lead ID for chat enrichment');
+  assertIncludes(contactForm, `body.imports?.[0]?.id`, 'ContactForm reads CRM import response id for update webhook');
   assertIncludes(contactForm, `<ChatIntake`, 'ContactForm renders AI chat after successful lead submission');
   assertIncludes(contactForm, `hasEmail: Boolean(formData.email.trim())`, 'Chat form snapshot records whether email was provided');
   assertIncludes(contactForm, `hasPhone: Boolean(formData.phone.trim())`, 'Chat form snapshot records whether phone was provided');
   assertIncludes(contactForm, `hasFullName: Boolean(formData.name.trim())`, 'Chat form snapshot records whether name was provided');
   assertIncludes(contactForm, `draftLeadIdRef`, 'ContactForm creates a local draft lead ID before CRM creation');
+  assertIncludes(contactForm, `externalIdRef`, 'ContactForm keeps a stable external identifier for CRM create/update');
   assertIncludes(contactForm, `buildLeadDraft(formData, trackingParams`, 'ContactForm builds a complete lead draft for AI chat');
   assertIncludes(contactForm, `missingRequiredFields.length > 0`, 'ContactForm blocks CRM auto-create until required fields are complete');
   assertIncludes(contactForm, `ensureCrmLead={ensureCrmLead}`, 'ContactForm lets chat trigger deterministic CRM create when ready');
@@ -144,6 +149,7 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.updateWebhookApiKeyEnv}`, 'ChatIntake reads CRM update webhook API key from Vite env');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ChatIntake reads CRM webhook dry-run flag from Vite env');
   assertIncludes(chatIntake, `leadId`, 'ChatIntake sends existing lead ID to chat backend');
+  assertIncludes(chatIntake, `externalId`, 'ChatIntake receives stable CRM external identifier');
   assertIncludes(chatIntake, `/chat/session`, 'ChatIntake creates chat sessions through backend');
   assertIncludes(chatIntake, `data.reply || data.assistantGreeting`, 'ChatIntake renders backend-generated opening message');
   assertIncludes(chatIntake, `/chat/message`, 'ChatIntake sends messages through backend');
@@ -155,6 +161,8 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId`, 'ChatIntake creates CRM lead only after a draft is complete enough to sync');
   assertIncludes(chatIntake, `data.enrichmentPayload`, 'ChatIntake uses AI enrichment payload from backend');
   assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', CRM_UPDATE_WEBHOOK_API_KEY)`, 'ChatIntake appends CRM update API key as apiKey query param');
+  assertIncludes(chatIntake, `external_id: externalId`, 'ChatIntake sends external_id with CRM update payload');
+  assertIncludes(chatIntake, `_id: crmLeadId`, 'ChatIntake sends returned CRM id as _id for update lookup');
   assertIncludes(chatIntake, `lastSyncedDescriptionRef.current === payload.description`, 'ChatIntake skips duplicate CRM updates for the same summary');
   assertIncludes(chatIntake, `description`, 'ChatIntake preserves description field in CRM enrichment payload type');
   assertIncludes(chatIntake, `skipCrmUpdate`, 'ChatIntake forwards CRM update skip flag to backend');
@@ -173,8 +181,7 @@ function runStaticChecks() {
 
 function buildTestPayload() {
   return {
-    id: CONFIG.testLeadId,
-    _id: CONFIG.testLeadId,
+    external_id: CONFIG.testExternalId,
     test_mode: 'true',
     source: 'deployment_sanity_check',
     full_name: 'Deployment Sanity Test',
@@ -184,7 +191,7 @@ function buildTestPayload() {
     project_city: 'Colorado City',
     project_state: 'AZ',
     timeline: 'No rush / just exploring',
-    description: `Automated deployment sanity test for existing CRM test lead ${CONFIG.testLeadId}. Do not create a production lead from this payload.`,
+    description: `Automated deployment sanity test for CRM external_id ${CONFIG.testExternalId}. Do not create a production lead from this payload.`,
     consent_to_text: 'false',
     website: '',
     keyword: 'sanity-test',
@@ -231,6 +238,7 @@ function postMultipart(url, fields) {
         headers: {
           'Content-Type': `multipart/form-data; boundary=${boundary}`,
           'Content-Length': String(body.length),
+          'sc-origin': CONFIG.crmOrigin,
         },
       },
       (response) => {
@@ -280,7 +288,7 @@ async function runLiveApiCheck(env) {
     return;
   }
 
-  pass(`CRM webhook accepted test payload for id ${CONFIG.testLeadId} with status ${response.statusCode}`);
+  pass(`CRM webhook accepted test payload for external_id ${CONFIG.testExternalId} with status ${response.statusCode}`);
 }
 
 async function main() {
