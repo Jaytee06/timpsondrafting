@@ -47,6 +47,12 @@ const TIMELINE_OPTIONS = [
 
 const CRM_FILE_UPLOAD_KEY = 'files';
 
+type FileMetadata = {
+  name: string;
+  type: string;
+  size: number;
+};
+
 type SitelinkPrefill = {
   heading: string;
   description: string;
@@ -114,6 +120,7 @@ type SubmittedLead = {
   leadId: string;
   externalId: string;
   formSnapshot: Record<string, string | boolean>;
+  leadDraft: LeadDraft;
 };
 
 type LeadDraft = {
@@ -188,6 +195,18 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
   return '';
 };
 
+const fileListToArray = (fileList: FileList | null): File[] =>
+  fileList ? Array.from(fileList) : [];
+
+const buildFileMetadata = (fileList: FileList | File[] | null): FileMetadata[] => {
+  const fileArray = Array.isArray(fileList) ? fileList : fileListToArray(fileList);
+  return fileArray.map((file) => ({
+    name: file.name,
+    type: file.type || 'unknown',
+    size: file.size,
+  }));
+};
+
 const fireLeadTrackingEvents = () => {
   if (typeof window.gtag !== 'function') return;
 
@@ -260,28 +279,36 @@ const readTrackingParams = (): TrackingParams => {
 
 const buildFormSnapshot = (
   formData: ContactFormState,
-  trackingParams: TrackingParams
-): Record<string, string | boolean> => ({
-  hasFullName: Boolean(formData.name.trim()),
-  hasEmail: Boolean(formData.email.trim()),
-  hasPhone: Boolean(formData.phone.trim()),
-  projectType: formData.projectType,
-  projectCity: formData.projectCity.trim(),
-  projectState: formData.projectState.trim(),
-  timeline: formData.timeline,
-  description: formData.description.trim(),
-  consentToText: formData.consent,
-  keyword: trackingParams.keyword,
-  gclid: trackingParams.gclid,
-  gbraid: trackingParams.gbraid,
-  wbraid: trackingParams.wbraid,
-  campaignid: trackingParams.campaignid,
-  utmSource: trackingParams.utmSource,
-  utmCampaign: trackingParams.utmCampaign,
-  utmTerm: trackingParams.utmTerm,
-  landingPageUrl: window.location.href,
-  referrer: document.referrer || '',
-});
+  trackingParams: TrackingParams,
+  uploadedFiles: FileList | File[] | null = null
+): Record<string, string | boolean> => {
+  const fileMetadata = buildFileMetadata(uploadedFiles);
+
+  return {
+    hasFullName: Boolean(formData.name.trim()),
+    hasEmail: Boolean(formData.email.trim()),
+    hasPhone: Boolean(formData.phone.trim()),
+    projectType: formData.projectType,
+    projectCity: formData.projectCity.trim(),
+    projectState: formData.projectState.trim(),
+    timeline: formData.timeline,
+    description: formData.description.trim(),
+    consentToText: formData.consent,
+    keyword: trackingParams.keyword,
+    gclid: trackingParams.gclid,
+    gbraid: trackingParams.gbraid,
+    wbraid: trackingParams.wbraid,
+    campaignid: trackingParams.campaignid,
+    utmSource: trackingParams.utmSource,
+    utmCampaign: trackingParams.utmCampaign,
+    utmTerm: trackingParams.utmTerm,
+    filesProvided: fileMetadata.length > 0,
+    fileCount: String(fileMetadata.length),
+    fileNames: fileMetadata.map((file) => file.name).join(', '),
+    landingPageUrl: window.location.href,
+    referrer: document.referrer || '',
+  };
+};
 
 const getRequiredFieldErrors = (formData: ContactFormState) => {
   const errors: Record<string, string> = {};
@@ -311,8 +338,10 @@ const getFirstRequiredFieldError = (formData: ContactFormState) => {
 const buildLeadDraft = (
   formData: ContactFormState,
   trackingParams: TrackingParams,
-  crmId?: string
+  crmId?: string,
+  uploadedFiles: FileList | File[] | null = null
 ): LeadDraft => {
+  const fileMetadata = buildFileMetadata(uploadedFiles);
   const fieldStatus = {
     name: formData.name.trim() ? 'provided' : 'empty',
     email: formData.email.trim() ? 'provided' : 'empty',
@@ -323,6 +352,7 @@ const buildLeadDraft = (
     timeline: formData.timeline ? 'provided' : 'empty',
     description: formData.description.trim() ? 'provided' : 'empty',
     consent: formData.consent ? 'provided' : 'empty',
+    files: fileMetadata.length > 0 ? 'provided' : 'empty',
   } satisfies LeadDraft['fieldStatus'];
 
   return {
@@ -339,6 +369,8 @@ const buildLeadDraft = (
       consentToText: formData.consent,
       keyword: trackingParams.keyword,
       campaignid: trackingParams.campaignid,
+      fileCount: String(fileMetadata.length),
+      fileNames: fileMetadata.map((file) => file.name).join(', '),
     },
     fieldStatus,
     missingRequiredFields: getMissingRequiredFields(formData),
@@ -382,18 +414,18 @@ export default function ContactForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const externalIdRef = useRef(createExternalId());
   const draftLeadIdRef = useRef(`draft-${externalIdRef.current}`);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(e.target.files && e.target.files.length > 0 ? e.target.files : null);
   };
 
-  const createCrmLead = async ({ resetForm }: { resetForm: boolean }) => {
+  const createCrmLead = async () => {
     if (submittedLead?.leadId) return submittedLead.leadId;
 
     try {
       const data = new FormData();
+      const submittedFiles = fileListToArray(files);
       data.append('external_id', externalIdRef.current);
       data.append('full_name', formData.name.trim());
       data.append('email', formData.email.trim());
@@ -417,14 +449,9 @@ export default function ContactForm() {
       data.append('landingPageUrl', window.location.href);
       data.append('referrer', document.referrer || '');
 
-      if (files) {
+      if (submittedFiles.length > 0) {
         data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }));
-        for (let i = 0; i < files.length; i += 1) {
-          const file = files.item(i);
-          if (file) {
-            data.append(CRM_FILE_UPLOAD_KEY, file);
-          }
-        }
+        submittedFiles.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file));
       }
 
       if (!CRM_WEBHOOK_URL || !CRM_WEBHOOK_API_KEY) {
@@ -448,20 +475,19 @@ export default function ContactForm() {
       }
 
       const leadId = await readCrmLeadId(response);
-      const formSnapshot = buildFormSnapshot(formData, trackingParams);
+      const formSnapshot = buildFormSnapshot(formData, trackingParams, submittedFiles);
+      const submittedLeadDraft = buildLeadDraft(formData, trackingParams, leadId, submittedFiles);
 
       fireLeadTrackingEvents();
 
       setSubmitted(true);
       if (leadId) {
-        setSubmittedLead({ leadId, externalId: externalIdRef.current, formSnapshot });
-      }
-      if (resetForm) {
-        setFormData(getInitialFormData());
-        setFiles(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
+        setSubmittedLead({
+          leadId,
+          externalId: externalIdRef.current,
+          formSnapshot,
+          leadDraft: submittedLeadDraft,
+        });
       }
       return leadId;
     } catch (error) {
@@ -492,7 +518,7 @@ export default function ContactForm() {
       return;
     }
 
-    await createCrmLead({ resetForm: true });
+    await createCrmLead();
     setIsLoading(false);
   };
 
@@ -524,20 +550,21 @@ export default function ContactForm() {
     if (missingRequiredFields.length > 0 || formData.website) {
       return '';
     }
-    return createCrmLead({ resetForm: false });
+    return createCrmLead();
   };
 
   const heading = sitelinkPrefill?.heading || 'Tell Us About Your Project';
   const description = sitelinkPrefill
     ? `${sitelinkPrefill.description} ${sitelinkPrefill.detail}`
     : 'Share a few details and any reference files you have. We\'ll follow up with next steps.';
-  const currentFormSnapshot = buildFormSnapshot(formData, trackingParams);
+  const currentFormSnapshot = buildFormSnapshot(formData, trackingParams, files);
   const activeChatLead: SubmittedLead = submittedLead || {
     leadId: draftLeadIdRef.current,
     externalId: externalIdRef.current,
     formSnapshot: currentFormSnapshot,
+    leadDraft: buildLeadDraft(formData, trackingParams, undefined, files),
   };
-  const leadDraft = buildLeadDraft(formData, trackingParams, submittedLead?.leadId);
+  const leadDraft = submittedLead?.leadDraft || buildLeadDraft(formData, trackingParams, undefined, files);
 
   return (
     <section id="contact" className="py-20 bg-slate-50">
@@ -563,14 +590,19 @@ export default function ContactForm() {
                     Complete the fields below, or use chat to add extra project context.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setChatOpen(true)}
-                  aria-label="Open AI project chat"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-4 focus:ring-emerald-100"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="hidden text-sm font-medium text-slate-500 sm:inline">
+                    AI Assistant
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setChatOpen(true)}
+                    aria-label="Open AI project chat"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               <div className="hidden">
@@ -777,7 +809,6 @@ export default function ContactForm() {
                   id="file"
                   name="file"
                   multiple
-                  ref={fileInputRef}
                   onChange={handleFileChange}
                   className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-emerald-500 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-emerald-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                   accept=".pdf,.jpg,.jpeg,.png,.dwg"
@@ -817,32 +848,18 @@ export default function ContactForm() {
                     </p>
                   </div>
 
-                  {submittedLead ? (
-                    <button
-                      type="button"
-                      onClick={() => setChatOpen(true)}
-                      className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      Add AI follow-up details
-                    </button>
-                  ) : (
-                    <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                      Your lead was submitted. AI follow-up is unavailable because the CRM response
-                      did not include a lead ID.
+                  {submittedLead && (
+                    <div className="mt-6">
+                      <button
+                        type="button"
+                        onClick={() => setChatOpen(true)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        Add AI follow-up details
+                      </button>
                     </div>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSubmitted(false);
-                      setSubmittedLead(null);
-                    }}
-                    className="mt-6 inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50"
-                  >
-                    Submit another project
-                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">

@@ -117,11 +117,30 @@ function runStaticChecks() {
   assertIncludes(contactForm, `import.meta.env.VITE_CRM_WEBHOOK_URL`, 'ContactForm reads CRM webhook URL from Vite env');
   assertIncludes(contactForm, `import.meta.env.VITE_CRM_WEBHOOK_API_KEY`, 'ContactForm reads CRM webhook API key from Vite env');
   assertIncludes(contactForm, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ContactForm reads CRM webhook dry-run flag from Vite env');
-  assertIncludes(contactForm, `apiEndpoint.searchParams.set('apiKey', CRM_WEBHOOK_API_KEY)`, 'ContactForm appends API key as apiKey query param');
+  assertIncludes(contactForm, `apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_WEBHOOK_API_KEY))`, 'ContactForm appends decoded API key as apiKey query param');
   assertIncludes(contactForm, `fetch(apiEndpoint.toString()`, 'ContactForm posts to env-derived API endpoint');
   assertIncludes(contactForm, `readCrmLeadId(response)`, 'ContactForm reads returned CRM lead ID for chat enrichment');
   assertIncludes(contactForm, `body.imports?.[0]?.id`, 'ContactForm reads CRM import response id for update webhook');
   assertIncludes(contactForm, `<ChatIntake`, 'ContactForm renders AI chat after successful lead submission');
+  assertIncludes(contactForm, `leadDraft: submittedLeadDraft`, 'ContactForm stores submitted lead draft before clearing form');
+  assertIncludes(contactForm, `const submittedFiles = fileListToArray(files)`, 'ContactForm snapshots selected files before clearing form');
+  assertIncludes(contactForm, `data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }))`, 'ContactForm can send files during initial CRM create');
+  assertIncludes(contactForm, `submittedLead?.leadDraft || buildLeadDraft`, 'ContactForm keeps submitted lead draft available to chat after form reset');
+  if (contactForm.includes('setFormData(getInitialFormData())') || contactForm.includes('setFiles(null)')) {
+    fail('ContactForm must not clear submitted form fields/files after lead submission');
+  } else {
+    pass('ContactForm preserves visible form fields/files after lead submission');
+  }
+  if (contactForm.includes('Submit another project')) {
+    fail('ContactForm must not offer a start-new-project action after submission');
+  } else {
+    pass('ContactForm does not offer a start-new-project action after submission');
+  }
+  if (contactForm.includes('AI follow-up is unavailable')) {
+    fail('ContactForm must not show unavailable AI follow-up copy to visitors');
+  } else {
+    pass('ContactForm hides unavailable AI follow-up copy from visitors');
+  }
   assertIncludes(contactForm, `hasEmail: Boolean(formData.email.trim())`, 'Chat form snapshot records whether email was provided');
   assertIncludes(contactForm, `hasPhone: Boolean(formData.phone.trim())`, 'Chat form snapshot records whether phone was provided');
   assertIncludes(contactForm, `hasFullName: Boolean(formData.name.trim())`, 'Chat form snapshot records whether name was provided');
@@ -148,23 +167,41 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookUrlEnv}`, 'ChatIntake reads CRM webhook URL from Vite env');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.updateWebhookApiKeyEnv}`, 'ChatIntake reads CRM update webhook API key from Vite env');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ChatIntake reads CRM webhook dry-run flag from Vite env');
+  if (chatIntake.includes('CRM_UPDATE_FILE_UPLOAD_KEY') || chatIntake.includes('lead_files') || chatIntake.includes('filesToSync')) {
+    fail('ChatIntake must not attempt file uploads through the CRM update webhook');
+  } else {
+    pass('ChatIntake does not attempt file uploads through the CRM update webhook');
+  }
   assertIncludes(chatIntake, `leadId`, 'ChatIntake sends existing lead ID to chat backend');
   assertIncludes(chatIntake, `externalId`, 'ChatIntake receives stable CRM external identifier');
   assertIncludes(chatIntake, `/chat/session`, 'ChatIntake creates chat sessions through backend');
   assertIncludes(chatIntake, `data.reply || data.assistantGreeting`, 'ChatIntake renders backend-generated opening message');
   assertIncludes(chatIntake, `/chat/message`, 'ChatIntake sends messages through backend');
   assertIncludes(chatIntake, `/chat/finalize`, 'ChatIntake finalizes sessions through backend');
-  assertIncludes(chatIntake, `message, leadId: activeLeadId, formSnapshot, leadDraft`, 'ChatIntake sends draft state with each chat message');
-  assertIncludes(chatIntake, `reason: 'user_done', leadId: activeLeadId, formSnapshot, leadDraft`, 'ChatIntake sends draft state when finalizing chat');
+  assertIncludes(chatIntake, `message,`, 'ChatIntake sends visitor message to chat backend');
+  assertIncludes(chatIntake, `reason: 'user_done',`, 'ChatIntake sends finalize reason to chat backend');
+  assertIncludes(chatIntake, `leadId: activeLeadId,`, 'ChatIntake sends active lead ID to chat backend');
+  assertIncludes(chatIntake, `formSnapshot,`, 'ChatIntake sends form snapshot to chat backend');
+  assertIncludes(chatIntake, `leadDraft,`, 'ChatIntake sends lead draft to chat backend');
   assertIncludes(chatIntake, `onFieldPatches(data.fieldPatches)`, 'ChatIntake applies backend field patch suggestions');
   assertIncludes(chatIntake, `missingRequiredFields.length > 0`, 'ChatIntake blocks CRM sync when draft required fields are incomplete');
   assertIncludes(chatIntake, `const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId`, 'ChatIntake creates CRM lead only after a draft is complete enough to sync');
   assertIncludes(chatIntake, `data.enrichmentPayload`, 'ChatIntake uses AI enrichment payload from backend');
-  assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', CRM_UPDATE_WEBHOOK_API_KEY)`, 'ChatIntake appends CRM update API key as apiKey query param');
+  assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_UPDATE_WEBHOOK_API_KEY))`, 'ChatIntake appends decoded CRM update API key as apiKey query param');
   assertIncludes(chatIntake, `external_id: externalId`, 'ChatIntake sends external_id with CRM update payload');
   assertIncludes(chatIntake, `_id: crmLeadId`, 'ChatIntake sends returned CRM id as _id for update lookup');
-  assertIncludes(chatIntake, `lastSyncedDescriptionRef.current === payload.description`, 'ChatIntake skips duplicate CRM updates for the same summary');
+  if (/(^|[^_])id:\s*crmLeadId/.test(chatIntake)) {
+    fail('ChatIntake update payload should use _id only, not both id and _id');
+  } else {
+    pass('ChatIntake update payload does not include redundant id field');
+  }
+  assertIncludes(chatIntake, `lastSyncedDescriptionRef.current === description`, 'ChatIntake skips duplicate CRM updates for the same summary');
   assertIncludes(chatIntake, `description`, 'ChatIntake preserves description field in CRM enrichment payload type');
+  assertIncludes(chatIntake, `responseOptions`, 'ChatIntake renders backend quick response options');
+  assertIncludes(chatIntake, `const BUSINESS_TIME_ZONE = 'America/Denver'`, 'ChatIntake converts callback preferences to Mountain Time');
+  assertIncludes(chatIntake, `const buildCallbackPreference`, 'ChatIntake builds timezone-aware callback preference');
+  assertIncludes(chatIntake, 'Preferred callback time: ${preference}', 'ChatIntake sends selected callback preference through chat');
+  assertIncludes(chatIntake, 'Preferred callback time: ${selectedCallbackPreference}', 'ChatIntake appends callback preference to CRM description');
   assertIncludes(chatIntake, `skipCrmUpdate`, 'ChatIntake forwards CRM update skip flag to backend');
   assertIncludes(chatIntake, `bottom-5 right-5`, 'ChatIntake launcher is positioned bottom-right');
   if (chatIntake.includes('OPENAI') || chatIntake.includes('sk-')) {

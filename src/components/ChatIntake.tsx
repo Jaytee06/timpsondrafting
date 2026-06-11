@@ -6,6 +6,7 @@ const COMPANY_ID = import.meta.env.VITE_COMPANY_ID || 'timpson-drafting-design';
 const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
 const CRM_UPDATE_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_UPDATE_WEBHOOK_API_KEY;
 const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
+const BUSINESS_TIME_ZONE = 'America/Denver';
 
 type ChatStatus = 'idle' | 'connecting' | 'connected' | 'thinking' | 'error' | 'completed';
 
@@ -77,6 +78,61 @@ const appendPayloadValue = (data: FormData, key: string, value: unknown) => {
   data.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
 };
 
+const TypingDots = () => (
+  <span className="inline-flex items-center gap-1" aria-label="Assistant is writing">
+    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.2s]" />
+    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.1s]" />
+    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+  </span>
+);
+
+const getVisitorTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+
+const formatDateForInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateTimeForZone = (date: Date, timeZone: string) =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  }).format(date);
+
+const buildCallbackPreference = (dateValue: string, timeValue: string) => {
+  const localDate = new Date(`${dateValue}T${timeValue}:00`);
+  if (Number.isNaN(localDate.getTime())) {
+    return `${dateValue} at ${timeValue}`;
+  }
+
+  const visitorTimeZone = getVisitorTimeZone();
+  const mountainTime = formatDateTimeForZone(localDate, BUSINESS_TIME_ZONE);
+  const visitorTime = formatDateTimeForZone(localDate, visitorTimeZone);
+  return `${mountainTime} (${BUSINESS_TIME_ZONE}); visitor selected ${visitorTime} (${visitorTimeZone})`;
+};
+
+const getNearestQuarterTime = () => {
+  const now = new Date();
+  const roundedMinutes = Math.round(now.getMinutes() / 15) * 15;
+  now.setMinutes(roundedMinutes);
+  now.setSeconds(0);
+
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const isCallbackOption = (option: string) => /callback|schedule call|call me asap/i.test(option);
+const isDirectCallOption = (option: string) => /^call\s+\d/i.test(option);
+
 export default function ChatIntake({
   leadId,
   externalId,
@@ -95,6 +151,12 @@ export default function ChatIntake({
   const [status, setStatus] = useState<ChatStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [activeLeadId, setActiveLeadId] = useState(leadId);
+  const [responseOptions, setResponseOptions] = useState<string[]>([]);
+  const [showCallbackPicker, setShowCallbackPicker] = useState(false);
+  const [callbackDate, setCallbackDate] = useState(formatDateForInput(new Date()));
+  const [callbackTime, setCallbackTime] = useState(getNearestQuarterTime());
+  const [callbackNote, setCallbackNote] = useState('');
+  const [selectedCallbackPreference, setSelectedCallbackPreference] = useState('');
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const lastBlockedSyncRef = useRef('');
   const lastSyncedDescriptionRef = useRef('');
@@ -110,7 +172,14 @@ export default function ChatIntake({
       top: messageScrollRef.current.scrollHeight,
       behavior: 'smooth',
     });
-  }, [isOpen, messages, status, errorMessage]);
+  }, [isOpen, messages, status, errorMessage, responseOptions, showCallbackPicker]);
+
+  const applyResponseOptions = (options: unknown) => {
+    const normalized = Array.isArray(options)
+      ? options.filter((option): option is string => typeof option === 'string' && option.trim().length > 0)
+      : [];
+    setResponseOptions(normalized);
+  };
 
   const startSession = async () => {
     if (!AI_CHAT_API_URL) {
@@ -147,6 +216,7 @@ export default function ChatIntake({
           content: data.reply || data.assistantGreeting || 'What kind of project do you need plans for?',
         },
       ]);
+      applyResponseOptions(data.responseOptions);
       setStatus('connected');
     } catch (error) {
       console.error('AI chat session error:', error);
@@ -155,12 +225,14 @@ export default function ChatIntake({
     }
   };
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const message = draft.trim();
+  const sendMessage = async (e?: React.FormEvent, overrideMessage?: string) => {
+    e?.preventDefault();
+    const message = (overrideMessage || draft).trim();
     if (!message || !sessionId || status === 'thinking') return;
 
     setDraft('');
+    setResponseOptions([]);
+    setShowCallbackPicker(false);
     setStatus('thinking');
     setMessages((current) => [...current, { role: 'user', content: message }]);
 
@@ -168,7 +240,14 @@ export default function ChatIntake({
       const response = await fetch(`${AI_CHAT_API_URL}/chat/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, message, leadId: activeLeadId, formSnapshot, leadDraft, skipCrmUpdate }),
+        body: JSON.stringify({
+          sessionId,
+          message,
+          leadId: activeLeadId,
+          formSnapshot,
+          leadDraft,
+          skipCrmUpdate,
+        }),
       });
 
       if (!response.ok) {
@@ -186,6 +265,7 @@ export default function ChatIntake({
           content: data.reply || 'Thanks. I saved that project context.',
         },
       ]);
+      applyResponseOptions(data.responseOptions);
       setStatus(data.shouldFinalize ? 'completed' : 'connected');
       if (data.isUsefulCrmUpdate !== false) {
         await sendCrmUpdate(data.enrichmentPayload);
@@ -197,6 +277,36 @@ export default function ChatIntake({
     }
   };
 
+  const handleResponseOption = (option: string) => {
+    if (isDirectCallOption(option)) {
+      void sendMessage(undefined, `${option}. I may call that number to get started.`);
+      return;
+    }
+    if (isCallbackOption(option)) {
+      setMessages((current) => [...current, { role: 'user', content: option }]);
+      setResponseOptions([]);
+      setShowCallbackPicker(true);
+      setCallbackTime(/asap/i.test(option) ? '' : getNearestQuarterTime());
+      return;
+    }
+    void sendMessage(undefined, option);
+  };
+
+  const submitCallbackPreference = (mode: 'asap' | 'custom') => {
+    let preference = 'ASAP / within the next 2 minutes';
+    if (mode === 'custom') {
+      if (!callbackDate || !callbackTime) {
+        setCallbackNote('Choose a date and time, or use ASAP.');
+        return;
+      }
+      preference = buildCallbackPreference(callbackDate, callbackTime);
+    }
+    setSelectedCallbackPreference(preference);
+    setShowCallbackPicker(false);
+    setCallbackNote('');
+    void sendMessage(undefined, `Preferred callback time: ${preference}`);
+  };
+
   const finalizeSession = async () => {
     if (!sessionId || status === 'completed') return;
 
@@ -205,7 +315,14 @@ export default function ChatIntake({
       const response = await fetch(`${AI_CHAT_API_URL}/chat/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, reason: 'user_done', leadId: activeLeadId, formSnapshot, leadDraft, skipCrmUpdate }),
+        body: JSON.stringify({
+          sessionId,
+          reason: 'user_done',
+          leadId: activeLeadId,
+          formSnapshot,
+          leadDraft,
+          skipCrmUpdate,
+        }),
       });
 
       if (!response.ok) {
@@ -250,7 +367,12 @@ export default function ChatIntake({
       throw new Error('Missing CRM update webhook configuration');
     }
 
-    if (lastSyncedDescriptionRef.current === payload.description) {
+    const callbackLine = selectedCallbackPreference
+      ? `Preferred callback time: ${selectedCallbackPreference}`
+      : '';
+    const description = [payload.description, callbackLine].filter(Boolean).join('\n\n');
+
+    if (lastSyncedDescriptionRef.current === description) {
       return;
     }
 
@@ -260,13 +382,13 @@ export default function ChatIntake({
     const data = new FormData();
     Object.entries({
       ...payload,
+      description,
       external_id: externalId,
-      id: crmLeadId,
       _id: crmLeadId,
     }).forEach(([key, value]) => appendPayloadValue(data, key, value));
 
     if (CRM_WEBHOOK_DRY_RUN) {
-      lastSyncedDescriptionRef.current = payload.description;
+      lastSyncedDescriptionRef.current = description;
       return;
     }
 
@@ -279,7 +401,7 @@ export default function ChatIntake({
       throw new Error('Failed to update CRM lead context');
     }
 
-    lastSyncedDescriptionRef.current = payload.description;
+    lastSyncedDescriptionRef.current = description;
   };
 
   return (
@@ -326,6 +448,7 @@ export default function ChatIntake({
               <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
                 <span className={`h-2.5 w-2.5 rounded-full ${getStatusClass(status)}`} />
                 {statusLabels[status]}
+                {status === 'connecting' && <TypingDots />}
               </div>
             </div>
 
@@ -340,9 +463,11 @@ export default function ChatIntake({
                   <button
                     type="button"
                     onClick={startSession}
-                    className="mt-4 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    disabled={status === 'connecting'}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                   >
-                    Start AI chat
+                    {status === 'connecting' && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {status === 'connecting' ? 'Connecting' : 'Start chat'}
                   </button>
                 </div>
               ) : (
@@ -364,12 +489,83 @@ export default function ChatIntake({
                         </p>
                       </div>
                     ))}
+                    {status === 'thinking' && (
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                          <TypingDots />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {errorMessage && (
                     <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                       <XCircle className="h-4 w-4" />
                       {errorMessage}
+                    </div>
+                  )}
+
+                  {responseOptions.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {responseOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => handleResponseOption(option)}
+                          disabled={status === 'thinking'}
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-right text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {showCallbackPicker && (
+                    <div className="ml-auto grid w-full max-w-[360px] gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-slate-700">
+                      <div>
+                        <p className="font-semibold text-slate-900">Preferred callback time</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                          Choose a time in your local timezone ({getVisitorTimeZone()}). We will send
+                          it to the team in Mountain Time.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => submitCallbackPreference('asap')}
+                        className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                      >
+                        ASAP / within 2 minutes
+                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="grid gap-1 text-xs font-semibold text-slate-600">
+                          Date
+                          <input
+                            type="date"
+                            min={formatDateForInput(new Date())}
+                            value={callbackDate}
+                            onChange={(event) => setCallbackDate(event.target.value)}
+                            className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs font-semibold text-slate-600">
+                          Time
+                          <input
+                            type="time"
+                            value={callbackTime}
+                            onChange={(event) => setCallbackTime(event.target.value)}
+                            className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          />
+                        </label>
+                      </div>
+                      {callbackNote && <p className="text-xs font-medium text-red-700">{callbackNote}</p>}
+                      <button
+                        type="button"
+                        onClick={() => submitCallbackPreference('custom')}
+                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      >
+                        Send preferred time
+                      </button>
                     </div>
                   )}
 
@@ -390,7 +586,11 @@ export default function ChatIntake({
                   onChange={(e) => setDraft(e.target.value)}
                   rows={3}
                   className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                  placeholder="Example: We already have sketches, but the city has not reviewed anything yet."
+                  placeholder={
+                    messages.some((message) => message.role === 'user')
+                      ? 'Type here...'
+                      : 'Example: We already have sketches, but the city has not reviewed anything yet.'
+                  }
                 />
                 <div className="mt-3 flex gap-3">
                   <button
