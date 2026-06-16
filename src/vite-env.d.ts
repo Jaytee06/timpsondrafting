@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 interface Window {
+  dataLayer?: Array<Record<string, string | number | boolean | undefined>>;
   gtag?: (
     command: 'event',
     eventName: string,

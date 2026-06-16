@@ -16,6 +16,7 @@ const CONFIG = {
   ga4MeasurementId: 'G-BXQTF3KH70',
   googleAdsConfigId: 'AW-17998095514',
   googleAdsConversionSendTo: 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD',
+  googleTagManagerId: 'GTM-5L2FCX5W',
   adminEmail: 'admin@timpsondrafting.com',
   crmOrigin: 'https://app.timpsondrafting.com/',
 };
@@ -23,6 +24,20 @@ const CONFIG = {
 const failures = [];
 const warnings = [];
 const passes = [];
+
+const AD_CLICK_TEST_URL =
+  'https://www.timpsondrafting.com/?gclid=test-gclid-123&gbraid=test-gbraid-456&wbraid=test-wbraid-789&campaignid=23625020325&utm_source=google&utm_campaign=campaign-1&utm_term=adu%20plans&keyword=garage%20plans&type=addition&timeline=asap';
+
+const EMPTY_TRACKING_PARAMS = {
+  keyword: '',
+  gclid: '',
+  gbraid: '',
+  wbraid: '',
+  campaignid: '',
+  utmSource: '',
+  utmCampaign: '',
+  utmTerm: '',
+};
 
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) return {};
@@ -75,6 +90,105 @@ function assertOrder(source, first, second, label) {
   else fail(`${label}: expected ${first} before ${second}`);
 }
 
+function assertEqual(actual, expected, label) {
+  if (actual === expected) pass(label);
+  else fail(`${label}: expected ${expected}, got ${actual}`);
+}
+
+function getFirstQueryParam(params, keys) {
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function readTrackingParamsFromUrl(urlString, storedParams = EMPTY_TRACKING_PARAMS) {
+  const searchParams = new URL(urlString).searchParams;
+
+  return {
+    keyword:
+      getFirstQueryParam(searchParams, ['keyword', 'kw', 'utm_term']) ||
+      storedParams.keyword ||
+      '',
+    gclid:
+      getFirstQueryParam(searchParams, ['gclid']) ||
+      storedParams.gclid ||
+      '',
+    gbraid:
+      getFirstQueryParam(searchParams, ['gbraid']) ||
+      storedParams.gbraid ||
+      '',
+    wbraid:
+      getFirstQueryParam(searchParams, ['wbraid']) ||
+      storedParams.wbraid ||
+      '',
+    campaignid:
+      getFirstQueryParam(searchParams, ['campaignid', 'campaign_id', 'utm_campaign']) ||
+      storedParams.campaignid ||
+      '',
+    utmSource:
+      getFirstQueryParam(searchParams, ['utm_source']) ||
+      storedParams.utmSource ||
+      '',
+    utmCampaign:
+      getFirstQueryParam(searchParams, ['utm_campaign', 'campaignid', 'campaign_id']) ||
+      storedParams.utmCampaign ||
+      storedParams.campaignid ||
+      '',
+    utmTerm:
+      getFirstQueryParam(searchParams, ['utm_term', 'keyword', 'kw']) ||
+      storedParams.utmTerm ||
+      storedParams.keyword ||
+      '',
+  };
+}
+
+function buildAdClickPayload(urlString) {
+  const trackingParams = readTrackingParamsFromUrl(urlString);
+
+  return {
+    external_id: CONFIG.testExternalId,
+    full_name: 'Ad Click Sanity Test',
+    email: 'ad-click-test@timpsondrafting.com',
+    phone: '4353195331',
+    project_type: 'Addition or remodel',
+    project_city: 'Colorado City',
+    project_state: 'AZ',
+    timeline: 'As soon as possible',
+    description: 'Automated sanity test for realistic Google Ads URL parameters.',
+    consent_to_text: 'false',
+    website: '',
+    keyword: trackingParams.keyword,
+    gclid: trackingParams.gclid,
+    gbraid: trackingParams.gbraid,
+    wbraid: trackingParams.wbraid,
+    campaignid: trackingParams.campaignid,
+    utm_source: trackingParams.utmSource,
+    utm_campaign: trackingParams.utmCampaign,
+    utm_term: trackingParams.utmTerm,
+    adminEmail: CONFIG.adminEmail,
+    landingPageUrl: urlString,
+    referrer: 'https://www.google.com/',
+  };
+}
+
+function runAdClickAttributionCheck() {
+  const payload = buildAdClickPayload(AD_CLICK_TEST_URL);
+
+  assertEqual(payload.gclid, 'test-gclid-123', 'Ad-click payload preserves gclid');
+  assertEqual(payload.gbraid, 'test-gbraid-456', 'Ad-click payload preserves gbraid');
+  assertEqual(payload.wbraid, 'test-wbraid-789', 'Ad-click payload preserves wbraid');
+  assertEqual(payload.campaignid, '23625020325', 'Ad-click payload preserves campaignid');
+  assertEqual(payload.utm_source, 'google', 'Ad-click payload preserves utm_source');
+  assertEqual(payload.utm_campaign, 'campaign-1', 'Ad-click payload preserves utm_campaign');
+  assertEqual(payload.utm_term, 'adu plans', 'Ad-click payload preserves decoded utm_term');
+  assertEqual(payload.keyword, 'garage plans', 'Ad-click payload uses explicit keyword before utm_term');
+  assertEqual(payload.project_type, 'Addition or remodel', 'Ad-click sitelink type maps to expected project type');
+  assertEqual(payload.timeline, 'As soon as possible', 'Ad-click sitelink timeline maps to expected timeline');
+  assertEqual(payload.landingPageUrl, AD_CLICK_TEST_URL, 'Ad-click payload preserves full landingPageUrl with query params');
+}
+
 function runStaticChecks() {
   const indexPath = join(ROOT, 'index.html');
   const contactFormPath = join(ROOT, 'src/components/ContactForm.tsx');
@@ -89,18 +203,25 @@ function runStaticChecks() {
   const contactForm = readFileSync(contactFormPath, 'utf8');
   const chatIntake = existsSync(chatIntakePath) ? readFileSync(chatIntakePath, 'utf8') : '';
 
+  assertIncludes(indexHtml, `googletagmanager.com/gtm.js?id=' + i`, 'Google Tag Manager script loader is present');
+  assertIncludes(indexHtml, `GTM-5L2FCX5W`, 'index.html includes expected Google Tag Manager container ID');
+  assertIncludes(indexHtml, `googletagmanager.com/ns.html?id=${CONFIG.googleTagManagerId}`, 'Google Tag Manager noscript iframe uses expected container ID');
+  assertOrder(indexHtml, `<!-- Google Tag Manager -->`, `gtag/js?id=${CONFIG.ga4MeasurementId}`, 'Google Tag Manager loads before direct Google tag');
+  assertOrder(indexHtml, `<body>`, `googletagmanager.com/ns.html?id=${CONFIG.googleTagManagerId}`, 'Google Tag Manager noscript is immediately inside body');
   assertIncludes(indexHtml, `gtag/js?id=${CONFIG.ga4MeasurementId}`, 'Google tag script loads expected GA4 ID');
   assertIncludes(indexHtml, `gtag('config', '${CONFIG.ga4MeasurementId}')`, 'index.html configures expected GA4 ID');
   assertIncludes(indexHtml, `gtag('config', '${CONFIG.googleAdsConfigId}')`, 'index.html configures expected Google Ads ID');
 
-  assertIncludes(contactForm, `const GA4_MEASUREMENT_ID = '${CONFIG.ga4MeasurementId}'`, 'ContactForm preserves expected GA4 constant');
   assertIncludes(contactForm, `const GOOGLE_ADS_CONVERSION_ID = '${CONFIG.googleAdsConversionSendTo}'`, 'ContactForm preserves expected Ads conversion send_to');
   assertIncludes(contactForm, `window.gtag('event', 'conversion'`, 'ContactForm fires Google Ads conversion event');
   assertIncludes(contactForm, `send_to: GOOGLE_ADS_CONVERSION_ID`, 'Google Ads conversion uses configured send_to constant');
-  assertIncludes(contactForm, `window.gtag('event', 'generate_lead'`, 'ContactForm fires GA4 generate_lead event');
-  assertIncludes(contactForm, `send_to: GA4_MEASUREMENT_ID`, 'GA4 event uses configured measurement ID');
+  assertIncludes(contactForm, `window.dataLayer.push({`, 'ContactForm pushes lead event through Google Tag Manager dataLayer');
+  assertIncludes(contactForm, `event: 'generate_lead'`, 'ContactForm pushes expected generate_lead event name');
+  assertIncludes(contactForm, `transaction_id: transactionId`, 'ContactForm includes transaction_id on generate_lead event');
   assertIncludes(contactForm, `method: 'contact_form'`, 'GA4 generate_lead method is contact_form');
+  assertIncludes(contactForm, `const buildLeadTransactionId = () => \`LEAD\${Date.now()}\``, 'ContactForm creates Google-compatible lead transaction IDs');
   assertIncludes(contactForm, `data.append('external_id', externalIdRef.current)`, 'Form payload includes stable external_id for CRM webhook lookup');
+  assertIncludes(contactForm, `data.append('transaction_id', transactionId)`, 'Form payload sends transaction_id to CRM webhook for offline conversion cleanup');
   assertIncludes(contactForm, `data.append('adminEmail', ADMIN_EMAIL)`, 'Form payload includes adminEmail');
   assertIncludes(contactForm, `data.append('gclid', trackingParams.gclid)`, 'Form payload preserves gclid');
   assertIncludes(contactForm, `data.append('gbraid', trackingParams.gbraid)`, 'Form payload preserves gbraid');
@@ -110,7 +231,7 @@ function runStaticChecks() {
   assertOrder(
     contactForm,
     `if (!response.ok)`,
-    `fireLeadTrackingEvents();`,
+    `fireLeadTrackingEvents(transactionId);`,
     'Conversion events fire only after CRM response success check'
   );
 
@@ -125,6 +246,7 @@ function runStaticChecks() {
   assertIncludes(contactForm, `leadDraft: submittedLeadDraft`, 'ContactForm stores submitted lead draft before clearing form');
   assertIncludes(contactForm, `const submittedFiles = fileListToArray(files)`, 'ContactForm snapshots selected files before clearing form');
   assertIncludes(contactForm, `data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }))`, 'ContactForm can send files during initial CRM create');
+  assertIncludes(contactForm, `submittedFiles.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file))`, 'ContactForm appends selected files under the CRM file key');
   assertIncludes(contactForm, `submittedLead?.leadDraft || buildLeadDraft`, 'ContactForm keeps submitted lead draft available to chat after form reset');
   if (contactForm.includes('setFormData(getInitialFormData())') || contactForm.includes('setFiles(null)')) {
     fail('ContactForm must not clear submitted form fields/files after lead submission');
@@ -167,11 +289,14 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookUrlEnv}`, 'ChatIntake reads CRM webhook URL from Vite env');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.updateWebhookApiKeyEnv}`, 'ChatIntake reads CRM update webhook API key from Vite env');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ChatIntake reads CRM webhook dry-run flag from Vite env');
-  if (chatIntake.includes('CRM_UPDATE_FILE_UPLOAD_KEY') || chatIntake.includes('lead_files') || chatIntake.includes('filesToSync')) {
+  if (chatIntake.includes('selectedFiles') || chatIntake.includes('Paperclip') || chatIntake.includes('type="file"')) {
     fail('ChatIntake must not attempt file uploads through the CRM update webhook');
   } else {
     pass('ChatIntake does not attempt file uploads through the CRM update webhook');
   }
+  assertIncludes(chatIntake, `data.append('_id', crmLeadId)`, 'ChatIntake sends update _id as normal multipart field');
+  assertIncludes(chatIntake, `data.append('external_id', externalId)`, 'ChatIntake sends update external_id as normal multipart field');
+  assertIncludes(chatIntake, `data.append('description', description)`, 'ChatIntake sends update description as normal multipart field');
   assertIncludes(chatIntake, `leadId`, 'ChatIntake sends existing lead ID to chat backend');
   assertIncludes(chatIntake, `externalId`, 'ChatIntake receives stable CRM external identifier');
   assertIncludes(chatIntake, `/chat/session`, 'ChatIntake creates chat sessions through backend');
@@ -188,8 +313,13 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId`, 'ChatIntake creates CRM lead only after a draft is complete enough to sync');
   assertIncludes(chatIntake, `data.enrichmentPayload`, 'ChatIntake uses AI enrichment payload from backend');
   assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_UPDATE_WEBHOOK_API_KEY))`, 'ChatIntake appends decoded CRM update API key as apiKey query param');
-  assertIncludes(chatIntake, `external_id: externalId`, 'ChatIntake sends external_id with CRM update payload');
-  assertIncludes(chatIntake, `_id: crmLeadId`, 'ChatIntake sends returned CRM id as _id for update lookup');
+  assertIncludes(chatIntake, `data.append('external_id', externalId)`, 'ChatIntake sends external_id with CRM update payload');
+  assertIncludes(chatIntake, `data.append('_id', crmLeadId)`, 'ChatIntake sends returned CRM id as _id for update lookup');
+  if (chatIntake.includes('...payload') || chatIntake.includes('payloadFields')) {
+    fail('ChatIntake update payload must not spread unmapped AI fields into CRM webhook');
+  } else {
+    pass('ChatIntake update payload only sends explicitly mapped CRM fields');
+  }
   if (/(^|[^_])id:\s*crmLeadId/.test(chatIntake)) {
     fail('ChatIntake update payload should use _id only, not both id and _id');
   } else {
@@ -331,6 +461,7 @@ async function main() {
   const env = getEnv();
   pass(`Using landing page repo: ${ROOT}`);
   runStaticChecks();
+  runAdClickAttributionCheck();
   await runLiveApiCheck(env);
 
   for (const message of passes) console.log(`PASS ${message}`);

@@ -73,11 +73,6 @@ const getStatusClass = (status: ChatStatus) => {
   return 'bg-slate-300';
 };
 
-const appendPayloadValue = (data: FormData, key: string, value: unknown) => {
-  if (value === undefined || value === null) return;
-  data.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
-};
-
 const TypingDots = () => (
   <span className="inline-flex items-center gap-1" aria-label="Assistant is writing">
     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.2s]" />
@@ -380,12 +375,9 @@ export default function ChatIntake({
     apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_UPDATE_WEBHOOK_API_KEY));
 
     const data = new FormData();
-    Object.entries({
-      ...payload,
-      description,
-      external_id: externalId,
-      _id: crmLeadId,
-    }).forEach(([key, value]) => appendPayloadValue(data, key, value));
+    data.append('_id', crmLeadId);
+    data.append('external_id', externalId);
+    data.append('description', description);
 
     if (CRM_WEBHOOK_DRY_RUN) {
       lastSyncedDescriptionRef.current = description;

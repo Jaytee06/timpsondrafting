@@ -77,7 +77,7 @@ const serviceDetails: ServiceDetail[] = [
 
 const serviceQuestions: ServiceQuestion[] = [
   {
-    question: 'What does Timpson need to quote a project?',
+    question: 'What do we need to quote a project?',
     answer:
       'Helpful starting details include the project location, project type, rough size, timeline, any existing plans or photos, and whether the work is a new build, remodel, garage, ADU, or addition.',
   },

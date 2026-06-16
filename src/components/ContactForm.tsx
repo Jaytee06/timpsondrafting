@@ -4,7 +4,6 @@ import ChatIntake from './ChatIntake';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
-const GA4_MEASUREMENT_ID = 'G-BXQTF3KH70';
 const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
 const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
 const CRM_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_WEBHOOK_API_KEY;
@@ -198,6 +197,8 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
 const fileListToArray = (fileList: FileList | null): File[] =>
   fileList ? Array.from(fileList) : [];
 
+const buildLeadTransactionId = () => `LEAD${Date.now()}`;
+
 const buildFileMetadata = (fileList: FileList | File[] | null): FileMetadata[] => {
   const fileArray = Array.isArray(fileList) ? fileList : fileListToArray(fileList);
   return fileArray.map((file) => ({
@@ -207,17 +208,18 @@ const buildFileMetadata = (fileList: FileList | File[] | null): FileMetadata[] =
   }));
 };
 
-const fireLeadTrackingEvents = () => {
-  if (typeof window.gtag !== 'function') return;
-
+const fireLeadTrackingEvents = (transactionId: string) => {
   // Google Ads conversion. This needs the Ads conversion label.
-  window.gtag('event', 'conversion', {
-    send_to: GOOGLE_ADS_CONVERSION_ID,
-  });
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', 'conversion', {
+      send_to: GOOGLE_ADS_CONVERSION_ID,
+    });
+  }
 
-  // GA4 recommended event. Keep the destination explicit for Tag Assistant visibility.
-  window.gtag('event', 'generate_lead', {
-    send_to: GA4_MEASUREMENT_ID,
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: 'generate_lead',
+    transaction_id: transactionId,
     method: 'contact_form',
   });
 };
@@ -426,7 +428,9 @@ export default function ContactForm() {
     try {
       const data = new FormData();
       const submittedFiles = fileListToArray(files);
+      const transactionId = buildLeadTransactionId();
       data.append('external_id', externalIdRef.current);
+      data.append('transaction_id', transactionId);
       data.append('full_name', formData.name.trim());
       data.append('email', formData.email.trim());
       data.append('phone', formData.phone.trim());
@@ -478,7 +482,7 @@ export default function ContactForm() {
       const formSnapshot = buildFormSnapshot(formData, trackingParams, submittedFiles);
       const submittedLeadDraft = buildLeadDraft(formData, trackingParams, leadId, submittedFiles);
 
-      fireLeadTrackingEvents();
+      fireLeadTrackingEvents(transactionId);
 
       setSubmitted(true);
       if (leadId) {
