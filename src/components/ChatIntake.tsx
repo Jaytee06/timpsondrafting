@@ -128,6 +128,22 @@ const getNearestQuarterTime = () => {
 const isCallbackOption = (option: string) => /callback|schedule call|call me asap/i.test(option);
 const isDirectCallOption = (option: string) => /^call\s+\d/i.test(option);
 
+const normalizeWebhookApiKey = (apiKey: string) => {
+  let normalized = apiKey.trim();
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const decoded = decodeURIComponent(normalized);
+      if (decoded === normalized) break;
+      normalized = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return normalized;
+};
+
 export default function ChatIntake({
   leadId,
   externalId,
@@ -372,7 +388,7 @@ export default function ChatIntake({
     }
 
     const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-    apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_UPDATE_WEBHOOK_API_KEY));
+    apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_UPDATE_WEBHOOK_API_KEY));
 
     const data = new FormData();
     data.append('_id', crmLeadId);

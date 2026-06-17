@@ -194,6 +194,22 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
   return '';
 };
 
+const normalizeWebhookApiKey = (apiKey: string) => {
+  let normalized = apiKey.trim();
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const decoded = decodeURIComponent(normalized);
+      if (decoded === normalized) break;
+      normalized = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return normalized;
+};
+
 const fileListToArray = (fileList: FileList | null): File[] =>
   fileList ? Array.from(fileList) : [];
 
@@ -463,7 +479,7 @@ export default function ContactForm() {
       }
 
       const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-      apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_WEBHOOK_API_KEY));
+      apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_WEBHOOK_API_KEY));
 
       if (CRM_WEBHOOK_DRY_RUN) {
         return '';

@@ -77,6 +77,11 @@ const serviceDetails: ServiceDetail[] = [
 
 const serviceQuestions: ServiceQuestion[] = [
   {
+    question: 'Can Timpson help with ADUs, garages, and additions?',
+    answer:
+      'Yes. Timpson prepares residential drafting plans for garages, ADUs, additions, master suites, mudrooms, remodels, and custom home projects, with the drawing package scoped to your project details.',
+  },
+  {
     question: 'What do we need to quote a project?',
     answer:
       'Helpful starting details include the project location, project type, rough size, timeline, any existing plans or photos, and whether the work is a new build, remodel, garage, ADU, or addition.',
@@ -160,7 +165,7 @@ export default function Services() {
               These are common questions for homeowners comparing drafting options for additions, remodels, garages, ADUs, and permit document packages.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
             {serviceQuestions.map((item) => (
               <article key={item.question}>
                 <h4 className="font-semibold text-slate-900 mb-2">

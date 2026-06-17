@@ -95,6 +95,22 @@ function assertEqual(actual, expected, label) {
   else fail(`${label}: expected ${expected}, got ${actual}`);
 }
 
+function normalizeWebhookApiKey(apiKey) {
+  let normalized = apiKey.trim();
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const decoded = decodeURIComponent(normalized);
+      if (decoded === normalized) break;
+      normalized = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return normalized;
+}
+
 function getFirstQueryParam(params, keys) {
   for (const key of keys) {
     const value = params.get(key);
@@ -189,6 +205,31 @@ function runAdClickAttributionCheck() {
   assertEqual(payload.landingPageUrl, AD_CLICK_TEST_URL, 'Ad-click payload preserves full landingPageUrl with query params');
 }
 
+function runApiKeyEncodingCheck() {
+  const encodedOnce = 'U2FsdGVkX1%2Babc%2Fdef%3D';
+  const encodedTwice = 'U2FsdGVkX1%252Babc%252Fdef%253D';
+  const decoded = 'U2FsdGVkX1+abc/def=';
+  const url = new URL(CONFIG.expectedWebhookUrl);
+
+  assertEqual(normalizeWebhookApiKey(encodedOnce), decoded, 'Webhook API key normalization decodes once-encoded env values');
+  assertEqual(normalizeWebhookApiKey(encodedTwice), decoded, 'Webhook API key normalization decodes double-encoded env values');
+
+  url.searchParams.set('apiKey', normalizeWebhookApiKey(encodedTwice));
+  assertEqual(
+    url.toString(),
+    `${CONFIG.expectedWebhookUrl}?apiKey=U2FsdGVkX1%2Babc%2Fdef%3D`,
+    'Webhook API key URL is encoded exactly once'
+  );
+}
+
+function runLivePayloadShapeCheck() {
+  const payload = buildTestPayload();
+
+  assertEqual(payload._id, CONFIG.testLeadId, 'Live CRM sanity payload uses reusable CRM _id');
+  assertEqual(payload.external_id, CONFIG.testExternalId, 'Live CRM sanity payload keeps stable external_id metadata');
+  assertEqual(payload.test_mode, 'true', 'Live CRM sanity payload is marked test_mode');
+}
+
 function runStaticChecks() {
   const indexPath = join(ROOT, 'index.html');
   const contactFormPath = join(ROOT, 'src/components/ContactForm.tsx');
@@ -238,7 +279,8 @@ function runStaticChecks() {
   assertIncludes(contactForm, `import.meta.env.VITE_CRM_WEBHOOK_URL`, 'ContactForm reads CRM webhook URL from Vite env');
   assertIncludes(contactForm, `import.meta.env.VITE_CRM_WEBHOOK_API_KEY`, 'ContactForm reads CRM webhook API key from Vite env');
   assertIncludes(contactForm, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ContactForm reads CRM webhook dry-run flag from Vite env');
-  assertIncludes(contactForm, `apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_WEBHOOK_API_KEY))`, 'ContactForm appends decoded API key as apiKey query param');
+  assertIncludes(contactForm, `const normalizeWebhookApiKey`, 'ContactForm normalizes encoded webhook API keys');
+  assertIncludes(contactForm, `apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_WEBHOOK_API_KEY))`, 'ContactForm appends normalized API key as apiKey query param');
   assertIncludes(contactForm, `fetch(apiEndpoint.toString()`, 'ContactForm posts to env-derived API endpoint');
   assertIncludes(contactForm, `readCrmLeadId(response)`, 'ContactForm reads returned CRM lead ID for chat enrichment');
   assertIncludes(contactForm, `body.imports?.[0]?.id`, 'ContactForm reads CRM import response id for update webhook');
@@ -312,7 +354,8 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `missingRequiredFields.length > 0`, 'ChatIntake blocks CRM sync when draft required fields are incomplete');
   assertIncludes(chatIntake, `const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId`, 'ChatIntake creates CRM lead only after a draft is complete enough to sync');
   assertIncludes(chatIntake, `data.enrichmentPayload`, 'ChatIntake uses AI enrichment payload from backend');
-  assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', decodeURIComponent(CRM_UPDATE_WEBHOOK_API_KEY))`, 'ChatIntake appends decoded CRM update API key as apiKey query param');
+  assertIncludes(chatIntake, `const normalizeWebhookApiKey`, 'ChatIntake normalizes encoded webhook API keys');
+  assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_UPDATE_WEBHOOK_API_KEY))`, 'ChatIntake appends normalized CRM update API key as apiKey query param');
   assertIncludes(chatIntake, `data.append('external_id', externalId)`, 'ChatIntake sends external_id with CRM update payload');
   assertIncludes(chatIntake, `data.append('_id', crmLeadId)`, 'ChatIntake sends returned CRM id as _id for update lookup');
   if (chatIntake.includes('...payload') || chatIntake.includes('payloadFields')) {
@@ -348,6 +391,7 @@ function runStaticChecks() {
 
 function buildTestPayload() {
   return {
+    _id: CONFIG.testLeadId,
     external_id: CONFIG.testExternalId,
     test_mode: 'true',
     source: 'deployment_sanity_check',
@@ -358,7 +402,7 @@ function buildTestPayload() {
     project_city: 'Colorado City',
     project_state: 'AZ',
     timeline: 'No rush / just exploring',
-    description: `Automated deployment sanity test for CRM external_id ${CONFIG.testExternalId}. Do not create a production lead from this payload.`,
+    description: `Automated deployment sanity test for reusable CRM _id ${CONFIG.testLeadId}. Do not create a production lead from this payload.`,
     consent_to_text: 'false',
     website: '',
     keyword: 'sanity-test',
@@ -446,7 +490,7 @@ async function runLiveApiCheck(env) {
   }
 
   const url = new URL(webhookUrl);
-  url.searchParams.set('apiKey', apiKey);
+  url.searchParams.set('apiKey', normalizeWebhookApiKey(apiKey));
 
   const response = await postMultipart(url, buildTestPayload());
   if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -454,7 +498,7 @@ async function runLiveApiCheck(env) {
     return;
   }
 
-  pass(`CRM webhook accepted test payload for external_id ${CONFIG.testExternalId} with status ${response.statusCode}`);
+  pass(`CRM webhook accepted test payload for reusable _id ${CONFIG.testLeadId} with status ${response.statusCode}`);
 }
 
 async function main() {
@@ -462,6 +506,8 @@ async function main() {
   pass(`Using landing page repo: ${ROOT}`);
   runStaticChecks();
   runAdClickAttributionCheck();
+  runApiKeyEncodingCheck();
+  runLivePayloadShapeCheck();
   await runLiveApiCheck(env);
 
   for (const message of passes) console.log(`PASS ${message}`);
