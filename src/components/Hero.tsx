@@ -1,16 +1,12 @@
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function Hero() {
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
         style={{
-          backgroundImage: 'url(/timpson-banner.jpg), url(/haus-grundriss-zeichnen.jpg)',
+          backgroundImage: 'url(/haus-grundriss-zeichnen.jpg)',
         }}
       ></div>
       <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/70 to-slate-900/80"></div>
@@ -23,46 +19,46 @@ export default function Hero() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
-            Timpson Drafting and Design
+            Residential Drafting and Design for Homes, Garages, and Additions
           </h1>
 
-          <p className="text-xl sm:text-2xl text-slate-300 mb-4 font-light">
-            Professional Drafting & Design for Homes, Garages, and Residential Projects
+          <p className="text-xl sm:text-2xl text-slate-300 mb-2 font-light">
+            Timpson Drafting &amp; Design
           </p>
 
           <p className="text-slate-400 mb-10 text-lg">
-            Serving homeowners and contractors with permit-ready construction documents and custom residential design solutions.
+            Helping homeowners and contractors with custom home plans, additions, remodel drawings, small-space layouts, and permit-ready construction documents.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={() => scrollToSection('contact')}
+            <a
+              href="/#contact"
               className="inline-flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
             >
-              Get a Free Quote
+              Get a Project Quote
               <ArrowRight className="ml-2 w-5 h-5" />
-            </button>
+            </a>
 
-            <button
-              onClick={() => scrollToSection('services')}
+            <a
+              href="/#services"
               className="inline-flex items-center justify-center px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg backdrop-blur-sm border border-white/20 transition-all duration-200"
             >
               View Services
-            </button>
+            </a>
           </div>
 
           <div className="mt-12 flex flex-wrap gap-8 text-sm text-slate-400">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Residential Focus</span>
+              <span>Garage &amp; Addition Plans</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Permit-Ready Plans</span>
+              <span>Permit-Ready Documents</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Fast Turnaround</span>
+              <span>Remodel &amp; As-Built Support</span>
             </div>
           </div>
         </div>

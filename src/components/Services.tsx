@@ -7,9 +7,11 @@ interface Service {
 }
 
 interface ServiceDetail {
+  id: string;
   title: string;
   description: string;
   points: string[];
+  href: string;
 }
 
 interface ServiceQuestion {
@@ -26,12 +28,12 @@ const services: Service[] = [
   {
     icon: <Building2 className="w-8 h-8" />,
     title: 'Garage & Addition Plans',
-    description: 'Professional drawings for garages, ADUs, and home additions that complement your existing structure.',
+    description: 'Professional drawings for detached garages, ADUs, mudrooms, bedroom suites, and home additions that fit your existing structure.',
   },
   {
     icon: <Wrench className="w-8 h-8" />,
     title: 'Remodel & Renovation Drawings',
-    description: 'Detailed plans for kitchen, bathroom, and whole-home renovations that bring your vision to life.',
+    description: 'Detailed plans for kitchen, bathroom, mudroom, and whole-home renovations that bring your vision to life.',
   },
   {
     icon: <FileCheck className="w-8 h-8" />,
@@ -52,6 +54,7 @@ const services: Service[] = [
 
 const serviceDetails: ServiceDetail[] = [
   {
+    id: 'garage-addition-plans',
     title: 'Garage, ADU, and Addition Plans',
     description:
       'Plan sets for attached additions, detached garages, ADUs, and extra living space need to fit the existing home, site conditions, and permit path.',
@@ -61,8 +64,23 @@ const serviceDetails: ServiceDetail[] = [
       'ADU and guest-space drafting support',
       'Plan updates for permitting and contractor review',
     ],
+    href: '/garage-addition-plans/',
   },
   {
+    id: 'small-efficient-home-plans',
+    title: 'Small and Efficient Home Plans',
+    description:
+      'Some residential projects start with a compact footprint, a narrow lot, or a need to make every square foot work harder. Timpson can help turn those ideas into clear drafting packages and buildable layouts.',
+    points: [
+      'Small custom home drafting support',
+      'Efficient room flow and layout planning',
+      'Narrow-lot and compact-footprint plan guidance',
+      'Plan revisions before permit submission',
+    ],
+    href: '/small-efficient-home-plans/',
+  },
+  {
+    id: 'remodel-as-built-drawings',
     title: 'Remodel and As-Built Drawings',
     description:
       'Renovation work often starts with documenting what is already there before the new design can be drafted clearly.',
@@ -72,6 +90,20 @@ const serviceDetails: ServiceDetail[] = [
       'Field-measurement documentation when needed',
       'Clear drawings for homeowner and contractor coordination',
     ],
+    href: '/remodel-as-built-drawings/',
+  },
+  {
+    id: 'permit-ready-construction-documents',
+    title: 'Permit-Ready Construction Documents',
+    description:
+      'Permit-ready residential drafting usually starts with the right project details, existing information, and a clear understanding of what needs to be reviewed before submission.',
+    points: [
+      'Project-based quote prep checklist',
+      'Permit document planning questions',
+      'Support for additions, remodels, garages, and custom homes',
+      'Clearer scope before revisions and submission',
+    ],
+    href: '/permit-ready-construction-documents/',
   },
 ];
 
@@ -91,6 +123,11 @@ const serviceQuestions: ServiceQuestion[] = [
     answer:
       'As-built drawings are useful when an existing structure needs to be measured and documented before a remodel, addition, repair, or contractor review.',
   },
+  {
+    question: 'How is drafting pricing scoped?',
+    answer:
+      'Drafting quotes are usually scoped around project size, complexity, existing information, revision needs, and permit requirements. That helps Timpson provide a project-based quote instead of forcing every job into the same fixed package.',
+  },
 ];
 
 export default function Services() {
@@ -102,7 +139,7 @@ export default function Services() {
             Our Services
           </h2>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-            Professional drafting and design services tailored to residential projects of all sizes.
+            Professional drafting and design services for custom homes, garages, additions, remodels, as-built drawings, and efficient residential layouts.
           </p>
         </div>
 
@@ -130,6 +167,7 @@ export default function Services() {
         <div className="mt-16 grid lg:grid-cols-2 gap-8">
           {serviceDetails.map((detail) => (
             <article
+              id={detail.id}
               key={detail.title}
               className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm"
             >
@@ -147,6 +185,14 @@ export default function Services() {
                   </li>
                 ))}
               </ul>
+              <div className="mt-6">
+                <a
+                  href={detail.href}
+                  className="inline-flex items-center text-emerald-600 hover:text-emerald-700 font-semibold transition-colors"
+                >
+                  Learn more about {detail.title}
+                </a>
+              </div>
             </article>
           ))}
         </div>
@@ -157,10 +203,10 @@ export default function Services() {
               Drafting and Permit Questions
             </h3>
             <p className="text-slate-600 leading-relaxed">
-              These are common questions for homeowners comparing drafting options for additions, remodels, garages, ADUs, and permit document packages.
+              These are common questions for homeowners comparing drafting options for additions, remodels, garages, ADUs, small-home plans, and permit document packages.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
             {serviceQuestions.map((item) => (
               <article key={item.question}>
                 <h4 className="font-semibold text-slate-900 mb-2">
@@ -174,16 +220,33 @@ export default function Services() {
           </div>
         </div>
 
+        <div className="mt-12 bg-emerald-50 rounded-xl p-8 border border-emerald-100 shadow-sm">
+          <div className="max-w-3xl">
+            <h3 className="text-2xl font-bold text-slate-900 mb-3">
+              Permit-Ready Construction Document Guide
+            </h3>
+            <p className="text-slate-700 leading-relaxed mb-5">
+              Need a clearer picture of what to gather before asking for a drafting quote? This page walks through the project details, existing information, and permit questions that usually shape a residential drafting scope.
+            </p>
+            <a
+              href="/permit-ready-construction-documents/"
+              className="inline-flex items-center px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors duration-200"
+            >
+              Explore the Permit-Ready Guide
+            </a>
+          </div>
+        </div>
+
         <div className="mt-16 text-center">
           <p className="text-slate-600 mb-6">
-            Don't see what you're looking for? We handle a variety of residential drafting projects.
+            Don't see your exact project listed? Timpson handles a wide range of residential drafting work, from additions and remodels to small custom homes and permit updates.
           </p>
-          <button
-            onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+          <a
+            href="/#contact"
             className="inline-flex items-center px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors duration-200"
           >
             Discuss Your Project
-          </button>
+          </a>
         </div>
       </div>
     </section>

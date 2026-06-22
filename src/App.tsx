@@ -1,6 +1,7 @@
 import Hero from './components/Hero';
 import Reviews from './components/Reviews';
 import Services from './components/Services';
+import ProjectPlanning from './components/ProjectPlanning';
 import Pricing from './components/Pricing';
 import ContactForm from './components/ContactForm';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -13,6 +14,7 @@ function App() {
       <Hero />
       <Reviews />
       <Services />
+      <ProjectPlanning />
       <Pricing />
       <ContactForm />
       <PrivacyPolicy />

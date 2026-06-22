@@ -13,7 +13,7 @@ export default function Footer() {
               <h3 className="text-2xl font-bold">Timpson Drafting & Design</h3>
             </div>
             <p className="text-slate-400 leading-relaxed mb-4">
-              Professional residential drafting and design services. Creating accurate, code-compliant plans for homeowners and contractors throughout the local area.
+              Professional residential drafting and design services for custom homes, garages, additions, remodels, and permit-ready residential projects.
             </p>
             <p className="text-slate-400 text-sm">
               Trusted by local homeowners for over a decade.
@@ -24,28 +24,37 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <button
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
+                <a href="/" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   Home
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
+                <a href="/#services" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   Services
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                <a href="/#process" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  How It Works
+                </a>
+              </li>
+              <li>
+                <a href="/#pricing" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  Pricing
+                </a>
+              </li>
+              <li>
+                <a href="/#contact" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  Get a Quote
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/permit-ready-construction-documents/"
                   className="text-slate-400 hover:text-emerald-400 transition-colors"
                 >
-                  Get a Quote
-                </button>
+                  Permit Guide
+                </a>
               </li>
               <li>
                 <a
@@ -77,7 +86,12 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <span className="text-slate-400">info@timpsondrafting.com</span>
+                <a
+                  href="mailto:info@timpsondrafting.com"
+                  className="text-slate-400 hover:text-emerald-400 transition-colors"
+                >
+                  info@timpsondrafting.com
+                </a>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
