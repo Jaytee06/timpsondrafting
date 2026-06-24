@@ -5,8 +5,9 @@ import ChatIntake from './ChatIntake';
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
 const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
-const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
-const CRM_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_WEBHOOK_API_KEY;
+const LEAD_INTAKE_API_URL =
+  import.meta.env.VITE_LEAD_INTAKE_API_URL ||
+  'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/create';
 const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
 
 type TrackingParams = {
@@ -192,22 +193,6 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
     if (value && value.trim()) return value.trim();
   }
   return '';
-};
-
-const normalizeWebhookApiKey = (apiKey: string) => {
-  let normalized = apiKey.trim();
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const decoded = decodeURIComponent(normalized);
-      if (decoded === normalized) break;
-      normalized = decoded;
-    } catch {
-      break;
-    }
-  }
-
-  return normalized;
 };
 
 const fileListToArray = (fileList: FileList | null): File[] =>
@@ -426,6 +411,7 @@ export default function ContactForm() {
 
   const [submitted, setSubmitted] = useState(false);
   const [submittedLead, setSubmittedLead] = useState<SubmittedLead | null>(null);
+  const [chatSessionId, setChatSessionId] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -447,6 +433,7 @@ export default function ContactForm() {
       const transactionId = buildLeadTransactionId();
       data.append('external_id', externalIdRef.current);
       data.append('transaction_id', transactionId);
+      if (chatSessionId) data.append('openai_sid', chatSessionId);
       data.append('full_name', formData.name.trim());
       data.append('email', formData.email.trim());
       data.append('phone', formData.phone.trim());
@@ -474,18 +461,15 @@ export default function ContactForm() {
         submittedFiles.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file));
       }
 
-      if (!CRM_WEBHOOK_URL || !CRM_WEBHOOK_API_KEY) {
-        throw new Error('Missing CRM webhook configuration');
+      if (!LEAD_INTAKE_API_URL) {
+        throw new Error('Missing lead intake configuration');
       }
-
-      const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-      apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_WEBHOOK_API_KEY));
 
       if (CRM_WEBHOOK_DRY_RUN) {
         return '';
       }
 
-      const response = await fetch(apiEndpoint.toString(), {
+      const response = await fetch(LEAD_INTAKE_API_URL, {
         method: 'POST',
         body: data,
       });
@@ -995,6 +979,7 @@ export default function ContactForm() {
         formSnapshot={activeChatLead.formSnapshot}
         leadDraft={leadDraft}
         ensureCrmLead={ensureCrmLead}
+        onSessionStarted={setChatSessionId}
         onFieldPatches={handleFieldPatches}
         isOpen={chatOpen}
         onOpen={() => setChatOpen(true)}

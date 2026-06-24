@@ -3,8 +3,9 @@ import { Bot, CheckCircle2, Loader2, MessageCircle, Send, X, XCircle } from 'luc
 
 const AI_CHAT_API_URL = import.meta.env.VITE_AI_CHAT_API_URL;
 const COMPANY_ID = import.meta.env.VITE_COMPANY_ID || 'timpson-drafting-design';
-const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
-const CRM_UPDATE_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_UPDATE_WEBHOOK_API_KEY;
+const LEAD_INTAKE_UPDATE_API_URL =
+  import.meta.env.VITE_LEAD_INTAKE_UPDATE_API_URL ||
+  'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/update';
 const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
 const BUSINESS_TIME_ZONE = 'America/Denver';
 
@@ -51,6 +52,7 @@ type ChatIntakeProps = {
   skipCrmUpdate?: boolean;
   testMode?: boolean;
   ensureCrmLead: () => Promise<string>;
+  onSessionStarted?: (sessionId: string) => void;
   onFieldPatches: (fieldPatches: FieldPatches) => void;
   isOpen: boolean;
   onOpen: () => void;
@@ -128,22 +130,6 @@ const getNearestQuarterTime = () => {
 const isCallbackOption = (option: string) => /callback|schedule call|call me asap/i.test(option);
 const isDirectCallOption = (option: string) => /^call\s+\d/i.test(option);
 
-const normalizeWebhookApiKey = (apiKey: string) => {
-  let normalized = apiKey.trim();
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const decoded = decodeURIComponent(normalized);
-      if (decoded === normalized) break;
-      normalized = decoded;
-    } catch {
-      break;
-    }
-  }
-
-  return normalized;
-};
-
 export default function ChatIntake({
   leadId,
   externalId,
@@ -151,6 +137,7 @@ export default function ChatIntake({
   leadDraft,
   skipCrmUpdate = false,
   ensureCrmLead,
+  onSessionStarted,
   onFieldPatches,
   isOpen,
   onOpen,
@@ -171,6 +158,7 @@ export default function ChatIntake({
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const lastBlockedSyncRef = useRef('');
   const lastSyncedDescriptionRef = useRef('');
+  const lastSyncedSessionIdRef = useRef('');
 
   useEffect(() => {
     setActiveLeadId(leadId);
@@ -221,6 +209,12 @@ export default function ChatIntake({
 
       const data = await response.json();
       setSessionId(data.sessionId);
+      if (data.sessionId) {
+        onSessionStarted?.(data.sessionId);
+        if (!skipCrmUpdate && activeLeadId && !activeLeadId.startsWith('draft-')) {
+          await sendCrmSessionIdUpdate(data.sessionId, activeLeadId);
+        }
+      }
       setMessages([
         {
           role: 'assistant',
@@ -374,8 +368,8 @@ export default function ChatIntake({
     }
     setActiveLeadId(crmLeadId);
 
-    if (!CRM_WEBHOOK_URL || !CRM_UPDATE_WEBHOOK_API_KEY) {
-      throw new Error('Missing CRM update webhook configuration');
+    if (!LEAD_INTAKE_UPDATE_API_URL) {
+      throw new Error('Missing lead intake update configuration');
     }
 
     const callbackLine = selectedCallbackPreference
@@ -383,24 +377,26 @@ export default function ChatIntake({
       : '';
     const description = [payload.description, callbackLine].filter(Boolean).join('\n\n');
 
-    if (lastSyncedDescriptionRef.current === description) {
+    if (
+      lastSyncedDescriptionRef.current === description &&
+      (!sessionId || lastSyncedSessionIdRef.current === sessionId)
+    ) {
       return;
     }
-
-    const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-    apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_UPDATE_WEBHOOK_API_KEY));
 
     const data = new FormData();
     data.append('_id', crmLeadId);
     data.append('external_id', externalId);
+    if (sessionId) data.append('openai_sid', sessionId);
     data.append('description', description);
 
     if (CRM_WEBHOOK_DRY_RUN) {
       lastSyncedDescriptionRef.current = description;
+      if (sessionId) lastSyncedSessionIdRef.current = sessionId;
       return;
     }
 
-    const response = await fetch(apiEndpoint.toString(), {
+    const response = await fetch(LEAD_INTAKE_UPDATE_API_URL, {
       method: 'POST',
       body: data,
     });
@@ -410,6 +406,35 @@ export default function ChatIntake({
     }
 
     lastSyncedDescriptionRef.current = description;
+    if (sessionId) lastSyncedSessionIdRef.current = sessionId;
+  };
+
+  const sendCrmSessionIdUpdate = async (nextSessionId: string, crmLeadId: string) => {
+    if (!nextSessionId || lastSyncedSessionIdRef.current === nextSessionId) return;
+    if (!LEAD_INTAKE_UPDATE_API_URL) {
+      throw new Error('Missing lead intake update configuration');
+    }
+
+    const data = new FormData();
+    data.append('_id', crmLeadId);
+    data.append('external_id', externalId);
+    data.append('openai_sid', nextSessionId);
+
+    if (CRM_WEBHOOK_DRY_RUN) {
+      lastSyncedSessionIdRef.current = nextSessionId;
+      return;
+    }
+
+    const response = await fetch(LEAD_INTAKE_UPDATE_API_URL, {
+      method: 'POST',
+      body: data,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update CRM lead chat session id');
+    }
+
+    lastSyncedSessionIdRef.current = nextSessionId;
   };
 
   return (
