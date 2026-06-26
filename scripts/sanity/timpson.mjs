@@ -1,16 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
-import http from 'node:http';
-import https from 'node:https';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(new URL('../..', import.meta.url).pathname);
 
 const CONFIG = {
-  webhookUrlEnv: 'VITE_CRM_WEBHOOK_URL',
-  webhookApiKeyEnv: 'VITE_CRM_WEBHOOK_API_KEY',
-  updateWebhookApiKeyEnv: 'VITE_CRM_UPDATE_WEBHOOK_API_KEY',
+  leadIntakeApiUrlEnv: 'VITE_LEAD_INTAKE_API_URL',
+  leadIntakeUpdateApiUrlEnv: 'VITE_LEAD_INTAKE_UPDATE_API_URL',
   webhookDryRunEnv: 'VITE_CRM_WEBHOOK_DRY_RUN',
-  expectedWebhookUrl: 'https://app.timpsondrafting.com/api/webhooks/event',
+  expectedLeadIntakeApiUrl: 'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/create',
+  expectedLeadIntakeUpdateApiUrl: 'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/update',
   testLeadId: '6a1deb6701670f0ab73a56d3',
   testExternalId: 'timpson-sanity-test-001',
   ga4MeasurementId: 'G-BXQTF3KH70',
@@ -95,20 +93,21 @@ function assertEqual(actual, expected, label) {
   else fail(`${label}: expected ${expected}, got ${actual}`);
 }
 
-function normalizeWebhookApiKey(apiKey) {
-  let normalized = apiKey.trim();
+function runEnvConfigCheck(env) {
+  const createUrl = env[CONFIG.leadIntakeApiUrlEnv];
+  const updateUrl = env[CONFIG.leadIntakeUpdateApiUrlEnv];
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const decoded = decodeURIComponent(normalized);
-      if (decoded === normalized) break;
-      normalized = decoded;
-    } catch {
-      break;
-    }
+  if (createUrl) {
+    assertEqual(createUrl, CONFIG.expectedLeadIntakeApiUrl, `${CONFIG.leadIntakeApiUrlEnv} points to Timpson create route`);
+  } else {
+    warn(`${CONFIG.leadIntakeApiUrlEnv} not set; source fallback will be used.`);
   }
 
-  return normalized;
+  if (updateUrl) {
+    assertEqual(updateUrl, CONFIG.expectedLeadIntakeUpdateApiUrl, `${CONFIG.leadIntakeUpdateApiUrlEnv} points to Timpson update route`);
+  } else {
+    warn(`${CONFIG.leadIntakeUpdateApiUrlEnv} not set; source fallback will be used.`);
+  }
 }
 
 function getFirstQueryParam(params, keys) {
@@ -205,29 +204,12 @@ function runAdClickAttributionCheck() {
   assertEqual(payload.landingPageUrl, AD_CLICK_TEST_URL, 'Ad-click payload preserves full landingPageUrl with query params');
 }
 
-function runApiKeyEncodingCheck() {
-  const encodedOnce = 'U2FsdGVkX1%2Babc%2Fdef%3D';
-  const encodedTwice = 'U2FsdGVkX1%252Babc%252Fdef%253D';
-  const decoded = 'U2FsdGVkX1+abc/def=';
-  const url = new URL(CONFIG.expectedWebhookUrl);
-
-  assertEqual(normalizeWebhookApiKey(encodedOnce), decoded, 'Webhook API key normalization decodes once-encoded env values');
-  assertEqual(normalizeWebhookApiKey(encodedTwice), decoded, 'Webhook API key normalization decodes double-encoded env values');
-
-  url.searchParams.set('apiKey', normalizeWebhookApiKey(encodedTwice));
-  assertEqual(
-    url.toString(),
-    `${CONFIG.expectedWebhookUrl}?apiKey=U2FsdGVkX1%2Babc%2Fdef%3D`,
-    'Webhook API key URL is encoded exactly once'
-  );
-}
-
-function runLivePayloadShapeCheck() {
+function runLeadIntakePayloadShapeCheck() {
   const payload = buildTestPayload();
 
-  assertEqual(payload._id, CONFIG.testLeadId, 'Live CRM sanity payload uses reusable CRM _id');
-  assertEqual(payload.external_id, CONFIG.testExternalId, 'Live CRM sanity payload keeps stable external_id metadata');
-  assertEqual(payload.test_mode, 'true', 'Live CRM sanity payload is marked test_mode');
+  assertEqual(payload._id, CONFIG.testLeadId, 'Lead-intake sanity payload uses reusable CRM _id');
+  assertEqual(payload.external_id, CONFIG.testExternalId, 'Lead-intake sanity payload keeps stable external_id metadata');
+  assertEqual(payload.test_mode, 'true', 'Lead-intake sanity payload is marked test_mode');
 }
 
 function runStaticChecks() {
@@ -256,6 +238,12 @@ function runStaticChecks() {
   assertIncludes(contactForm, `const GOOGLE_ADS_CONVERSION_ID = '${CONFIG.googleAdsConversionSendTo}'`, 'ContactForm preserves expected Ads conversion send_to');
   assertIncludes(contactForm, `window.gtag('event', 'conversion'`, 'ContactForm fires Google Ads conversion event');
   assertIncludes(contactForm, `send_to: GOOGLE_ADS_CONVERSION_ID`, 'Google Ads conversion uses configured send_to constant');
+  assertOrder(
+    contactForm,
+    `send_to: GOOGLE_ADS_CONVERSION_ID`,
+    `transaction_id: transactionId`,
+    'Google Ads conversion sends transaction_id with the conversion event'
+  );
   assertIncludes(contactForm, `window.dataLayer.push({`, 'ContactForm pushes lead event through Google Tag Manager dataLayer');
   assertIncludes(contactForm, `event: 'generate_lead'`, 'ContactForm pushes expected generate_lead event name');
   assertIncludes(contactForm, `transaction_id: transactionId`, 'ContactForm includes transaction_id on generate_lead event');
@@ -276,12 +264,10 @@ function runStaticChecks() {
     'Conversion events fire only after CRM response success check'
   );
 
-  assertIncludes(contactForm, `import.meta.env.VITE_CRM_WEBHOOK_URL`, 'ContactForm reads CRM webhook URL from Vite env');
-  assertIncludes(contactForm, `import.meta.env.VITE_CRM_WEBHOOK_API_KEY`, 'ContactForm reads CRM webhook API key from Vite env');
+  assertIncludes(contactForm, `import.meta.env.${CONFIG.leadIntakeApiUrlEnv}`, 'ContactForm reads lead-intake create URL from Vite env');
+  assertIncludes(contactForm, CONFIG.expectedLeadIntakeApiUrl, 'ContactForm fallback uses Timpson lead-intake create route');
   assertIncludes(contactForm, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ContactForm reads CRM webhook dry-run flag from Vite env');
-  assertIncludes(contactForm, `const normalizeWebhookApiKey`, 'ContactForm normalizes encoded webhook API keys');
-  assertIncludes(contactForm, `apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_WEBHOOK_API_KEY))`, 'ContactForm appends normalized API key as apiKey query param');
-  assertIncludes(contactForm, `fetch(apiEndpoint.toString()`, 'ContactForm posts to env-derived API endpoint');
+  assertIncludes(contactForm, `fetch(LEAD_INTAKE_API_URL`, 'ContactForm posts to shared lead-intake create endpoint');
   assertIncludes(contactForm, `readCrmLeadId(response)`, 'ContactForm reads returned CRM lead ID for chat enrichment');
   assertIncludes(contactForm, `body.imports?.[0]?.id`, 'ContactForm reads CRM import response id for update webhook');
   assertIncludes(contactForm, `<ChatIntake`, 'ContactForm renders AI chat after successful lead submission');
@@ -328,8 +314,8 @@ function runStaticChecks() {
 
   assertIncludes(chatIntake, `import.meta.env.VITE_AI_CHAT_API_URL`, 'ChatIntake reads chat API URL from Vite env');
   assertIncludes(chatIntake, `import.meta.env.VITE_COMPANY_ID`, 'ChatIntake reads company ID from Vite env');
-  assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookUrlEnv}`, 'ChatIntake reads CRM webhook URL from Vite env');
-  assertIncludes(chatIntake, `import.meta.env.${CONFIG.updateWebhookApiKeyEnv}`, 'ChatIntake reads CRM update webhook API key from Vite env');
+  assertIncludes(chatIntake, `import.meta.env.${CONFIG.leadIntakeUpdateApiUrlEnv}`, 'ChatIntake reads lead-intake update URL from Vite env');
+  assertIncludes(chatIntake, CONFIG.expectedLeadIntakeUpdateApiUrl, 'ChatIntake fallback uses Timpson lead-intake update route');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ChatIntake reads CRM webhook dry-run flag from Vite env');
   if (chatIntake.includes('selectedFiles') || chatIntake.includes('Paperclip') || chatIntake.includes('type="file"')) {
     fail('ChatIntake must not attempt file uploads through the CRM update webhook');
@@ -354,8 +340,7 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `missingRequiredFields.length > 0`, 'ChatIntake blocks CRM sync when draft required fields are incomplete');
   assertIncludes(chatIntake, `const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId`, 'ChatIntake creates CRM lead only after a draft is complete enough to sync');
   assertIncludes(chatIntake, `data.enrichmentPayload`, 'ChatIntake uses AI enrichment payload from backend');
-  assertIncludes(chatIntake, `const normalizeWebhookApiKey`, 'ChatIntake normalizes encoded webhook API keys');
-  assertIncludes(chatIntake, `apiEndpoint.searchParams.set('apiKey', normalizeWebhookApiKey(CRM_UPDATE_WEBHOOK_API_KEY))`, 'ChatIntake appends normalized CRM update API key as apiKey query param');
+  assertIncludes(chatIntake, `fetch(LEAD_INTAKE_UPDATE_API_URL`, 'ChatIntake posts to shared lead-intake update endpoint');
   assertIncludes(chatIntake, `data.append('external_id', externalId)`, 'ChatIntake sends external_id with CRM update payload');
   assertIncludes(chatIntake, `data.append('_id', crmLeadId)`, 'ChatIntake sends returned CRM id as _id for update lookup');
   if (chatIntake.includes('...payload') || chatIntake.includes('payloadFields')) {
@@ -402,7 +387,7 @@ function buildTestPayload() {
     project_city: 'Colorado City',
     project_state: 'AZ',
     timeline: 'No rush / just exploring',
-    description: `Automated deployment sanity test for reusable CRM _id ${CONFIG.testLeadId}. Do not create a production lead from this payload.`,
+    description: `Automated lead-intake sanity test for reusable CRM _id ${CONFIG.testLeadId}. Do not create a production lead from this payload.`,
     consent_to_text: 'false',
     website: '',
     keyword: 'sanity-test',
@@ -412,103 +397,20 @@ function buildTestPayload() {
     campaignid: 'sanity-test-campaign',
     utm_source: 'deployment_sanity',
     utm_campaign: 'website_verification',
-    utm_term: 'crm webhook test',
+    utm_term: 'lead intake test',
     adminEmail: CONFIG.adminEmail,
     landingPageUrl: 'https://timpsondrafting.com/?sanity_test=true',
     referrer: 'deployment_sanity_check',
   };
 }
 
-function encodeMultipart(fields) {
-  const boundary = `----timpson-sanity-${Date.now()}`;
-  const chunks = [];
-  for (const [name, value] of Object.entries(fields)) {
-    chunks.push(`--${boundary}\r\n`);
-    chunks.push(`Content-Disposition: form-data; name="${name}"\r\n\r\n`);
-    chunks.push(`${value}\r\n`);
-  }
-  chunks.push(`--${boundary}--\r\n`);
-  return {
-    boundary,
-    body: Buffer.from(chunks.join(''), 'utf8'),
-  };
-}
-
-function postMultipart(url, fields) {
-  const { boundary, body } = encodeMultipart(fields);
-  const client = url.protocol === 'https:' ? https : http;
-
-  return new Promise((resolveRequest, rejectRequest) => {
-    const request = client.request(
-      {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port || undefined,
-        path: `${url.pathname}${url.search}`,
-        method: 'POST',
-        headers: {
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-          'Content-Length': String(body.length),
-          'sc-origin': CONFIG.crmOrigin,
-        },
-      },
-      (response) => {
-        const chunks = [];
-        response.on('data', (chunk) => chunks.push(chunk));
-        response.on('end', () => {
-          resolveRequest({
-            statusCode: response.statusCode || 0,
-            body: Buffer.concat(chunks).toString('utf8'),
-          });
-        });
-      }
-    );
-
-    request.on('error', rejectRequest);
-    request.write(body);
-    request.end();
-  });
-}
-
-async function runLiveApiCheck(env) {
-  const liveEnabled = process.env.TIMPSON_LIVE_API_TEST === '1' || process.argv.includes('--live-api');
-  if (!liveEnabled) {
-    warn('Skipping live CRM webhook POST. Run with TIMPSON_LIVE_API_TEST=1 or --live-api to enable it.');
-    return;
-  }
-
-  const webhookUrl = env[CONFIG.webhookUrlEnv];
-  const apiKey = env[CONFIG.webhookApiKeyEnv];
-
-  if (!webhookUrl) fail(`Missing ${CONFIG.webhookUrlEnv} in .env or .env.local`);
-  if (!apiKey) fail(`Missing ${CONFIG.webhookApiKeyEnv} in .env or .env.local`);
-  if (!webhookUrl || !apiKey) return;
-
-  if (webhookUrl !== CONFIG.expectedWebhookUrl) {
-    fail(`${CONFIG.webhookUrlEnv} expected ${CONFIG.expectedWebhookUrl}, got ${webhookUrl}`);
-    return;
-  }
-
-  const url = new URL(webhookUrl);
-  url.searchParams.set('apiKey', normalizeWebhookApiKey(apiKey));
-
-  const response = await postMultipart(url, buildTestPayload());
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    fail(`CRM webhook returned ${response.statusCode}: ${response.body.slice(0, 500)}`);
-    return;
-  }
-
-  pass(`CRM webhook accepted test payload for reusable _id ${CONFIG.testLeadId} with status ${response.statusCode}`);
-}
-
 async function main() {
   const env = getEnv();
   pass(`Using landing page repo: ${ROOT}`);
+  runEnvConfigCheck(env);
   runStaticChecks();
   runAdClickAttributionCheck();
-  runApiKeyEncodingCheck();
-  runLivePayloadShapeCheck();
-  await runLiveApiCheck(env);
+  runLeadIntakePayloadShapeCheck();
 
   for (const message of passes) console.log(`PASS ${message}`);
   for (const message of warnings) console.warn(`WARN ${message}`);

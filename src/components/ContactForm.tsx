@@ -214,6 +214,7 @@ const fireLeadTrackingEvents = (transactionId: string) => {
   if (typeof window.gtag === 'function') {
     window.gtag('event', 'conversion', {
       send_to: GOOGLE_ADS_CONVERSION_ID,
+      transaction_id: transactionId,
     });
   }
 
