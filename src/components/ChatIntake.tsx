@@ -129,6 +129,51 @@ const getNearestQuarterTime = () => {
 
 const isCallbackOption = (option: string) => /callback|schedule call|call me asap/i.test(option);
 const isDirectCallOption = (option: string) => /^call\s+\d/i.test(option);
+const isSoftGoodbyeOption = (option: string) => /no thanks|that'?s all|done for now|nothing else/i.test(option);
+
+const toTrimmedString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+
+const normalizeForComparison = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim();
+
+const appendUniqueSection = (sections: string[], nextSection: string) => {
+  const normalizedNext = normalizeForComparison(nextSection);
+  if (!normalizedNext) return;
+
+  const alreadyIncluded = sections.some((section) => {
+    const normalizedSection = normalizeForComparison(section);
+    return normalizedSection === normalizedNext || normalizedSection.includes(normalizedNext);
+  });
+
+  if (!alreadyIncluded) {
+    sections.push(nextSection.trim());
+  }
+};
+
+const buildMergedDescription = ({
+  originalDescription,
+  aiDescription,
+  callbackPreference,
+}: {
+  originalDescription: string;
+  aiDescription: string;
+  callbackPreference: string;
+}) => {
+  const sections: string[] = [];
+  const normalizedAi = normalizeForComparison(aiDescription);
+  const normalizedOriginal = normalizeForComparison(originalDescription);
+
+  if (originalDescription && (!normalizedAi || !normalizedAi.includes(normalizedOriginal))) {
+    appendUniqueSection(sections, originalDescription);
+  }
+
+  appendUniqueSection(sections, aiDescription);
+
+  if (callbackPreference) {
+    appendUniqueSection(sections, `Preferred callback time: ${callbackPreference}`);
+  }
+
+  return sections.join('\n\n');
+};
 
 export default function ChatIntake({
   leadId,
@@ -287,6 +332,10 @@ export default function ChatIntake({
       void sendMessage(undefined, `${option}. I may call that number to get started.`);
       return;
     }
+    if (isSoftGoodbyeOption(option)) {
+      void finalizeSession(option);
+      return;
+    }
     if (isCallbackOption(option)) {
       setMessages((current) => [...current, { role: 'user', content: option }]);
       setResponseOptions([]);
@@ -295,6 +344,13 @@ export default function ChatIntake({
       return;
     }
     void sendMessage(undefined, option);
+  };
+
+  const handleDraftKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    if (!draft.trim() || status === 'thinking') return;
+    void sendMessage();
   };
 
   const submitCallbackPreference = (mode: 'asap' | 'custom') => {
@@ -312,8 +368,14 @@ export default function ChatIntake({
     void sendMessage(undefined, `Preferred callback time: ${preference}`);
   };
 
-  const finalizeSession = async () => {
+  const finalizeSession = async (displayMessage?: string) => {
     if (!sessionId || status === 'completed') return;
+
+    if (displayMessage) {
+      setMessages((current) => [...current, { role: 'user', content: displayMessage }]);
+      setResponseOptions([]);
+      setShowCallbackPicker(false);
+    }
 
     setStatus('thinking');
     try {
@@ -322,7 +384,7 @@ export default function ChatIntake({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          reason: 'user_done',
+          reason: displayMessage || 'user_done',
           leadId: activeLeadId,
           formSnapshot,
           leadDraft,
@@ -364,7 +426,7 @@ export default function ChatIntake({
 
     const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId;
     if (!crmLeadId) {
-      return;
+      throw new Error('CRM lead was created or requested, but no lead id was available for the update');
     }
     setActiveLeadId(crmLeadId);
 
@@ -372,10 +434,11 @@ export default function ChatIntake({
       throw new Error('Missing lead intake update configuration');
     }
 
-    const callbackLine = selectedCallbackPreference
-      ? `Preferred callback time: ${selectedCallbackPreference}`
-      : '';
-    const description = [payload.description, callbackLine].filter(Boolean).join('\n\n');
+    const description = buildMergedDescription({
+      originalDescription: toTrimmedString(formSnapshot.description || leadDraft.fields.description),
+      aiDescription: toTrimmedString(payload.description),
+      callbackPreference: selectedCallbackPreference,
+    });
 
     if (
       lastSyncedDescriptionRef.current === description &&
@@ -617,6 +680,7 @@ export default function ChatIntake({
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={handleDraftKeyDown}
                   rows={3}
                   className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                   placeholder={
@@ -636,7 +700,7 @@ export default function ChatIntake({
                   </button>
                   <button
                     type="button"
-                    onClick={finalizeSession}
+                    onClick={() => finalizeSession()}
                     disabled={status === 'thinking'}
                     className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >

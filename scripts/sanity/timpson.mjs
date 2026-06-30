@@ -332,13 +332,14 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `/chat/message`, 'ChatIntake sends messages through backend');
   assertIncludes(chatIntake, `/chat/finalize`, 'ChatIntake finalizes sessions through backend');
   assertIncludes(chatIntake, `message,`, 'ChatIntake sends visitor message to chat backend');
-  assertIncludes(chatIntake, `reason: 'user_done',`, 'ChatIntake sends finalize reason to chat backend');
+  assertIncludes(chatIntake, `reason: displayMessage || 'user_done',`, 'ChatIntake sends finalize reason to chat backend');
   assertIncludes(chatIntake, `leadId: activeLeadId,`, 'ChatIntake sends active lead ID to chat backend');
   assertIncludes(chatIntake, `formSnapshot,`, 'ChatIntake sends form snapshot to chat backend');
   assertIncludes(chatIntake, `leadDraft,`, 'ChatIntake sends lead draft to chat backend');
   assertIncludes(chatIntake, `onFieldPatches(data.fieldPatches)`, 'ChatIntake applies backend field patch suggestions');
   assertIncludes(chatIntake, `missingRequiredFields.length > 0`, 'ChatIntake blocks CRM sync when draft required fields are incomplete');
   assertIncludes(chatIntake, `const crmLeadId = isDraftLead ? await ensureCrmLead() : activeLeadId`, 'ChatIntake creates CRM lead only after a draft is complete enough to sync');
+  assertIncludes(chatIntake, `no lead id was available for the update`, 'ChatIntake stops CRM update when create returns no usable id');
   assertIncludes(chatIntake, `data.enrichmentPayload`, 'ChatIntake uses AI enrichment payload from backend');
   assertIncludes(chatIntake, `fetch(LEAD_INTAKE_UPDATE_API_URL`, 'ChatIntake posts to shared lead-intake update endpoint');
   assertIncludes(chatIntake, `data.append('external_id', externalId)`, 'ChatIntake sends external_id with CRM update payload');
@@ -356,10 +357,13 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `lastSyncedDescriptionRef.current === description`, 'ChatIntake skips duplicate CRM updates for the same summary');
   assertIncludes(chatIntake, `description`, 'ChatIntake preserves description field in CRM enrichment payload type');
   assertIncludes(chatIntake, `responseOptions`, 'ChatIntake renders backend quick response options');
+  assertIncludes(chatIntake, `isSoftGoodbyeOption`, 'ChatIntake handles soft goodbye quick responses without another AI turn');
+  assertIncludes(chatIntake, `onKeyDown={handleDraftKeyDown}`, 'ChatIntake sends typed messages with Enter and keeps Shift+Enter for new lines');
+  assertIncludes(chatIntake, `buildMergedDescription`, 'ChatIntake appends AI context cleanly to the existing project description');
   assertIncludes(chatIntake, `const BUSINESS_TIME_ZONE = 'America/Denver'`, 'ChatIntake converts callback preferences to Mountain Time');
   assertIncludes(chatIntake, `const buildCallbackPreference`, 'ChatIntake builds timezone-aware callback preference');
   assertIncludes(chatIntake, 'Preferred callback time: ${preference}', 'ChatIntake sends selected callback preference through chat');
-  assertIncludes(chatIntake, 'Preferred callback time: ${selectedCallbackPreference}', 'ChatIntake appends callback preference to CRM description');
+  assertIncludes(chatIntake, 'Preferred callback time: ${callbackPreference}', 'ChatIntake appends callback preference to CRM description');
   assertIncludes(chatIntake, `skipCrmUpdate`, 'ChatIntake forwards CRM update skip flag to backend');
   assertIncludes(chatIntake, `bottom-5 right-5`, 'ChatIntake launcher is positioned bottom-right');
   if (chatIntake.includes('OPENAI') || chatIntake.includes('sk-')) {

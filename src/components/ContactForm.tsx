@@ -419,6 +419,8 @@ export default function ContactForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const externalIdRef = useRef(createExternalId());
   const draftLeadIdRef = useRef(`draft-${externalIdRef.current}`);
+  const createCrmLeadPromiseRef = useRef<Promise<string> | null>(null);
+  const createCrmLeadSucceededWithoutIdRef = useRef(false);
   const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -427,8 +429,15 @@ export default function ContactForm() {
 
   const createCrmLead = async () => {
     if (submittedLead?.leadId) return submittedLead.leadId;
+    if (createCrmLeadSucceededWithoutIdRef.current) {
+      setErrorMessage('The lead was submitted, but the CRM id was not returned. Please refresh the CRM before trying another chat save.');
+      return '';
+    }
+    if (createCrmLeadPromiseRef.current) {
+      return createCrmLeadPromiseRef.current;
+    }
 
-    try {
+    const createPromise = (async () => {
       const data = new FormData();
       const submittedFiles = fileListToArray(files);
       const transactionId = buildLeadTransactionId();
@@ -493,12 +502,29 @@ export default function ContactForm() {
           formSnapshot,
           leadDraft: submittedLeadDraft,
         });
+      } else {
+        createCrmLeadSucceededWithoutIdRef.current = true;
+        setSubmittedLead({
+          leadId: '',
+          externalId: externalIdRef.current,
+          formSnapshot,
+          leadDraft: submittedLeadDraft,
+        });
+        setErrorMessage('The lead was submitted, but the CRM id was not returned. Chat details will not be saved until the lead can be matched.');
       }
       return leadId;
+    })();
+
+    createCrmLeadPromiseRef.current = createPromise;
+
+    try {
+      return await createPromise;
     } catch (error) {
       console.error('Submission error:', error);
       setErrorMessage('Something went wrong. Please try again or contact us directly.');
       return '';
+    } finally {
+      createCrmLeadPromiseRef.current = null;
     }
   };
 
@@ -551,6 +577,10 @@ export default function ContactForm() {
 
   const ensureCrmLead = async () => {
     if (submittedLead?.leadId) return submittedLead.leadId;
+    if (createCrmLeadSucceededWithoutIdRef.current) {
+      setErrorMessage('The lead was submitted, but the CRM id was not returned. Please refresh the CRM before trying another chat save.');
+      return '';
+    }
     const missingRequiredFields = getMissingRequiredFields(formData);
     if (missingRequiredFields.length > 0 || formData.website) {
       return '';
@@ -563,7 +593,7 @@ export default function ContactForm() {
     ? `${sitelinkPrefill.description} ${sitelinkPrefill.detail}`
     : 'Share a few details and any reference files you have. We\'ll follow up with next steps.';
   const currentFormSnapshot = buildFormSnapshot(formData, trackingParams, files);
-  const activeChatLead: SubmittedLead = submittedLead || {
+  const activeChatLead: SubmittedLead = submittedLead?.leadId ? submittedLead : {
     leadId: draftLeadIdRef.current,
     externalId: externalIdRef.current,
     formSnapshot: currentFormSnapshot,
