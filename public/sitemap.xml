@@ -6,6 +6,16 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://timpsondrafting.com/about-us/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://timpsondrafting.com/contact/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://timpsondrafting.com/garage-addition-plans/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

@@ -34,6 +34,11 @@ export default function Footer() {
                 </a>
               </li>
               <li>
+                <a href="/about-us/" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  About Timpson
+                </a>
+              </li>
+              <li>
                 <a href="/#process" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   How It Works
                 </a>
@@ -46,6 +51,11 @@ export default function Footer() {
               <li>
                 <a href="/#contact" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   Get a Quote
+                </a>
+              </li>
+              <li>
+                <a href="/contact/" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  Contact Page
                 </a>
               </li>
               <li>
