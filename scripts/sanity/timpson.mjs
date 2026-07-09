@@ -272,9 +272,12 @@ function runStaticChecks() {
   assertIncludes(contactForm, `body.imports?.[0]?.id`, 'ContactForm reads CRM import response id for update webhook');
   assertIncludes(contactForm, `<ChatIntake`, 'ContactForm renders AI chat after successful lead submission');
   assertIncludes(contactForm, `leadDraft: submittedLeadDraft`, 'ContactForm stores submitted lead draft before clearing form');
-  assertIncludes(contactForm, `const submittedFiles = fileListToArray(files)`, 'ContactForm snapshots selected files before clearing form');
+  assertIncludes(contactForm, `const submittedFiles = files`, 'ContactForm snapshots selected files before clearing form');
   assertIncludes(contactForm, `data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }))`, 'ContactForm can send files during initial CRM create');
   assertIncludes(contactForm, `submittedFiles.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file))`, 'ContactForm appends selected files under the CRM file key');
+  assertIncludes(contactForm, `const [files, setFiles] = useState<File[]>([])`, 'ContactForm keeps canonical session file list');
+  assertIncludes(contactForm, `sessionFiles={files}`, 'ContactForm passes session files into chat');
+  assertIncludes(contactForm, `onFilesAdded={handleChatFilesAdded}`, 'ContactForm lets chat append to session files');
   assertIncludes(contactForm, `submittedLead?.leadDraft || buildLeadDraft`, 'ContactForm keeps submitted lead draft available to chat after form reset');
   if (contactForm.includes('setFormData(getInitialFormData())') || contactForm.includes('setFiles(null)')) {
     fail('ContactForm must not clear submitted form fields/files after lead submission');
@@ -317,11 +320,12 @@ function runStaticChecks() {
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.leadIntakeUpdateApiUrlEnv}`, 'ChatIntake reads lead-intake update URL from Vite env');
   assertIncludes(chatIntake, CONFIG.expectedLeadIntakeUpdateApiUrl, 'ChatIntake fallback uses Timpson lead-intake update route');
   assertIncludes(chatIntake, `import.meta.env.${CONFIG.webhookDryRunEnv}`, 'ChatIntake reads CRM webhook dry-run flag from Vite env');
-  if (chatIntake.includes('selectedFiles') || chatIntake.includes('Paperclip') || chatIntake.includes('type="file"')) {
-    fail('ChatIntake must not attempt file uploads through the CRM update webhook');
-  } else {
-    pass('ChatIntake does not attempt file uploads through the CRM update webhook');
-  }
+  assertIncludes(chatIntake, `type="file"`, 'ChatIntake accepts supplemental files');
+  assertIncludes(chatIntake, `onFilesAdded(selectedFiles)`, 'ChatIntake appends supplemental files to the session file list');
+  assertIncludes(chatIntake, `sendCrmUpdate(undefined, nextSessionFiles)`, 'ChatIntake sends CRM file update only after new files are added');
+  assertIncludes(chatIntake, `data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }))`, 'ChatIntake sends file upload descriptor for file-triggered updates');
+  assertIncludes(chatIntake, `filesForUpdate.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file))`, 'ChatIntake sends full session file list on file-triggered updates');
+  assertIncludes(chatIntake, `data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify([]))`, 'ChatIntake sends empty file descriptor on ordinary CRM updates');
   assertIncludes(chatIntake, `data.append('_id', crmLeadId)`, 'ChatIntake sends update _id as normal multipart field');
   assertIncludes(chatIntake, `data.append('external_id', externalId)`, 'ChatIntake sends update external_id as normal multipart field');
   assertIncludes(chatIntake, `data.append('description', description)`, 'ChatIntake sends update description as normal multipart field');

@@ -414,17 +414,27 @@ export default function ContactForm() {
   const [submittedLead, setSubmittedLead] = useState<SubmittedLead | null>(null);
   const [chatSessionId, setChatSessionId] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const externalIdRef = useRef(createExternalId());
   const draftLeadIdRef = useRef(`draft-${externalIdRef.current}`);
   const createCrmLeadPromiseRef = useRef<Promise<string> | null>(null);
   const createCrmLeadSucceededWithoutIdRef = useRef(false);
-  const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
+  const filesRef = useRef<File[]>([]);
+  const selectedFileNames = files.map((file) => file.name);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files && e.target.files.length > 0 ? e.target.files : null);
+    const nextFiles = fileListToArray(e.target.files);
+    filesRef.current = nextFiles;
+    setFiles(nextFiles);
+  };
+
+  const handleChatFilesAdded = (nextChatFiles: File[]) => {
+    const mergedFiles = [...filesRef.current, ...nextChatFiles];
+    filesRef.current = mergedFiles;
+    setFiles(mergedFiles);
+    return mergedFiles;
   };
 
   const createCrmLead = async () => {
@@ -439,7 +449,7 @@ export default function ContactForm() {
 
     const createPromise = (async () => {
       const data = new FormData();
-      const submittedFiles = fileListToArray(files);
+      const submittedFiles = files;
       const transactionId = buildLeadTransactionId();
       data.append('external_id', externalIdRef.current);
       data.append('transaction_id', transactionId);
@@ -1009,9 +1019,11 @@ export default function ContactForm() {
         externalId={activeChatLead.externalId}
         formSnapshot={activeChatLead.formSnapshot}
         leadDraft={leadDraft}
+        sessionFiles={files}
         ensureCrmLead={ensureCrmLead}
         onSessionStarted={setChatSessionId}
         onFieldPatches={handleFieldPatches}
+        onFilesAdded={handleChatFilesAdded}
         isOpen={chatOpen}
         onOpen={() => setChatOpen(true)}
         onClose={() => setChatOpen(false)}

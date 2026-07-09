@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, CheckCircle2, Loader2, MessageCircle, Send, X, XCircle } from 'lucide-react';
+import { Bot, CheckCircle2, Loader2, MessageCircle, Paperclip, Send, X, XCircle } from 'lucide-react';
 
 const AI_CHAT_API_URL = import.meta.env.VITE_AI_CHAT_API_URL;
 const COMPANY_ID = import.meta.env.VITE_COMPANY_ID || 'timpson-drafting-design';
@@ -8,6 +8,7 @@ const LEAD_INTAKE_UPDATE_API_URL =
   'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/update';
 const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
 const BUSINESS_TIME_ZONE = 'America/Denver';
+const CRM_FILE_UPLOAD_KEY = 'files';
 
 type ChatStatus = 'idle' | 'connecting' | 'connected' | 'thinking' | 'error' | 'completed';
 
@@ -49,11 +50,13 @@ type ChatIntakeProps = {
   externalId: string;
   formSnapshot: Record<string, string | boolean>;
   leadDraft: LeadDraft;
+  sessionFiles: File[];
   skipCrmUpdate?: boolean;
   testMode?: boolean;
   ensureCrmLead: () => Promise<string>;
   onSessionStarted?: (sessionId: string) => void;
   onFieldPatches: (fieldPatches: FieldPatches) => void;
+  onFilesAdded: (files: File[]) => File[];
   isOpen: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -133,6 +136,9 @@ const isSoftGoodbyeOption = (option: string) => /no thanks|that'?s all|done for 
 
 const toTrimmedString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
+const fileListToArray = (fileList: FileList | null): File[] =>
+  fileList ? Array.from(fileList) : [];
+
 const normalizeForComparison = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim();
 
 const appendUniqueSection = (sections: string[], nextSection: string) => {
@@ -180,10 +186,12 @@ export default function ChatIntake({
   externalId,
   formSnapshot,
   leadDraft,
+  sessionFiles,
   skipCrmUpdate = false,
   ensureCrmLead,
   onSessionStarted,
   onFieldPatches,
+  onFilesAdded,
   isOpen,
   onOpen,
   onClose,
@@ -200,10 +208,14 @@ export default function ChatIntake({
   const [callbackTime, setCallbackTime] = useState(getNearestQuarterTime());
   const [callbackNote, setCallbackNote] = useState('');
   const [selectedCallbackPreference, setSelectedCallbackPreference] = useState('');
+  const [fileSyncStatus, setFileSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'local' | 'error'>('idle');
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastBlockedSyncRef = useRef('');
   const lastSyncedDescriptionRef = useRef('');
   const lastSyncedSessionIdRef = useRef('');
+  const fileCountLabel =
+    sessionFiles.length === 1 ? '1 file attached' : `${sessionFiles.length} files attached`;
 
   useEffect(() => {
     setActiveLeadId(leadId);
@@ -368,6 +380,29 @@ export default function ChatIntake({
     void sendMessage(undefined, `Preferred callback time: ${preference}`);
   };
 
+  const handleChatFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = fileListToArray(event.target.files);
+    event.target.value = '';
+    if (selectedFiles.length === 0) return;
+
+    const nextSessionFiles = onFilesAdded(selectedFiles);
+
+    if (activeLeadId.startsWith('draft-')) {
+      setFileSyncStatus('local');
+      return;
+    }
+
+    setFileSyncStatus('saving');
+    try {
+      await sendCrmUpdate(undefined, nextSessionFiles);
+      setFileSyncStatus('saved');
+    } catch (error) {
+      console.error('AI chat file update error:', error);
+      setFileSyncStatus('error');
+      setErrorMessage('The file was added here, but it did not save to the CRM lead.');
+    }
+  };
+
   const finalizeSession = async (displayMessage?: string) => {
     if (!sessionId || status === 'completed') return;
 
@@ -406,8 +441,12 @@ export default function ChatIntake({
     }
   };
 
-  const sendCrmUpdate = async (payload: EnrichmentPayload | null | undefined) => {
-    if (!payload) {
+  const sendCrmUpdate = async (
+    payload: EnrichmentPayload | null | undefined,
+    filesForUpdate: File[] = []
+  ) => {
+    const hasFileUpdate = filesForUpdate.length > 0;
+    if (!payload && !hasFileUpdate) {
       return;
     }
     if (skipCrmUpdate) {
@@ -415,7 +454,7 @@ export default function ChatIntake({
     }
     const isDraftLead = activeLeadId.startsWith('draft-');
     const missingRequiredFields = leadDraft.missingRequiredFields;
-    const blockedSyncKey = `${activeLeadId}:${payload.description}:${missingRequiredFields.join(',')}`;
+    const blockedSyncKey = `${activeLeadId}:${payload?.description || ''}:${missingRequiredFields.join(',')}`;
 
     if (isDraftLead && missingRequiredFields.length > 0) {
       if (CRM_WEBHOOK_DRY_RUN && lastBlockedSyncRef.current !== blockedSyncKey) {
@@ -434,13 +473,16 @@ export default function ChatIntake({
       throw new Error('Missing lead intake update configuration');
     }
 
-    const description = buildMergedDescription({
-      originalDescription: toTrimmedString(formSnapshot.description || leadDraft.fields.description),
-      aiDescription: toTrimmedString(payload.description),
-      callbackPreference: selectedCallbackPreference,
-    });
+    const description = payload
+      ? buildMergedDescription({
+          originalDescription: toTrimmedString(formSnapshot.description || leadDraft.fields.description),
+          aiDescription: toTrimmedString(payload.description),
+          callbackPreference: selectedCallbackPreference,
+        })
+      : '';
 
     if (
+      !hasFileUpdate &&
       lastSyncedDescriptionRef.current === description &&
       (!sessionId || lastSyncedSessionIdRef.current === sessionId)
     ) {
@@ -451,7 +493,13 @@ export default function ChatIntake({
     data.append('_id', crmLeadId);
     data.append('external_id', externalId);
     if (sessionId) data.append('openai_sid', sessionId);
-    data.append('description', description);
+    if (description) data.append('description', description);
+    if (hasFileUpdate) {
+      data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }));
+      filesForUpdate.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file));
+    } else {
+      data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify([]));
+    }
 
     if (CRM_WEBHOOK_DRY_RUN) {
       lastSyncedDescriptionRef.current = description;
@@ -468,7 +516,7 @@ export default function ChatIntake({
       throw new Error('Failed to update CRM lead context');
     }
 
-    lastSyncedDescriptionRef.current = description;
+    if (description) lastSyncedDescriptionRef.current = description;
     if (sessionId) lastSyncedSessionIdRef.current = sessionId;
   };
 
@@ -482,6 +530,7 @@ export default function ChatIntake({
     data.append('_id', crmLeadId);
     data.append('external_id', externalId);
     data.append('openai_sid', nextSessionId);
+    data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify([]));
 
     if (CRM_WEBHOOK_DRY_RUN) {
       lastSyncedSessionIdRef.current = nextSessionId;
@@ -546,6 +595,22 @@ export default function ChatIntake({
                 {statusLabels[status]}
                 {status === 'connecting' && <TypingDots />}
               </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
+                {fileSyncStatus === 'saving' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Paperclip className="h-3.5 w-3.5" />
+                )}
+                {fileCountLabel}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.dwg"
+                onChange={handleChatFilesSelected}
+              />
             </div>
 
             <div ref={messageScrollRef} className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -697,6 +762,19 @@ export default function ChatIntake({
                   >
                     {status === 'thinking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     Send
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={status === 'thinking' || fileSyncStatus === 'saving'}
+                    aria-label="Attach project files"
+                    className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {fileSyncStatus === 'saving' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
                   </button>
                   <button
                     type="button"
