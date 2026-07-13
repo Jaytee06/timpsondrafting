@@ -132,8 +132,19 @@ type LeadDraft = {
 
 type FieldPatches = Partial<Pick<
   ContactFormState,
-  'projectType' | 'projectCity' | 'projectState' | 'timeline' | 'description'
+  'name' | 'phone' | 'email' | 'projectType' | 'projectCity' | 'projectState' | 'timeline' | 'description'
 >>;
+
+const PATCHABLE_FORM_FIELDS = [
+  'name',
+  'phone',
+  'email',
+  'projectType',
+  'projectCity',
+  'projectState',
+  'timeline',
+  'description',
+] as const satisfies readonly (keyof FieldPatches)[];
 
 const INITIAL_FORM_DATA: ContactFormState = {
   name: '',
@@ -574,15 +585,20 @@ export default function ContactForm() {
   };
 
   const handleFieldPatches = (fieldPatches: FieldPatches) => {
-    setFormData((current) => ({
-      ...current,
-      ...Object.fromEntries(
-        Object.entries(fieldPatches).filter(([key, value]) => {
-          const typedKey = key as keyof FieldPatches;
-          return typeof value === 'string' && value.trim() && !current[typedKey];
-        })
-      ),
-    }));
+    setFormData((current) => {
+      const nextPatches = PATCHABLE_FORM_FIELDS.reduce<Partial<ContactFormState>>((patches, key) => {
+        const value = fieldPatches[key];
+        if (typeof value === 'string' && value.trim() && !current[key]) {
+          patches[key] = value.trim();
+        }
+        return patches;
+      }, {});
+
+      return {
+        ...current,
+        ...nextPatches,
+      };
+    });
   };
 
   const ensureCrmLead = async () => {

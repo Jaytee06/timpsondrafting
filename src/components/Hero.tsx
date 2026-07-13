@@ -31,7 +31,7 @@ export default function Hero() {
           </p>
 
           <p className="text-slate-400 mb-10 text-lg">
-            Serving homeowners and contractors with permit-ready construction documents for ADUs, as-built drawings, garages, additions, and custom residential projects.
+            At Timpson Drafting and Design, our residential drafting and design services help homeowners and contractors move from project ideas to permit-ready construction documents for ADUs, as-built drawings, garages, additions, and custom residential projects.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">

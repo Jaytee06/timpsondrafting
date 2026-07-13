@@ -38,6 +38,8 @@ type LeadDraft = {
 
 type FieldPatches = Partial<{
   name: string;
+  phone: string;
+  email: string;
   projectType: string;
   projectCity: string;
   projectState: string;

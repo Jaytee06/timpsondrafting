@@ -302,17 +302,20 @@ function runStaticChecks() {
   assertIncludes(contactForm, `buildLeadDraft(formData, trackingParams`, 'ContactForm builds a complete lead draft for AI chat');
   assertIncludes(contactForm, `missingRequiredFields.length > 0`, 'ContactForm blocks CRM auto-create until required fields are complete');
   assertIncludes(contactForm, `ensureCrmLead={ensureCrmLead}`, 'ContactForm lets chat trigger deterministic CRM create when ready');
-  assertIncludes(contactForm, `onFieldPatches={handleFieldPatches}`, 'ContactForm applies AI-suggested non-contact field patches');
+  assertIncludes(contactForm, `onFieldPatches={handleFieldPatches}`, 'ContactForm applies AI-suggested field patches');
   assertIncludes(chatIntake, `name: string`, 'ChatIntake allows AI to patch visitor-provided name');
+  assertIncludes(chatIntake, `phone: string`, 'ChatIntake allows AI to patch visitor-provided phone when volunteered in chat');
+  assertIncludes(chatIntake, `email: string`, 'ChatIntake allows AI to patch visitor-provided email when volunteered in chat');
+  assertIncludes(contactForm, `'phone'`, 'ContactForm includes phone in the patchable field allowlist');
+  assertIncludes(contactForm, `'email'`, 'ContactForm includes email in the patchable field allowlist');
+  assertIncludes(contactForm, `!current[key]`, 'ContactForm applies AI field patches only to empty form fields');
   if (
     contactForm.includes(`fields: {\n      email:`) ||
-    contactForm.includes(`fields: {\n      phone:`) ||
-    chatIntake.includes(`email: string`) ||
-    chatIntake.includes(`phone: string`)
+    contactForm.includes(`fields: {\n      phone:`)
   ) {
-    fail('AI lead draft/patches must not pass raw email or phone values');
+    fail('AI lead draft must not pass raw email or phone values');
   } else {
-    pass('AI lead draft/patches omit raw email and phone values');
+    pass('AI lead draft omits raw email and phone values');
   }
 
   assertIncludes(chatIntake, `import.meta.env.VITE_AI_CHAT_API_URL`, 'ChatIntake reads chat API URL from Vite env');
