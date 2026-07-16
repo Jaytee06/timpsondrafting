@@ -6,7 +6,7 @@ export default function Hero() {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
         style={{
-          backgroundImage: 'url(/haus-grundriss-zeichnen.jpg)',
+          backgroundImage: 'url(/timpson-banner.jpg), url(/haus-grundriss-zeichnen.jpg)',
         }}
       ></div>
       <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/70 to-slate-900/80"></div>
@@ -27,7 +27,7 @@ export default function Hero() {
           </p>
 
           <p className="text-slate-400 mb-10 text-lg">
-            Helping homeowners and contractors with custom home plans, additions, remodel drawings, small-space layouts, and permit-ready construction documents.
+            At Timpson Drafting and Design, our residential drafting and design services help homeowners and contractors move from project ideas to permit-ready construction documents for ADUs, as-built drawings, garages, additions, and custom residential projects.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">

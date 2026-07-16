@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react';
-import { Send, CheckCircle2, Mail, Phone, MapPin } from 'lucide-react';
+import { Send, CheckCircle2, Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
+import ChatIntake from './ChatIntake';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
-const GA4_MEASUREMENT_ID = 'G-BXQTF3KH70';
 const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
-const CRM_WEBHOOK_URL = import.meta.env.VITE_CRM_WEBHOOK_URL;
-const CRM_WEBHOOK_API_KEY = import.meta.env.VITE_CRM_WEBHOOK_API_KEY;
+const LEAD_INTAKE_API_URL =
+  import.meta.env.VITE_LEAD_INTAKE_API_URL ||
+  'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/create';
+const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
 
 type TrackingParams = {
   keyword: string;
@@ -44,6 +46,12 @@ const TIMELINE_OPTIONS = [
 ] as const;
 
 const CRM_FILE_UPLOAD_KEY = 'files';
+
+type FileMetadata = {
+  name: string;
+  type: string;
+  size: number;
+};
 
 type SitelinkPrefill = {
   heading: string;
@@ -108,6 +116,36 @@ type ContactFormState = {
   website: string;
 };
 
+type SubmittedLead = {
+  leadId: string;
+  externalId: string;
+  formSnapshot: Record<string, string | boolean>;
+  leadDraft: LeadDraft;
+};
+
+type LeadDraft = {
+  crmId?: string;
+  fields: Record<string, string | boolean>;
+  fieldStatus: Record<string, 'empty' | 'provided'>;
+  missingRequiredFields: string[];
+};
+
+type FieldPatches = Partial<Pick<
+  ContactFormState,
+  'name' | 'phone' | 'email' | 'projectType' | 'projectCity' | 'projectState' | 'timeline' | 'description'
+>>;
+
+const PATCHABLE_FORM_FIELDS = [
+  'name',
+  'phone',
+  'email',
+  'projectType',
+  'projectCity',
+  'projectState',
+  'timeline',
+  'description',
+] as const satisfies readonly (keyof FieldPatches)[];
+
 const INITIAL_FORM_DATA: ContactFormState = {
   name: '',
   phone: '',
@@ -168,17 +206,33 @@ const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
   return '';
 };
 
-const fireLeadTrackingEvents = () => {
-  if (typeof window.gtag !== 'function') return;
+const fileListToArray = (fileList: FileList | null): File[] =>
+  fileList ? Array.from(fileList) : [];
 
+const buildLeadTransactionId = () => `LEAD${Date.now()}`;
+
+const buildFileMetadata = (fileList: FileList | File[] | null): FileMetadata[] => {
+  const fileArray = Array.isArray(fileList) ? fileList : fileListToArray(fileList);
+  return fileArray.map((file) => ({
+    name: file.name,
+    type: file.type || 'unknown',
+    size: file.size,
+  }));
+};
+
+const fireLeadTrackingEvents = (transactionId: string) => {
   // Google Ads conversion. This needs the Ads conversion label.
-  window.gtag('event', 'conversion', {
-    send_to: GOOGLE_ADS_CONVERSION_ID,
-  });
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', 'conversion', {
+      send_to: GOOGLE_ADS_CONVERSION_ID,
+      transaction_id: transactionId,
+    });
+  }
 
-  // GA4 recommended event. Keep the destination explicit for Tag Assistant visibility.
-  window.gtag('event', 'generate_lead', {
-    send_to: GA4_MEASUREMENT_ID,
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: 'generate_lead',
+    transaction_id: transactionId,
     method: 'contact_form',
   });
 };
@@ -238,84 +292,179 @@ const readTrackingParams = (): TrackingParams => {
   return currentParams;
 };
 
+const buildFormSnapshot = (
+  formData: ContactFormState,
+  trackingParams: TrackingParams,
+  uploadedFiles: FileList | File[] | null = null
+): Record<string, string | boolean> => {
+  const fileMetadata = buildFileMetadata(uploadedFiles);
+
+  return {
+    hasFullName: Boolean(formData.name.trim()),
+    hasEmail: Boolean(formData.email.trim()),
+    hasPhone: Boolean(formData.phone.trim()),
+    projectType: formData.projectType,
+    projectCity: formData.projectCity.trim(),
+    projectState: formData.projectState.trim(),
+    timeline: formData.timeline,
+    description: formData.description.trim(),
+    consentToText: formData.consent,
+    keyword: trackingParams.keyword,
+    gclid: trackingParams.gclid,
+    gbraid: trackingParams.gbraid,
+    wbraid: trackingParams.wbraid,
+    campaignid: trackingParams.campaignid,
+    utmSource: trackingParams.utmSource,
+    utmCampaign: trackingParams.utmCampaign,
+    utmTerm: trackingParams.utmTerm,
+    filesProvided: fileMetadata.length > 0,
+    fileCount: String(fileMetadata.length),
+    fileNames: fileMetadata.map((file) => file.name).join(', '),
+    landingPageUrl: window.location.href,
+    referrer: document.referrer || '',
+  };
+};
+
+const getRequiredFieldErrors = (formData: ContactFormState) => {
+  const errors: Record<string, string> = {};
+  const digitsOnly = formData.phone.replace(/\D/g, '');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (formData.website) errors.website = 'Spam detected.';
+  if (formData.name.trim().length < 2) errors.name = 'Please enter your name.';
+  if (digitsOnly.length < 10) errors.phone = 'Please enter a valid phone number (at least 10 digits).';
+  if (!emailRegex.test(formData.email.trim())) errors.email = 'Please enter a valid email address.';
+  if (!formData.projectCity.trim()) errors.projectCity = 'Please enter your project city.';
+  if (!formData.projectState.trim()) errors.projectState = 'Please enter your project state.';
+  if (!formData.projectType) errors.projectType = 'Please select what you are looking to do.';
+  if (!formData.timeline) errors.timeline = 'Please select your timeline.';
+
+  return errors;
+};
+
+const getMissingRequiredFields = (formData: ContactFormState) =>
+  Object.keys(getRequiredFieldErrors(formData)).filter((field) => field !== 'website');
+
+const getFirstRequiredFieldError = (formData: ContactFormState) => {
+  const errors = getRequiredFieldErrors(formData);
+  return Object.values(errors).find(Boolean) || '';
+};
+
+const buildLeadDraft = (
+  formData: ContactFormState,
+  trackingParams: TrackingParams,
+  crmId?: string,
+  uploadedFiles: FileList | File[] | null = null
+): LeadDraft => {
+  const fileMetadata = buildFileMetadata(uploadedFiles);
+  const fieldStatus = {
+    name: formData.name.trim() ? 'provided' : 'empty',
+    email: formData.email.trim() ? 'provided' : 'empty',
+    phone: formData.phone.trim() ? 'provided' : 'empty',
+    projectCity: formData.projectCity.trim() ? 'provided' : 'empty',
+    projectState: formData.projectState.trim() ? 'provided' : 'empty',
+    projectType: formData.projectType ? 'provided' : 'empty',
+    timeline: formData.timeline ? 'provided' : 'empty',
+    description: formData.description.trim() ? 'provided' : 'empty',
+    consent: formData.consent ? 'provided' : 'empty',
+    files: fileMetadata.length > 0 ? 'provided' : 'empty',
+  } satisfies LeadDraft['fieldStatus'];
+
+  return {
+    crmId,
+    fields: {
+      hasFullName: Boolean(formData.name.trim()),
+      hasEmail: Boolean(formData.email.trim()),
+      hasPhone: Boolean(formData.phone.trim()),
+      projectType: formData.projectType,
+      projectCity: formData.projectCity.trim(),
+      projectState: formData.projectState.trim(),
+      timeline: formData.timeline,
+      description: formData.description.trim(),
+      consentToText: formData.consent,
+      keyword: trackingParams.keyword,
+      campaignid: trackingParams.campaignid,
+      fileCount: String(fileMetadata.length),
+      fileNames: fileMetadata.map((file) => file.name).join(', '),
+    },
+    fieldStatus,
+    missingRequiredFields: getMissingRequiredFields(formData),
+  };
+};
+
+const readCrmLeadId = async (response: Response) => {
+  const text = await response.text();
+  if (!text.trim()) return '';
+
+  try {
+    const body = JSON.parse(text);
+    return String(
+      body.id ||
+      body._id ||
+      body.entityId ||
+      body.entity_id ||
+      body.data?.id ||
+      body.data?._id ||
+      body.imports?.[0]?.id ||
+      ''
+    );
+  } catch {
+    return '';
+  }
+};
+
+const createExternalId = () =>
+  `td-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
 export default function ContactForm() {
   const [sitelinkPrefill] = useState<SitelinkPrefill | null>(() => getSitelinkPrefill());
   const [formData, setFormData] = useState<ContactFormState>(() => getInitialFormData());
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
 
   const [submitted, setSubmitted] = useState(false);
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [submittedLead, setSubmittedLead] = useState<SubmittedLead | null>(null);
+  const [chatSessionId, setChatSessionId] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectedFileNames = files ? Array.from(files).map((file) => file.name) : [];
+  const externalIdRef = useRef(createExternalId());
+  const draftLeadIdRef = useRef(`draft-${externalIdRef.current}`);
+  const createCrmLeadPromiseRef = useRef<Promise<string> | null>(null);
+  const createCrmLeadSucceededWithoutIdRef = useRef(false);
+  const filesRef = useRef<File[]>([]);
+  const selectedFileNames = files.map((file) => file.name);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files && e.target.files.length > 0 ? e.target.files : null);
+    const nextFiles = fileListToArray(e.target.files);
+    filesRef.current = nextFiles;
+    setFiles(nextFiles);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage('');
+  const handleChatFilesAdded = (nextChatFiles: File[]) => {
+    const mergedFiles = [...filesRef.current, ...nextChatFiles];
+    filesRef.current = mergedFiles;
+    setFiles(mergedFiles);
+    return mergedFiles;
+  };
 
-    // Honeypot check
-    if (formData.website) {
-      // Spam detected - simulate success
-      setSubmitted(true);
-      setIsLoading(false);
-      setTimeout(() => setSubmitted(false), 5000);
-      return;
+  const createCrmLead = async () => {
+    if (submittedLead?.leadId) return submittedLead.leadId;
+    if (createCrmLeadSucceededWithoutIdRef.current) {
+      setErrorMessage('The lead was submitted, but the CRM id was not returned. Please refresh the CRM before trying another chat save.');
+      return '';
+    }
+    if (createCrmLeadPromiseRef.current) {
+      return createCrmLeadPromiseRef.current;
     }
 
-    // Validation
-    const digitsOnly = formData.phone.replace(/\D/g, '');
-    if (digitsOnly.length < 10) {
-      setErrorMessage('Please enter a valid phone number (at least 10 digits).');
-      setIsLoading(false);
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      setErrorMessage('Please enter a valid email address.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.name.trim().length < 2) {
-      setErrorMessage('Please enter your name.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.projectCity.trim()) {
-      setErrorMessage('Please enter your project city.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.projectState.trim()) {
-      setErrorMessage('Please enter your project state.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.projectType) {
-      setErrorMessage('Please select what you are looking to do.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!formData.timeline) {
-      setErrorMessage('Please select your timeline.');
-      setIsLoading(false);
-      return;
-    }
-
-    //Matching CRM Lead structure
-    try {
+    const createPromise = (async () => {
       const data = new FormData();
+      const submittedFiles = files;
+      const transactionId = buildLeadTransactionId();
+      data.append('external_id', externalIdRef.current);
+      data.append('transaction_id', transactionId);
+      if (chatSessionId) data.append('openai_sid', chatSessionId);
       data.append('full_name', formData.name.trim());
       data.append('email', formData.email.trim());
       data.append('phone', formData.phone.trim());
@@ -338,24 +487,20 @@ export default function ContactForm() {
       data.append('landingPageUrl', window.location.href);
       data.append('referrer', document.referrer || '');
 
-      if (files) {
+      if (submittedFiles.length > 0) {
         data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }));
-        for (let i = 0; i < files.length; i += 1) {
-          const file = files.item(i);
-          if (file) {
-            data.append(CRM_FILE_UPLOAD_KEY, file);
-          }
-        }
+        submittedFiles.forEach((file) => data.append(CRM_FILE_UPLOAD_KEY, file));
       }
 
-      if (!CRM_WEBHOOK_URL || !CRM_WEBHOOK_API_KEY) {
-        throw new Error('Missing CRM webhook configuration');
+      if (!LEAD_INTAKE_API_URL) {
+        throw new Error('Missing lead intake configuration');
       }
 
-      const apiEndpoint = new URL(CRM_WEBHOOK_URL);
-      apiEndpoint.searchParams.set('apiKey', CRM_WEBHOOK_API_KEY);
+      if (CRM_WEBHOOK_DRY_RUN) {
+        return '';
+      }
 
-      const response = await fetch(apiEndpoint.toString(), {
+      const response = await fetch(LEAD_INTAKE_API_URL, {
         method: 'POST',
         body: data,
       });
@@ -364,21 +509,69 @@ export default function ContactForm() {
         throw new Error('Failed to submit form');
       }
 
-      fireLeadTrackingEvents();
+      const leadId = await readCrmLeadId(response);
+      const formSnapshot = buildFormSnapshot(formData, trackingParams, submittedFiles);
+      const submittedLeadDraft = buildLeadDraft(formData, trackingParams, leadId, submittedFiles);
+
+      fireLeadTrackingEvents(transactionId);
 
       setSubmitted(true);
-      setFormData(getInitialFormData());
-      setFiles(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (leadId) {
+        setSubmittedLead({
+          leadId,
+          externalId: externalIdRef.current,
+          formSnapshot,
+          leadDraft: submittedLeadDraft,
+        });
+      } else {
+        createCrmLeadSucceededWithoutIdRef.current = true;
+        setSubmittedLead({
+          leadId: '',
+          externalId: externalIdRef.current,
+          formSnapshot,
+          leadDraft: submittedLeadDraft,
+        });
+        setErrorMessage('The lead was submitted, but the CRM id was not returned. Chat details will not be saved until the lead can be matched.');
       }
-      setTimeout(() => setSubmitted(false), 5000);
+      return leadId;
+    })();
+
+    createCrmLeadPromiseRef.current = createPromise;
+
+    try {
+      return await createPromise;
     } catch (error) {
       console.error('Submission error:', error);
       setErrorMessage('Something went wrong. Please try again or contact us directly.');
+      return '';
     } finally {
-      setIsLoading(false);
+      createCrmLeadPromiseRef.current = null;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMessage('');
+
+    // Honeypot check
+    if (formData.website) {
+      // Spam detected - simulate success
+      setSubmitted(true);
+      setIsLoading(false);
+      setTimeout(() => setSubmitted(false), 5000);
+      return;
+    }
+
+    const validationMessage = getFirstRequiredFieldError(formData);
+    if (validationMessage) {
+      setErrorMessage(validationMessage);
+      setIsLoading(false);
+      return;
+    }
+
+    await createCrmLead();
+    setIsLoading(false);
   };
 
   const handleChange = (
@@ -391,10 +584,48 @@ export default function ContactForm() {
     }));
   };
 
+  const handleFieldPatches = (fieldPatches: FieldPatches) => {
+    setFormData((current) => {
+      const nextPatches = PATCHABLE_FORM_FIELDS.reduce<Partial<ContactFormState>>((patches, key) => {
+        const value = fieldPatches[key];
+        if (typeof value === 'string' && value.trim() && !current[key]) {
+          patches[key] = value.trim();
+        }
+        return patches;
+      }, {});
+
+      return {
+        ...current,
+        ...nextPatches,
+      };
+    });
+  };
+
+  const ensureCrmLead = async () => {
+    if (submittedLead?.leadId) return submittedLead.leadId;
+    if (createCrmLeadSucceededWithoutIdRef.current) {
+      setErrorMessage('The lead was submitted, but the CRM id was not returned. Please refresh the CRM before trying another chat save.');
+      return '';
+    }
+    const missingRequiredFields = getMissingRequiredFields(formData);
+    if (missingRequiredFields.length > 0 || formData.website) {
+      return '';
+    }
+    return createCrmLead();
+  };
+
   const heading = sitelinkPrefill?.heading || 'Tell Us About Your Project';
   const description = sitelinkPrefill
     ? `${sitelinkPrefill.description} ${sitelinkPrefill.detail}`
     : 'Share a few details and any reference files you have. We\'ll follow up with next steps.';
+  const currentFormSnapshot = buildFormSnapshot(formData, trackingParams, files);
+  const activeChatLead: SubmittedLead = submittedLead?.leadId ? submittedLead : {
+    leadId: draftLeadIdRef.current,
+    externalId: externalIdRef.current,
+    formSnapshot: currentFormSnapshot,
+    leadDraft: buildLeadDraft(formData, trackingParams, undefined, files),
+  };
+  const leadDraft = submittedLead?.leadDraft || buildLeadDraft(formData, trackingParams, undefined, files);
 
   return (
     <section id="contact" className="py-20 bg-slate-50">
@@ -411,6 +642,30 @@ export default function ContactForm() {
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
+                    Project lead form
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Complete the fields below, or use chat to add extra project context.
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="hidden text-sm font-medium text-slate-500 sm:inline">
+                    AI Assistant
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setChatOpen(true)}
+                    aria-label="Open AI project chat"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
               <div className="hidden">
                 <label htmlFor="website">Website</label>
                 <input
@@ -615,7 +870,6 @@ export default function ContactForm() {
                   id="file"
                   name="file"
                   multiple
-                  ref={fileInputRef}
                   onChange={handleFileChange}
                   className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-emerald-500 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-emerald-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                   accept=".pdf,.jpg,.jpeg,.png,.dwg"
@@ -643,15 +897,30 @@ export default function ContactForm() {
               )}
 
               {submitted ? (
-                <div
-                  role="status"
-                  className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3"
-                >
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  <p className="text-emerald-800 font-medium">
-                    Thank you. Your project details were sent successfully, and we&apos;ll follow up
-                    soon.
-                  </p>
+                <div>
+                  <div
+                    role="status"
+                    className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3"
+                  >
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    <p className="text-emerald-800 font-medium">
+                      Thank you. Your project details were sent successfully, and we&apos;ll follow up
+                      soon.
+                    </p>
+                  </div>
+
+                  {submittedLead && (
+                    <div className="mt-6">
+                      <button
+                        type="button"
+                        onClick={() => setChatOpen(true)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        Add AI follow-up details
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -760,6 +1029,21 @@ export default function ContactForm() {
           </div>
         </div>
       </div>
+
+      <ChatIntake
+        leadId={activeChatLead.leadId}
+        externalId={activeChatLead.externalId}
+        formSnapshot={activeChatLead.formSnapshot}
+        leadDraft={leadDraft}
+        sessionFiles={files}
+        ensureCrmLead={ensureCrmLead}
+        onSessionStarted={setChatSessionId}
+        onFieldPatches={handleFieldPatches}
+        onFilesAdded={handleChatFilesAdded}
+        isOpen={chatOpen}
+        onOpen={() => setChatOpen(true)}
+        onClose={() => setChatOpen(false)}
+      />
     </section>
   );
 }

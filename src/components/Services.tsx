@@ -109,7 +109,12 @@ const serviceDetails: ServiceDetail[] = [
 
 const serviceQuestions: ServiceQuestion[] = [
   {
-    question: 'What does Timpson need to quote a project?',
+    question: 'Can Timpson help with ADUs, garages, and additions?',
+    answer:
+      'Yes. Timpson prepares residential drafting plans for garages, ADUs, additions, master suites, mudrooms, remodels, and custom home projects, with the drawing package scoped to your project details.',
+  },
+  {
+    question: 'What do we need to quote a project?',
     answer:
       'Helpful starting details include the project location, project type, rough size, timeline, any existing plans or photos, and whether the work is a new build, remodel, garage, ADU, or addition.',
   },
