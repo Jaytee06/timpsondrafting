@@ -245,7 +245,7 @@ function runStaticChecks() {
     'Google Ads conversion sends transaction_id with the conversion event'
   );
   assertIncludes(contactForm, `window.dataLayer.push({`, 'ContactForm pushes lead event through Google Tag Manager dataLayer');
-  assertIncludes(contactForm, `event: 'generate_lead'`, 'ContactForm pushes expected generate_lead event name');
+  assertIncludes(contactForm, `event: 'quote_form_submit'`, 'ContactForm pushes expected quote_form_submit event name');
   assertIncludes(contactForm, `transaction_id: transactionId`, 'ContactForm includes transaction_id on generate_lead event');
   assertIncludes(contactForm, `method: 'contact_form'`, 'GA4 generate_lead method is contact_form');
   assertIncludes(contactForm, `const buildLeadTransactionId = () => \`LEAD\${Date.now()}\``, 'ContactForm creates Google-compatible lead transaction IDs');

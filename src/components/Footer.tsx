@@ -13,10 +13,10 @@ export default function Footer() {
               <h3 className="text-2xl font-bold">Timpson Drafting & Design</h3>
             </div>
             <p className="text-slate-400 leading-relaxed mb-4">
-              Professional residential drafting and design services for custom homes, garages, additions, remodels, and permit-ready residential projects.
+              Professional residential drafting and design services for custom homes, garages, additions, remodels, and permit-ready residential projects, with remote drafting available nationwide and on-site support near Colorado City.
             </p>
             <p className="text-slate-400 text-sm">
-              Trusted by local homeowners for over a decade.
+              Remote drafting nationwide. Local field support in Northern Arizona and Southern Utah.
             </p>
           </div>
 
@@ -36,6 +36,11 @@ export default function Footer() {
               <li>
                 <a href="/about-us/" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   About Timpson
+                </a>
+              </li>
+              <li>
+                <a href="/service-area/" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                  Service Area
                 </a>
               </li>
               <li>

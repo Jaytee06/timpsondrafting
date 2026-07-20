@@ -23,12 +23,17 @@ const planningSteps = [
 
 const preparationItems = [
   'Project city and state',
+  'Whether the project needs remote drafting only or local field measurement',
   'Rough size or footprint',
   'Existing plans, photos, or sketches',
   'Timeline and permit questions',
 ];
 
 const relatedLinks = [
+  {
+    href: '/service-area/',
+    label: 'Service area and project location details',
+  },
   {
     href: '/garage-addition-plans/',
     label: 'Garage, ADU, and addition plans',

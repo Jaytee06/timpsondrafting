@@ -19,11 +19,6 @@ const reviews: Review[] = [
     rating: 5,
     text: 'Nice people.',
   },
-  {
-    name: 'Brad Timpson',
-    rating: 5,
-    text: '',
-  },
 ];
 
 export default function Reviews() {
@@ -35,11 +30,11 @@ export default function Reviews() {
             What Our Clients Say
           </h2>
           <p className="text-slate-600 text-lg">
-            Trusted by local homeowners for over a decade.
+            Feedback currently published on Timpson's existing website.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
+        <div className="grid md:grid-cols-2 gap-8 mb-12">
           {reviews.map((review, index) => (
             <div
               key={index}
@@ -70,16 +65,6 @@ export default function Reviews() {
           ))}
         </div>
 
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-50 rounded-full">
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-              ))}
-            </div>
-            <span className="text-slate-700 font-medium">5.0 Average Rating</span>
-          </div>
-        </div>
       </div>
     </section>
   );

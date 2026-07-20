@@ -9,6 +9,13 @@ const LEAD_INTAKE_API_URL =
   import.meta.env.VITE_LEAD_INTAKE_API_URL ||
   'https://n2s6trcvfc.execute-api.us-west-2.amazonaws.com/default/lead-intake/tdd/create';
 const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
+const LANDING_STORAGE_KEY = 'td_original_landing';
+const REFERRER_STORAGE_KEY = 'td_original_referrer';
+
+const pushTrackingEvent = (event: string, details: Record<string, string | number | boolean> = {}) => {
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event, ...details });
+};
 
 type TrackingParams = {
   keyword: string;
@@ -183,9 +190,17 @@ const getSitelinkPrefill = () => {
 
 const getInitialFormData = (): ContactFormState => {
   const sitelinkPrefill = getSitelinkPrefill();
+  const searchParams = typeof window === 'undefined'
+    ? new URLSearchParams()
+    : new URLSearchParams(window.location.search);
+  const projectCity = searchParams.get('projectCity')?.trim().slice(0, 100) || '';
+  const projectStateCandidate = searchParams.get('projectState')?.trim().toUpperCase() || '';
+  const projectState = /^[A-Z]{2}$/.test(projectStateCandidate) ? projectStateCandidate : '';
 
   return {
     ...INITIAL_FORM_DATA,
+    projectCity,
+    projectState,
     projectType: sitelinkPrefill?.projectType || '',
     timeline: sitelinkPrefill?.timeline || '',
   };
@@ -231,7 +246,7 @@ const fireLeadTrackingEvents = (transactionId: string) => {
 
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({
-    event: 'generate_lead',
+    event: 'quote_form_submit',
     transaction_id: transactionId,
     method: 'contact_form',
   });
@@ -433,10 +448,28 @@ export default function ContactForm() {
   const createCrmLeadPromiseRef = useRef<Promise<string> | null>(null);
   const createCrmLeadSucceededWithoutIdRef = useRef(false);
   const filesRef = useRef<File[]>([]);
+  const formStartedRef = useRef(false);
+  const originalLandingRef = useRef(window.sessionStorage.getItem(LANDING_STORAGE_KEY) || window.location.href);
+  const originalReferrerRef = useRef(window.sessionStorage.getItem(REFERRER_STORAGE_KEY) || document.referrer || '');
   const selectedFileNames = files.map((file) => file.name);
+
+  window.sessionStorage.setItem(LANDING_STORAGE_KEY, originalLandingRef.current);
+  window.sessionStorage.setItem(REFERRER_STORAGE_KEY, originalReferrerRef.current);
+
+  const markFormStarted = () => {
+    if (formStartedRef.current) return;
+    formStartedRef.current = true;
+    pushTrackingEvent('quote_form_start', { form_name: 'project_quote' });
+  };
+
+  const openChat = () => {
+    pushTrackingEvent('chat_start', { placement: 'quote_form' });
+    setChatOpen(true);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextFiles = fileListToArray(e.target.files);
+    if (nextFiles.length) pushTrackingEvent('file_upload', { file_count: nextFiles.length });
     filesRef.current = nextFiles;
     setFiles(nextFiles);
   };
@@ -484,8 +517,8 @@ export default function ContactForm() {
       data.append('utm_campaign', trackingParams.utmCampaign);
       data.append('utm_term', trackingParams.utmTerm);
       data.append('adminEmail', ADMIN_EMAIL);
-      data.append('landingPageUrl', window.location.href);
-      data.append('referrer', document.referrer || '');
+      data.append('landingPageUrl', originalLandingRef.current);
+      data.append('referrer', originalReferrerRef.current);
 
       if (submittedFiles.length > 0) {
         data.append(CRM_FILE_UPLOAD_KEY, JSON.stringify({ uploadKey: CRM_FILE_UPLOAD_KEY }));
@@ -577,6 +610,7 @@ export default function ContactForm() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    markFormStarted();
     const { name, type, value } = e.target;
     setFormData((current) => ({
       ...current,
@@ -641,7 +675,7 @@ export default function ContactForm() {
 
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
+            <form onSubmit={handleSubmit} onFocus={markFormStarted} className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
@@ -657,7 +691,7 @@ export default function ContactForm() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setChatOpen(true)}
+                    onClick={openChat}
                     aria-label="Open AI project chat"
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-4 focus:ring-emerald-100"
                   >
@@ -913,7 +947,7 @@ export default function ContactForm() {
                     <div className="mt-6">
                       <button
                         type="button"
-                        onClick={() => setChatOpen(true)}
+                        onClick={openChat}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
                       >
                         <MessageCircle className="h-4 w-4" />
@@ -1041,7 +1075,7 @@ export default function ContactForm() {
         onFieldPatches={handleFieldPatches}
         onFilesAdded={handleChatFilesAdded}
         isOpen={chatOpen}
-        onOpen={() => setChatOpen(true)}
+        onOpen={openChat}
         onClose={() => setChatOpen(false)}
       />
     </section>

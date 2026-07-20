@@ -15,7 +15,7 @@ export default function Hero() {
         <div className="max-w-3xl">
           <div className="flex items-center gap-2 mb-6">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-emerald-400 font-medium text-sm tracking-wide uppercase">Local Expertise Since 1980</span>
+            <span className="text-emerald-400 font-medium text-sm tracking-wide uppercase">Residential drafting from Colorado City</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
@@ -27,7 +27,7 @@ export default function Hero() {
           </p>
 
           <p className="text-slate-400 mb-10 text-lg">
-            At Timpson Drafting and Design, our residential drafting and design services help homeowners and contractors move from project ideas to permit-ready construction documents for ADUs, as-built drawings, garages, additions, and custom residential projects.
+            Residential drafting for custom homes, additions, ADUs, garages, and remodels in Southern Utah and Northern Arizona, with remote drafting available nationwide.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
@@ -45,6 +45,7 @@ export default function Hero() {
             >
               View Services
             </a>
+            <a href="tel:+14353195331" className="inline-flex items-center justify-center px-8 py-4 font-semibold text-emerald-300 underline underline-offset-4">Call (435) 319-5331</a>
           </div>
 
           <div className="mt-12 flex flex-wrap gap-8 text-sm text-slate-400">

@@ -23,7 +23,7 @@ const services: Service[] = [
   {
     icon: <Home className="w-8 h-8" />,
     title: 'Residential Drafting',
-    description: 'Complete architectural plans for new homes and residential construction projects with attention to every detail.',
+    description: 'Residential drawing packages for new homes, defined around the project scope and local requirements.',
   },
   {
     icon: <Building2 className="w-8 h-8" />,

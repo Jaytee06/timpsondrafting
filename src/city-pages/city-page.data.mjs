@@ -1,0 +1,118 @@
+export const cityPages = [
+  {
+    enabled: true,
+    editorialApproved: true,
+    slug: 'st-george-ut',
+    city: 'St. George',
+    state: 'Utah',
+    stateCode: 'UT',
+    region: 'Southern Utah',
+    seo: {
+      title: 'Residential Drafting Services in St. George, UT | Timpson',
+      description: 'Residential drafting for custom homes, additions, ADUs, garages, and remodels in St. George, Utah. Request a project-based quote from Timpson.',
+      canonicalUrl: 'https://timpsondrafting.com/st-george-ut/',
+      socialImage: 'https://timpsondrafting.com/timpson-banner.jpg',
+    },
+    serviceAvailability: {
+      remoteDrafting: true,
+      onsiteMeasurements: false,
+      onsiteSummary: 'On-site measurement is not automatically included. Share the property address and existing-condition scope so availability can be confirmed before quoting.',
+    },
+    introduction: 'Timpson Drafting & Design supports St. George homeowners and residential contractors with plans for new homes, additions, ADUs, garages, and remodels.',
+    localOverview: 'St. George projects range from new construction on undeveloped lots to changes within established neighborhoods. A useful first review identifies the exact property, the authority that will review the work, available surveys or existing plans, and any site or neighborhood constraints before the drawing scope is set. Remote coordination is available when the project team can provide dependable measurements, photographs, and source documents.',
+    commonProjectTypes: ['Custom homes', 'Accessory dwelling units', 'Home additions', 'Detached garages and shops', 'Residential remodels'],
+    featuredServiceSlugs: ['custom-home-plans', 'adu-plans', 'home-addition-plans', 'garage-shop-plans'],
+    jurisdiction: {
+      name: 'City of St. George Community Development',
+      url: 'https://www4.citizenserve.com/Portal/PortalController?Action=showDevelopmentApplications&ctzPagePrefix=Portal_&installationID=399&original_contactID=0&original_iid=0',
+      notes: ['Confirm that the property is inside St. George city limits before relying on the city portal.', 'Use the current city application materials to identify the required drawing and supporting-document scope.'],
+      verifiedDate: '2026-07-20',
+    },
+    nearbyCities: [
+      { name: 'Washington', stateCode: 'UT' },
+      { name: 'Santa Clara', stateCode: 'UT' },
+      { name: 'Ivins', stateCode: 'UT' },
+      { name: 'Hurricane', stateCode: 'UT' },
+    ],
+    faqs: [
+      { question: 'Can a St. George drafting project be coordinated remotely?', answer: 'Yes. Remote coordination works best when you can provide the property location, a survey when relevant, clear photographs, dependable measurements, existing plans, and the city’s current submittal information.' },
+      { question: 'Does Timpson automatically include a site measurement visit in St. George?', answer: 'No. Field measurement depends on the address, the existing conditions, and scheduling. Describe what must be documented so availability and scope can be confirmed in the quote.' },
+      { question: 'What should I send for a St. George project quote?', answer: 'Send the property address, project type, approximate size, target schedule, sketches or reference plans, and any survey, photographs, or existing drawings you have.' },
+    ],
+    projectIds: [],
+    testimonialIds: [],
+    lastReviewed: '2026-07-20',
+  },
+  {
+    enabled: true,
+    editorialApproved: true,
+    slug: 'colorado-city-az',
+    city: 'Colorado City',
+    state: 'Arizona',
+    stateCode: 'AZ',
+    region: 'Northern Arizona',
+    seo: {
+      title: 'Residential Drafting in Colorado City, AZ | Timpson',
+      description: 'Residential drafting for homes, additions, garages, shops, and remodels in Colorado City, Arizona. Start with a project-based quote from Timpson.',
+      canonicalUrl: 'https://timpsondrafting.com/colorado-city-az/',
+      socialImage: 'https://timpsondrafting.com/timpson-banner.jpg',
+    },
+    serviceAvailability: {
+      remoteDrafting: true,
+      onsiteMeasurements: true,
+      onsiteSummary: 'Local measurement may be available in Colorado City when the existing-condition scope and schedule are confirmed in advance.',
+    },
+    introduction: 'Based in Colorado City, Timpson Drafting & Design helps local homeowners and contractors define and document residential projects for construction and permit review.',
+    localOverview: 'Colorado City work can involve vacant parcels, additions to existing homes, detached accessory structures, shops, and remodels that begin without reliable record drawings. Local access can make existing-condition review practical, while every proposal still needs the address, intended work, available property information, and the Town’s current review requirements. Planning and zoning questions should be resolved separately from the building-drawing scope.',
+    commonProjectTypes: ['Custom homes', 'Home additions', 'Garages and residential shops', 'As-built drawings', 'Residential remodels'],
+    featuredServiceSlugs: ['custom-home-plans', 'home-addition-plans', 'garage-shop-plans', 'as-built-drawings'],
+    jurisdiction: {
+      name: 'Town of Colorado City Building Department',
+      url: 'https://www.tocc.us/building',
+      notes: ['The Town states that building permit applications and inspection scheduling use its City Inspect service.', 'Planning and zoning review is a separate consideration and should be confirmed for the specific parcel and proposed use.'],
+      verifiedDate: '2026-07-20',
+    },
+    nearbyCities: [
+      { name: 'Hildale', stateCode: 'UT' },
+      { name: 'Fredonia', stateCode: 'AZ' },
+      { name: 'Kanab', stateCode: 'UT' },
+    ],
+    faqs: [
+      { question: 'Is local measurement available in Colorado City?', answer: 'It may be. Because Timpson is based in Colorado City, local measurement can be evaluated when the address, building access, existing conditions, and required deliverables are known.' },
+      { question: 'Where are Colorado City building permit applications handled?', answer: 'The Town of Colorado City Building Department says permit applications and inspection scheduling are handled through its City Inspect service. Verify the current process on the Town’s official building page before submitting.' },
+      { question: 'When might outside engineering be needed?', answer: 'The building official, structural conditions, project scope, or adopted requirements may call for engineering. Drafting does not replace an Arizona-licensed engineer when sealed work is required.' },
+    ],
+    projectIds: [],
+    testimonialIds: [],
+    lastReviewed: '2026-07-20',
+  },
+  ...[
+    ['washington-ut', 'Washington', 'Utah', 'UT', 'Southern Utah'],
+    ['hurricane-ut', 'Hurricane', 'Utah', 'UT', 'Southern Utah'],
+    ['santa-clara-ut', 'Santa Clara', 'Utah', 'UT', 'Southern Utah'],
+    ['ivins-ut', 'Ivins', 'Utah', 'UT', 'Southern Utah'],
+    ['cedar-city-ut', 'Cedar City', 'Utah', 'UT', 'Southern Utah'],
+    ['hildale-ut', 'Hildale', 'Utah', 'UT', 'Southern Utah'],
+    ['kanab-ut', 'Kanab', 'Utah', 'UT', 'Southern Utah'],
+    ['fredonia-az', 'Fredonia', 'Arizona', 'AZ', 'Northern Arizona'],
+    ['page-az', 'Page', 'Arizona', 'AZ', 'Northern Arizona'],
+  ].map(([slug, city, state, stateCode, region]) => ({
+    enabled: false,
+    editorialApproved: false,
+    slug,
+    city,
+    state,
+    stateCode,
+    region,
+  })),
+];
+
+export const supportedServiceSlugs = new Set([
+  'residential-drafting-services', 'custom-home-plans', 'adu-plans',
+  'home-addition-plans', 'garage-shop-plans', 'remodel-drafting',
+  'as-built-drawings', 'stock-plan-modifications', 'permit-drawing-services',
+  'contractor-drafting-services',
+]);
+
+export const approvedProjectIds = new Set();
+export const approvedTestimonialIds = new Set();

@@ -26,7 +26,7 @@ const pricingTiers: PricingTier[] = [
     startingPrice: 'Custom Quote',
     description: 'Detached garages, ADUs, and home additions of all sizes.',
     features: [
-      'Complete architectural plans',
+      'Residential plan package',
       'Structural specifications',
       'Foundation and framing details',
       'Local permit coordination',
