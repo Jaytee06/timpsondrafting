@@ -33,6 +33,21 @@ test('placeholders and invalid relationships fail', () => {
   assert.ok(result.errors.some((error) => error.includes('nearby link')));
 });
 
+test('invalid and unsourced code profiles fail validation', () => {
+  const record = structuredClone(cityPages.find((city) => city.slug === 'st-george-ut'));
+  record.codeProfile.status = 'approved-ish';
+  record.codeProfile.verifiedDate = '2026-99-99';
+  record.codeProfile.adoptedCodes[0].sourceUrl = '';
+  record.codeProfile.localDesignCriteria = [{ label: 'Snow', value: '30 psf' }];
+  record.codeProfile.commonSubmissionItems[0].requiredStatus = 'mandatory';
+  const result = validateCityPages([record], { strictEditorial: false });
+  assert.ok(result.errors.some((error) => error.includes('unapproved codeProfile status')));
+  assert.ok(result.errors.some((error) => error.includes('invalid codeProfile verifiedDate')));
+  assert.ok(result.errors.some((error) => error.includes('incomplete adopted code')));
+  assert.ok(result.errors.some((error) => error.includes('incomplete local design criterion')));
+  assert.ok(result.errors.some((error) => error.includes('incomplete submission item')));
+});
+
 test('disabled cities do not generate and enabled output is complete', () => {
   for (const city of cityPages) {
     const target = join(root, 'dist', city.slug, 'index.html');
@@ -47,7 +62,24 @@ test('disabled cities do not generate and enabled output is complete', () => {
     const schema = JSON.parse(schemaText);
     assert.ok(JSON.stringify(schema).includes('https://timpsondrafting.com/#organization'));
     assert.ok(html.includes(city.region === 'Southern Utah' ? '/southern-utah-drafting-services/' : '/northern-arizona-drafting-services/'));
+    assert.ok(html.includes(`Building Codes and Permit Context for ${city.city}`));
+    assert.ok(html.includes('Planning summary—not a code analysis'));
+    assert.ok(html.includes(`<time datetime="${city.codeProfile.verifiedDate}">`));
+    assert.equal((html.match(/<tr><th scope="row">/g) || []).length, city.codeProfile.adoptedCodes.length + (city.codeProfile.localDesignCriteria?.length || 0));
+    for (const code of city.codeProfile.adoptedCodes) assert.ok(html.includes(`href="${code.sourceUrl}"`), `${city.slug} missing code source`);
+    for (const criterion of city.codeProfile.localDesignCriteria || []) assert.ok(html.includes(`href="${criterion.sourceUrl}"`), `${city.slug} missing design source`);
   }
+});
+
+test('pilot profiles render only their approved tables and warnings', () => {
+  const stGeorge = readFileSync(join(root, 'dist', 'st-george-ut', 'index.html'), 'utf8');
+  const coloradoCity = readFileSync(join(root, 'dist', 'colorado-city-az', 'index.html'), 'utf8');
+  assert.equal(stGeorge.includes('Published local design criteria'), false);
+  assert.ok(stGeorge.includes('Utah statewide amendments'));
+  assert.ok(coloradoCity.includes('Published local design criteria'));
+  assert.ok(coloradoCity.includes('confirm current enforcement'));
+  assert.ok(coloradoCity.includes('published ordinance and are not a substitute'));
+  assert.equal((coloradoCity.match(/<table class="code-table">/g) || []).length, 2);
 });
 
 test('sitemap contains enabled cities and excludes disabled cities', () => {

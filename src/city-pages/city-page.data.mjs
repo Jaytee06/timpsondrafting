@@ -28,6 +28,38 @@ export const cityPages = [
       notes: ['Confirm that the property is inside St. George city limits before relying on the city portal.', 'Use the current city application materials to identify the required drawing and supporting-document scope.'],
       verifiedDate: '2026-07-20',
     },
+    codeProfile: {
+      status: 'verified',
+      verifiedDate: '2026-07-20',
+      summary: 'St. George building review operates within Utah’s statewide construction-code system. For typical qualifying one- and two-family residential work, the IRC is generally the primary model code; the IBC and other adopted codes may apply depending on the building, occupancy, and scope.',
+      authority: {
+        name: 'City of St. George Community Development',
+        buildingDepartmentUrl: 'https://www.sgcityutah.gov/departments/community_development/building_department.php',
+        permitPortalUrl: 'https://www4.citizenserve.com/Portal/PortalController?Action=showDevelopmentApplications&ctzPagePrefix=Portal_&installationID=399&original_contactID=0&original_iid=0',
+        codeAdoptionUrl: 'https://le.utah.gov/xcode/Title15A/Chapter2/15A-2-S103.html',
+      },
+      adoptedCodes: [
+        { family: 'IRC', edition: '2021', appliesTo: 'Qualifying detached one- and two-family dwellings and townhouses within the code’s scope.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter2/15A-2-S103.html', sourceLabel: 'Utah Code § 15A-2-103' },
+        { family: 'IBC', edition: '2021', appliesTo: 'Buildings, occupancies, or portions of work governed by the building code rather than the IRC.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter2/15A-2-S103.html', sourceLabel: 'Utah Code § 15A-2-103' },
+        { family: 'IEBC', edition: '2021', appliesTo: 'Certain alteration, repair, addition, and change-of-occupancy work involving existing buildings.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter2/15A-2-S103.html', sourceLabel: 'Utah Code § 15A-2-103' },
+        { family: 'IPC / IMC / IFGC / IECC', edition: '2021', appliesTo: 'Plumbing, mechanical, fuel-gas, and energy provisions when applicable to the project.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter2/15A-2-S103.html', sourceLabel: 'Utah Code § 15A-2-103' },
+        { family: 'NEC', edition: '2023', appliesTo: 'Electrical work within the adopted state construction-code framework.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter2/15A-2-S103.html', sourceLabel: 'Utah Code § 15A-2-103' },
+      ],
+      amendments: [
+        { title: 'Utah statewide amendments', summary: 'The adopted model codes are used together with Utah’s statewide amendments. These amendments can change model-code provisions and should be reviewed for the actual project scope.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter3/15A-3.html' },
+        { title: 'Residential cross-application', summary: 'Utah applies relevant statewide amendments from the building, plumbing, mechanical, fuel-gas, electrical, and energy codes to corresponding residential-code provisions.', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter3/15A-3-S201.html' },
+      ],
+      commonSubmissionItems: [
+        { item: 'Property address and confirmation that the site is inside St. George city limits', requiredStatus: 'project-dependent', sourceUrl: 'https://www.sgcityutah.gov/departments/community_development/building_department.php' },
+        { item: 'Current city application materials and the drawing/supporting-document scope for the project type', requiredStatus: 'project-dependent', sourceUrl: 'https://www4.citizenserve.com/Portal/PortalController?Action=showDevelopmentApplications&ctzPagePrefix=Portal_&installationID=399&original_contactID=0&original_iid=0' },
+        { item: 'Structural, energy, geotechnical, or other professional documentation when required by the scope or reviewer', requiredStatus: 'project-dependent', sourceUrl: 'https://le.utah.gov/xcode/Title15A/Chapter3/15A-3.html' },
+      ],
+      warnings: [
+        'Code applicability depends on the property, occupancy, building type, and proposed work.',
+        'Utah model-code editions must be read together with current statewide amendments and any applicable local provisions.',
+        'Confirm the current submittal checklist and professional-stamp requirements with the City before relying on this summary.',
+      ],
+    },
     nearbyCities: [
       { name: 'Washington', stateCode: 'UT' },
       { name: 'Santa Clara', stateCode: 'UT' },
@@ -71,6 +103,49 @@ export const cityPages = [
       url: 'https://www.tocc.us/building',
       notes: ['The Town states that building permit applications and inspection scheduling use its City Inspect service.', 'Planning and zoning review is a separate consideration and should be confirmed for the specific parcel and proposed use.'],
       verifiedDate: '2026-07-20',
+    },
+    codeProfile: {
+      status: 'published-ordinance-needs-department-confirmation',
+      verifiedDate: '2026-07-20',
+      summary: 'Colorado City’s published Code of Ordinances identifies locally adopted model codes and amendments. Because the online code publisher cautions that its text may not contain the municipality’s latest legislation, applicants should confirm the edition currently enforced with the Town Building Department before design or submission.',
+      authority: {
+        name: 'Town of Colorado City Building Department',
+        buildingDepartmentUrl: 'https://www.tocc.us/building',
+        permitPortalUrl: 'https://tocc.cityinspect.com/login',
+        codeAdoptionUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3921',
+        phone: '(928) 875-9165',
+      },
+      adoptedCodes: [
+        { family: 'IRC', edition: '2006 in the published ordinance; confirm current enforcement', appliesTo: 'One- and two-family dwellings and qualifying multiple single-family dwellings within the published ordinance’s scope.', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', sourceLabel: 'Colorado City Code § 150.02' },
+        { family: 'IBC', edition: '2006 in the published ordinance; confirm current enforcement', appliesTo: 'Buildings, occupancies, or portions of work governed by the building code.', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3951', sourceLabel: 'Colorado City Code § 150.01' },
+        { family: 'IPC / IMC / IFGC / IECC', edition: '2006 in the published ordinance; confirm current enforcement', appliesTo: 'Plumbing, mechanical, fuel-gas, and energy provisions when applicable.', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3921', sourceLabel: 'Colorado City Code Chapter 150' },
+        { family: 'NEC', edition: '2005 in the published ordinance; confirm current enforcement', appliesTo: 'Electrical work under the edition identified by the published town code.', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3986', sourceLabel: 'Colorado City Code § 150.05' },
+      ],
+      amendments: [
+        { title: 'Local IRC climatic and geographic criteria', summary: 'The published residential-code amendment supplies local snow, wind, seismic, soil, frost, termite, and decay criteria. Site-specific conditions or current Building Department requirements may require different or additional analysis.', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966' },
+        { title: 'Local IBC amendments', summary: 'The published ordinance modifies selected permit exemptions, occupancy provisions, snow and wind criteria, foundation provisions, and other sections.', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3951' },
+      ],
+      localDesignCriteria: [
+        { label: 'Ground snow load', value: '30 psf', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment; confirm current project-specific criteria.' },
+        { label: 'Roof snow load', value: '20 psf', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment; confirm current project-specific criteria.' },
+        { label: 'Wind', value: '80 mph, Exposure C', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Value and terminology are reproduced as summarized in the 2006-edition town ordinance; confirm current design-basis requirements.' },
+        { label: 'Seismic design category', value: 'Category C, or engineering', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment; site and structural conditions may require engineering.' },
+        { label: 'Site class', value: 'Class D soil, or engineering', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment; this is not a substitute for project-specific geotechnical information.' },
+        { label: 'Frost-line depth', value: '16 inches', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment; confirm current project-specific criteria.' },
+        { label: 'Termite damage', value: 'Moderate to heavy', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment.' },
+        { label: 'Decay damage', value: 'None to slight', sourceUrl: 'https://codelibrary.amlegal.com/codes/coloradocityaz/latest/coloradocity_az/0-0-0-3966', notes: 'Published IRC amendment.' },
+      ],
+      commonSubmissionItems: [
+        { item: 'Building permit application through the Town’s City Inspect system', requiredStatus: 'verified-required', sourceUrl: 'https://www.tocc.us/building' },
+        { item: 'Correct property address and confirmation of the reviewing jurisdiction', requiredStatus: 'project-dependent', sourceUrl: 'https://www.tocc.us/building' },
+        { item: 'Planning and zoning review for the parcel and proposed use', requiredStatus: 'project-dependent', sourceUrl: 'https://www.tocc.us/building' },
+        { item: 'Engineering or other licensed-professional documentation when required by the structure, site, or Building Department', requiredStatus: 'project-dependent', sourceUrl: 'https://www.tocc.us/building' },
+      ],
+      warnings: [
+        'The online ordinance publisher states that its code may not reflect the Town’s most current legislation.',
+        'Confirm the currently enforced code editions and local amendments with the Town Building Department at (928) 875-9165.',
+        'The listed design criteria summarize the published ordinance and are not a substitute for site-specific engineering, geotechnical information, or official direction.',
+      ],
     },
     nearbyCities: [
       { name: 'Hildale', stateCode: 'UT' },

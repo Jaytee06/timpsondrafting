@@ -1,8 +1,11 @@
 import { approvedProjectIds, approvedTestimonialIds, supportedServiceSlugs } from './city-page.data.mjs';
 
-const PLACEHOLDER = /(owner_or_team|yyyy-mm-dd|todo|placeholder|add a verified|lorem ipsum)/i;
+const PLACEHOLDER = /(owner_or_team|yyyy-mm-dd|placeholder|add a verified|lorem ipsum)/i;
+const EDITORIAL_MARKER = /\b(?:TODO|TBD|VERIFY)\b/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const CODE_PROFILE_STATUSES = new Set(['verified', 'published-ordinance-needs-department-confirmation', 'needs-review', 'unavailable']);
+const SUBMISSION_STATUSES = new Set(['commonly-requested', 'project-dependent', 'verified-required']);
 
 export function validateCityPages(records, { strictEditorial = true } = {}) {
   const errors = [];
@@ -26,7 +29,8 @@ export function validateCityPages(records, { strictEditorial = true } = {}) {
     }
     if (strictEditorial && record.editorialApproved !== true) errors.push(`${label}: enabled page lacks editorial approval`);
     if (!DATE.test(record.lastReviewed || '')) errors.push(`${label}: invalid lastReviewed`);
-    if (PLACEHOLDER.test(JSON.stringify(record))) errors.push(`${label}: placeholder content`);
+    const serializedRecord = JSON.stringify(record);
+    if (PLACEHOLDER.test(serializedRecord) || EDITORIAL_MARKER.test(serializedRecord)) errors.push(`${label}: placeholder content`);
     const expectedCanonical = `https://timpsondrafting.com/${record.slug}/`;
     if (record.seo?.canonicalUrl !== expectedCanonical) errors.push(`${label}: canonical URL must be ${expectedCanonical}`);
     for (const [name, value, seen] of [['title', record.seo?.title, titles], ['description', record.seo?.description, descriptions], ['canonical', record.seo?.canonicalUrl, canonicals]]) {
@@ -44,6 +48,38 @@ export function validateCityPages(records, { strictEditorial = true } = {}) {
       try { const url = new URL(record.jurisdiction.url); if (url.protocol !== 'https:') throw new Error(); } catch { errors.push(`${label}: invalid jurisdiction URL`); }
       if (!DATE.test(record.jurisdiction.verifiedDate || '')) errors.push(`${label}: invalid jurisdiction verifiedDate`);
     } else warnings.push(`${label}: no jurisdiction information`);
+    if (record.codeProfile) {
+      const profile = record.codeProfile;
+      if (!CODE_PROFILE_STATUSES.has(profile.status)) errors.push(`${label}: unapproved codeProfile status`);
+      if (!isValidDate(profile.verifiedDate)) errors.push(`${label}: invalid codeProfile verifiedDate`);
+      else if (monthsSince(profile.verifiedDate) >= 6) warnings.push(`${label}: code profile has not been reviewed in six months`);
+      if (!profile.summary) errors.push(`${label}: missing codeProfile summary`);
+      if (!profile.authority?.name) errors.push(`${label}: missing codeProfile authority name`);
+      if (!profile.authority?.buildingDepartmentUrl) errors.push(`${label}: missing codeProfile building department URL`);
+      validateHttps(profile.authority?.buildingDepartmentUrl, `${label}: invalid codeProfile building department URL`, errors);
+      for (const [field, value] of [['permit portal', profile.authority?.permitPortalUrl], ['code-adoption', profile.authority?.codeAdoptionUrl]]) {
+        if (value) validateHttps(value, `${label}: invalid ${field} URL`, errors);
+      }
+      if (!(profile.adoptedCodes || []).length) errors.push(`${label}: codeProfile has no adopted codes`);
+      for (const [index, code] of (profile.adoptedCodes || []).entries()) {
+        if (!code.family || !code.edition || !code.appliesTo || !code.sourceUrl || !code.sourceLabel) errors.push(`${label}: incomplete adopted code at index ${index}`);
+        validateHttps(code.sourceUrl, `${label}: invalid adopted-code source URL`, errors);
+      }
+      for (const [index, amendment] of (profile.amendments || []).entries()) {
+        if (!amendment.title || !amendment.summary || !amendment.sourceUrl) errors.push(`${label}: incomplete amendment at index ${index}`);
+        validateHttps(amendment.sourceUrl, `${label}: invalid amendment source URL`, errors);
+      }
+      if (!(profile.amendments || []).length) warnings.push(`${label}: no amendment source exists`);
+      for (const [index, item] of (profile.localDesignCriteria || []).entries()) {
+        if (!item.label || !item.value || !item.sourceUrl) errors.push(`${label}: incomplete local design criterion at index ${index}`);
+        validateHttps(item.sourceUrl, `${label}: invalid design-criterion source URL`, errors);
+      }
+      for (const [index, item] of (profile.commonSubmissionItems || []).entries()) {
+        if (!item.item || !SUBMISSION_STATUSES.has(item.requiredStatus) || !item.sourceUrl) errors.push(`${label}: incomplete submission item at index ${index}`);
+        validateHttps(item.sourceUrl, `${label}: invalid submission-item source URL`, errors);
+      }
+      if (profile.status === 'published-ordinance-needs-department-confirmation') warnings.push(`${label}: published ordinance requires department confirmation`);
+    } else warnings.push(`${label}: no code profile`);
     for (const nearby of record.nearbyCities || []) if (nearby.slug && !enabledSlugs.has(nearby.slug)) errors.push(`${label}: nearby link targets disabled or missing city ${nearby.slug}`);
     if ((record.localOverview || '').length < 220) warnings.push(`${label}: local overview may be too short`);
     if (!(record.faqs || []).length) warnings.push(`${label}: no unique FAQs`);
@@ -59,6 +95,22 @@ export function validateCityPages(records, { strictEditorial = true } = {}) {
     if (overlap > 0.72) warnings.push(`${enabled[i].slug} / ${enabled[j].slug}: unusually high localized-content overlap (${Math.round(overlap * 100)}%)`);
   }
   return { enabled, errors, warnings };
+}
+
+function validateHttps(value, message, errors) {
+  try { const url = new URL(value); if (url.protocol !== 'https:') throw new Error(); } catch { errors.push(message); }
+}
+
+function isValidDate(value) {
+  if (!DATE.test(value || '')) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+function monthsSince(value) {
+  const reviewed = new Date(`${value}T00:00:00Z`);
+  const now = new Date();
+  return (now.getUTCFullYear() - reviewed.getUTCFullYear()) * 12 + now.getUTCMonth() - reviewed.getUTCMonth();
 }
 
 function tokens(record) {
