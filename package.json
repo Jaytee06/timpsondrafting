@@ -13,6 +13,7 @@
     "build": "npm run build:app && npm run build:pages && npm run build:cities && npm run build:sitemap",
     "validate:cities": "node scripts/generate-city-pages.mjs --validate-only",
     "test:cities": "node --test scripts/tests/city-pages.test.mjs",
+    "audit:routes": "node scripts/audit-production-routes.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",

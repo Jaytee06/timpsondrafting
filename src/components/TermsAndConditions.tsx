@@ -58,10 +58,10 @@ export default function TermsAndConditions() {
                 Questions about these terms can be directed to
                 {' '}
                 <a
-                  href="mailto:info@timpsondrafting.com"
+                  href="mailto:admin@timpsondrafting.com"
                   className="font-medium text-emerald-700 hover:text-emerald-800"
                 >
-                  info@timpsondrafting.com
+                  admin@timpsondrafting.com
                 </a>
                 {' '}
                 or

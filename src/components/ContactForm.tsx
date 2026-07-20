@@ -24,6 +24,7 @@ type TrackingParams = {
   wbraid: string;
   campaignid: string;
   utmSource: string;
+  utmMedium: string;
   utmCampaign: string;
   utmTerm: string;
 };
@@ -35,6 +36,7 @@ const EMPTY_TRACKING_PARAMS: TrackingParams = {
   wbraid: '',
   campaignid: '',
   utmSource: '',
+  utmMedium: '',
   utmCampaign: '',
   utmTerm: '',
 };
@@ -291,6 +293,11 @@ const readTrackingParams = (): TrackingParams => {
       getFirstQueryParam(searchParams, ['utm_source']) ||
       storedParams.utmSource ||
       '',
+    utmMedium:
+      getFirstQueryParam(searchParams, ['utm_medium']) ||
+      window.sessionStorage.getItem('td_first_touch_utm_medium') ||
+      storedParams.utmMedium ||
+      '',
     utmCampaign:
       getFirstQueryParam(searchParams, ['utm_campaign', 'campaignid', 'campaign_id']) ||
       storedParams.utmCampaign ||
@@ -330,6 +337,7 @@ const buildFormSnapshot = (
     wbraid: trackingParams.wbraid,
     campaignid: trackingParams.campaignid,
     utmSource: trackingParams.utmSource,
+    utmMedium: trackingParams.utmMedium,
     utmCampaign: trackingParams.utmCampaign,
     utmTerm: trackingParams.utmTerm,
     filesProvided: fileMetadata.length > 0,
@@ -514,10 +522,17 @@ export default function ContactForm() {
       data.append('wbraid', trackingParams.wbraid);
       data.append('campaignid', trackingParams.campaignid);
       data.append('utm_source', trackingParams.utmSource);
+      data.append('utm_medium', trackingParams.utmMedium);
       data.append('utm_campaign', trackingParams.utmCampaign);
       data.append('utm_term', trackingParams.utmTerm);
       data.append('adminEmail', ADMIN_EMAIL);
       data.append('landingPageUrl', originalLandingRef.current);
+      data.append('landing_page', originalLandingRef.current);
+      data.append('landing_city', window.sessionStorage.getItem('td_landing_city') || '');
+      data.append('landing_region', window.sessionStorage.getItem('td_landing_region') || '');
+      data.append('first_touch_utm_source', window.sessionStorage.getItem('td_first_touch_utm_source') || trackingParams.utmSource);
+      data.append('first_touch_utm_medium', window.sessionStorage.getItem('td_first_touch_utm_medium') || trackingParams.utmMedium);
+      data.append('first_touch_utm_campaign', window.sessionStorage.getItem('td_first_touch_utm_campaign') || trackingParams.utmCampaign);
       data.append('referrer', originalReferrerRef.current);
 
       if (submittedFiles.length > 0) {
@@ -1032,7 +1047,7 @@ export default function ContactForm() {
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Email</p>
-                    <p className="text-slate-600">info@timpsondrafting.com</p>
+                    <p className="text-slate-600">admin@timpsondrafting.com</p>
                   </div>
                 </div>
 

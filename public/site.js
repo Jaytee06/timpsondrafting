@@ -7,6 +7,15 @@
     project_city_prefill: document.body.dataset.projectCityPrefill || '',
     project_state_prefill: document.body.dataset.projectStatePrefill || '',
   };
+  if (!sessionStorage.getItem('td_original_landing')) sessionStorage.setItem('td_original_landing', location.href);
+  if (!sessionStorage.getItem('td_original_referrer')) sessionStorage.setItem('td_original_referrer', document.referrer || '');
+  if (pageContext.landing_city && !sessionStorage.getItem('td_landing_city')) sessionStorage.setItem('td_landing_city', pageContext.landing_city);
+  if (pageContext.landing_region && !sessionStorage.getItem('td_landing_region')) sessionStorage.setItem('td_landing_region', pageContext.landing_region);
+  const query = new URLSearchParams(location.search);
+  for (const key of ['utm_source', 'utm_medium', 'utm_campaign']) {
+    const value = query.get(key);
+    if (value && !sessionStorage.getItem(`td_first_touch_${key}`)) sessionStorage.setItem(`td_first_touch_${key}`, value);
+  }
   const track = (event, details = {}) => dataLayer.push({ event, ...pageContext, ...details });
   document.querySelector('.nav-toggle')?.addEventListener('click', (event) => {
     const button = event.currentTarget;

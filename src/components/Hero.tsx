@@ -19,7 +19,7 @@ export default function Hero() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
-            Residential Drafting and Design for Homes, Garages, and Additions
+            Residential Drafting for Southern Utah and Northern Arizona
           </h1>
 
           <p className="text-xl sm:text-2xl text-slate-300 mb-2 font-light">
@@ -27,7 +27,7 @@ export default function Hero() {
           </p>
 
           <p className="text-slate-400 mb-10 text-lg">
-            Residential drafting for custom homes, additions, ADUs, garages, and remodels in Southern Utah and Northern Arizona, with remote drafting available nationwide.
+            Custom-home, addition, ADU, garage, remodel, and as-built plans for homeowners and contractors, with remote drafting available nationwide.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
@@ -40,10 +40,10 @@ export default function Hero() {
             </a>
 
             <a
-              href="/#services"
+              href="/services/"
               className="inline-flex items-center justify-center px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg backdrop-blur-sm border border-white/20 transition-all duration-200"
             >
-              View Services
+              Explore Drafting Services
             </a>
             <a href="tel:+14353195331" className="inline-flex items-center justify-center px-8 py-4 font-semibold text-emerald-300 underline underline-offset-4">Call (435) 319-5331</a>
           </div>

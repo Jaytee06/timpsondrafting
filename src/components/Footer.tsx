@@ -29,7 +29,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/#services" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                <a href="/services/" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   Services
                 </a>
               </li>
@@ -39,7 +39,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/service-area/" className="text-slate-400 hover:text-emerald-400 transition-colors">
+                <a href="/service-areas/" className="text-slate-400 hover:text-emerald-400 transition-colors">
                   Service Area
                 </a>
               </li>
@@ -102,10 +102,10 @@ export default function Footer() {
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                 <a
-                  href="mailto:info@timpsondrafting.com"
+                  href="mailto:admin@timpsondrafting.com"
                   className="text-slate-400 hover:text-emerald-400 transition-colors"
                 >
-                  info@timpsondrafting.com
+                  admin@timpsondrafting.com
                 </a>
               </li>
               <li className="flex items-start gap-3">

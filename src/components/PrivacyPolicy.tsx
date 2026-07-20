@@ -86,10 +86,10 @@ export default function PrivacyPolicy() {
               marketing. If you need help regarding a message from us, contact
               {' '}
               <a
-                href="mailto:info@timpsondrafting.com"
+                href="mailto:admin@timpsondrafting.com"
                 className="font-medium text-emerald-700 hover:text-emerald-800"
               >
-                info@timpsondrafting.com
+                admin@timpsondrafting.com
               </a>
               {' '}
               or
