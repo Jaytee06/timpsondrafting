@@ -16,7 +16,15 @@
     const value = query.get(key);
     if (value && !sessionStorage.getItem(`td_first_touch_${key}`)) sessionStorage.setItem(`td_first_touch_${key}`, value);
   }
-  const track = (event, details = {}) => dataLayer.push({ event, ...pageContext, ...details });
+  const attributionContext = {
+    page_path: location.pathname,
+    original_landing: sessionStorage.getItem('td_original_landing') || location.href,
+    original_referrer: sessionStorage.getItem('td_original_referrer') || document.referrer || '',
+    first_touch_utm_source: sessionStorage.getItem('td_first_touch_utm_source') || '',
+    first_touch_utm_medium: sessionStorage.getItem('td_first_touch_utm_medium') || '',
+    first_touch_utm_campaign: sessionStorage.getItem('td_first_touch_utm_campaign') || '',
+  };
+  const track = (event, details = {}) => dataLayer.push({ event, ...pageContext, ...attributionContext, ...details });
   document.querySelector('.nav-toggle')?.addEventListener('click', (event) => {
     const button = event.currentTarget;
     const open = button.getAttribute('aria-expanded') !== 'true';
@@ -26,9 +34,13 @@
   document.addEventListener('click', (event) => {
     const link = event.target.closest('a');
     if (!link) return;
-    if (link.matches('[href^="tel:"]')) track('phone_click', { link_url: link.href });
-    if (link.matches('[href^="mailto:"]')) track('email_click', { link_url: link.href });
-    if (link.dataset.track) track(link.dataset.track, { link_url: link.href });
+    const events = new Set();
+    if (link.matches('[href^="tel:"]')) events.add('phone_click');
+    if (link.matches('[href^="mailto:"]')) events.add('email_click');
+    if (link.dataset.track) events.add(link.dataset.track);
+    for (const eventName of events) {
+      track(eventName, { link_url: link.href, service_interest: link.dataset.service || '' });
+    }
   });
   if (document.body.dataset.pageType) track('city_page_view');
 })();

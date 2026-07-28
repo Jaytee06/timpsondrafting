@@ -1,13 +1,20 @@
 # Project evidence workflow
 
-Use this checklist before publishing a Timpson project page or testimonial.
+Project pages may be published only after the owner approves the facts and the client or rights holder approves every displayed image and testimonial.
 
-1. Record the project type, general location, approximate size, client objective, initial constraints, drafting scope, key decisions, coordination considerations, and outcome.
-2. Obtain written permission for every client quote, photograph, plan image, partner credit, and general location that will be published.
-3. Remove private addresses, customer names without permission, signatures, title blocks, contact details, parcel identifiers, and sensitive dimensions from drawings and images.
-4. Confirm that photographs and drawings show the described project and that Timpson’s role is stated accurately.
-5. Record the testimonial’s exact approved wording and verifiable source URL when available. Never rewrite the client’s location or imply a credential, permit result, or professional service that was not provided.
-6. Have the owner approve the final page, media, attribution, and claims before enabling it.
-7. Publish the Projects navigation item only after three complete project records pass this review. Add one approved project regularly thereafter.
+For each candidate project, collect:
 
-Store source files and permissions outside the public website. Only redacted, approved derivatives belong in the deployable project assets.
+- A public-safe project title and general location
+- Project type, initial problem, and agreed drafting scope
+- Deliverables actually supplied
+- A concise description of the drafting approach
+- A factual result that does not imply permit approval or construction performance
+- The measurement period or project dates when reporting operational outcomes
+- Redacted drawings and photographs with descriptive alternative text
+- Written media permission
+- Written testimonial permission and exact attribution, when applicable
+- The final review date
+
+Remove client names, precise addresses, permit numbers, signatures, contact details, and other sensitive information unless explicit publication permission covers them.
+
+Add approved records to `src/project-pages/project-page.data.mjs`. The build rejects enabled records that lack editorial approval, media permission, required facts, deliverables, approved images, or a valid review date. The public project library remains `noindex` until at least three approved profiles are available.

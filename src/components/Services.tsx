@@ -54,56 +54,69 @@ const services: Service[] = [
 
 const serviceDetails: ServiceDetail[] = [
   {
-    id: 'garage-addition-plans',
-    title: 'Garage, ADU, and Addition Plans',
+    id: 'custom-home-plans',
+    title: 'Custom Home Plans',
     description:
-      'Plan sets for attached additions, detached garages, ADUs, and extra living space need to fit the existing home, site conditions, and permit path.',
+      'Custom residential plans should reflect the property, household needs, and build path from the beginning. This page now carries the clearest fit for unique homes, compact footprints, and efficient room planning.',
     points: [
-      'Detached garage and shop layouts',
-      'Home additions, bedroom suites, and mudrooms',
-      'ADU and guest-space drafting support',
-      'Plan updates for permitting and contractor review',
-    ],
-    href: '/garage-addition-plans/',
-  },
-  {
-    id: 'small-efficient-home-plans',
-    title: 'Small and Efficient Home Plans',
-    description:
-      'Some residential projects start with a compact footprint, a narrow lot, or a need to make every square foot work harder. Timpson can help turn those ideas into clear drafting packages and buildable layouts.',
-    points: [
-      'Small custom home drafting support',
-      'Efficient room flow and layout planning',
-      'Narrow-lot and compact-footprint plan guidance',
+      'Custom home drafting support',
+      'Small and efficient home layouts',
+      'Site-fit and footprint planning',
       'Plan revisions before permit submission',
     ],
-    href: '/small-efficient-home-plans/',
+    href: '/custom-home-plans/',
   },
   {
-    id: 'remodel-as-built-drawings',
-    title: 'Remodel and As-Built Drawings',
+    id: 'adu-plans',
+    title: 'ADU Plans',
     description:
-      'Renovation work often starts with documenting what is already there before the new design can be drafted clearly.',
+      'Accessory dwelling unit projects need a clear scope around site constraints, access, utilities, and permit requirements before the drafting package can be defined.',
     points: [
-      'Existing-condition drawings for remodel planning',
-      'Kitchen, bath, and whole-home renovation drawings',
-      'Field-measurement documentation when needed',
-      'Clear drawings for homeowner and contractor coordination',
+      'Attached and detached ADU layouts',
+      'Garage conversion planning support',
+      'Compact living-space drafting',
+      'Project-specific permit coordination',
     ],
-    href: '/remodel-as-built-drawings/',
+    href: '/adu-plans/',
   },
   {
-    id: 'permit-ready-construction-documents',
-    title: 'Permit-Ready Construction Documents',
+    id: 'home-addition-plans',
+    title: 'Home Addition Plans',
     description:
-      'Permit-ready residential drafting usually starts with the right project details, existing information, and a clear understanding of what needs to be reviewed before submission.',
+      'Addition work needs proposed space to connect cleanly to the existing home, lot conditions, and the jurisdiction review path.',
     points: [
-      'Project-based quote prep checklist',
-      'Permit document planning questions',
-      'Support for additions, remodels, garages, and custom homes',
-      'Clearer scope before revisions and submission',
+      'Bedroom suites and mudrooms',
+      'Expanded living areas and attached additions',
+      'Existing-condition coordination',
+      'Quote inputs for addition planning',
     ],
-    href: '/permit-ready-construction-documents/',
+    href: '/home-addition-plans/',
+  },
+  {
+    id: 'garage-shop-plans',
+    title: 'Garage and Shop Plans',
+    description:
+      'Garage and shop projects need a scope that accounts for use, size, setbacks, and permit requirements before the drawings can move confidently into review.',
+    points: [
+      'Attached and detached garage planning',
+      'Residential shop layouts and exterior views',
+      'Project fit and permit-factor review',
+      'Quote inputs for garage and shop work',
+    ],
+    href: '/garage-shop-plans/',
+  },
+  {
+    id: 'permit-drawing-services',
+    title: 'Permit Drawing Services',
+    description:
+      'Permit drawing coordination starts with the right project facts, existing information, and a realistic view of what the reviewing authority may require.',
+    points: [
+      'Project-based permit drawing scope',
+      'Submission and revision planning',
+      'Support for homes, ADUs, garages, and remodels',
+      'Clearer quote prep before submission',
+    ],
+    href: '/permit-drawing-services/',
   },
 ];
 
@@ -228,16 +241,16 @@ export default function Services() {
         <div className="mt-12 bg-emerald-50 rounded-xl p-8 border border-emerald-100 shadow-sm">
           <div className="max-w-3xl">
             <h3 className="text-2xl font-bold text-slate-900 mb-3">
-              Permit-Ready Construction Document Guide
+              What Permit-Ready Plans Include
             </h3>
             <p className="text-slate-700 leading-relaxed mb-5">
-              Need a clearer picture of what to gather before asking for a drafting quote? This page walks through the project details, existing information, and permit questions that usually shape a residential drafting scope.
+              Need a clearer picture of what to gather before asking for a drafting quote? This guide walks through the project details, existing information, and permit questions that usually shape a residential drafting scope.
             </p>
             <a
-              href="/permit-ready-construction-documents/"
+              href="/resources/what-is-included-in-permit-ready-plans/"
               className="inline-flex items-center px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-colors duration-200"
             >
-              Explore the Permit-Ready Guide
+              Explore the Permit-Plan Guide
             </a>
           </div>
         </div>

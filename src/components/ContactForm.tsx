@@ -3,6 +3,7 @@ import { Send, CheckCircle2, Mail, Phone, MapPin, MessageCircle } from 'lucide-r
 import ChatIntake from './ChatIntake';
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
+const PUBLIC_EMAIL = 'info@timpsondrafting.com';
 const TRACKING_STORAGE_KEY = 'td_tracking_params';
 const GOOGLE_ADS_CONVERSION_ID = 'AW-17998095514/Izg4CNGKkIYcEJrJlIZD';
 const LEAD_INTAKE_API_URL =
@@ -11,10 +12,33 @@ const LEAD_INTAKE_API_URL =
 const CRM_WEBHOOK_DRY_RUN = import.meta.env.VITE_CRM_WEBHOOK_DRY_RUN === 'true';
 const LANDING_STORAGE_KEY = 'td_original_landing';
 const REFERRER_STORAGE_KEY = 'td_original_referrer';
+const SERVICE_INTEREST_LABELS: Record<string, string> = {
+  'residential-drafting-services': 'Residential drafting services',
+  'custom-home-plans': 'Custom home plans',
+  'adu-plans': 'ADU plans',
+  'home-addition-plans': 'Home addition plans',
+  'garage-shop-plans': 'Garage and shop plans',
+  'remodel-drafting': 'Remodel drafting',
+  'as-built-drawings': 'As-built drawings',
+  'stock-plan-modifications': 'Stock plan modifications',
+  'permit-drawing-services': 'Permit drawing services',
+  'contractor-drafting-services': 'Contractor drafting services',
+};
 
 const pushTrackingEvent = (event: string, details: Record<string, string | number | boolean> = {}) => {
   window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({ event, ...details });
+  window.dataLayer.push({
+    event,
+    page_path: window.location.pathname,
+    original_landing: window.sessionStorage.getItem(LANDING_STORAGE_KEY) || window.location.href,
+    original_referrer: window.sessionStorage.getItem(REFERRER_STORAGE_KEY) || document.referrer || '',
+    landing_city: window.sessionStorage.getItem('td_landing_city') || '',
+    landing_region: window.sessionStorage.getItem('td_landing_region') || '',
+    first_touch_utm_source: window.sessionStorage.getItem('td_first_touch_utm_source') || '',
+    first_touch_utm_medium: window.sessionStorage.getItem('td_first_touch_utm_medium') || '',
+    first_touch_utm_campaign: window.sessionStorage.getItem('td_first_touch_utm_campaign') || '',
+    ...details,
+  });
 };
 
 type TrackingParams = {
@@ -190,6 +214,12 @@ const getSitelinkPrefill = () => {
   return null;
 };
 
+const getServiceInterest = () => {
+  if (typeof window === 'undefined') return '';
+  const value = new URLSearchParams(window.location.search).get('service')?.trim().toLowerCase() || '';
+  return SERVICE_INTEREST_LABELS[value] || '';
+};
+
 const getInitialFormData = (): ContactFormState => {
   const sitelinkPrefill = getSitelinkPrefill();
   const searchParams = typeof window === 'undefined'
@@ -237,7 +267,7 @@ const buildFileMetadata = (fileList: FileList | File[] | null): FileMetadata[] =
   }));
 };
 
-const fireLeadTrackingEvents = (transactionId: string) => {
+const fireLeadTrackingEvents = (transactionId: string, projectType: string, serviceInterest: string) => {
   // Google Ads conversion. This needs the Ads conversion label.
   if (typeof window.gtag === 'function') {
     window.gtag('event', 'conversion', {
@@ -251,6 +281,13 @@ const fireLeadTrackingEvents = (transactionId: string) => {
     event: 'quote_form_submit',
     transaction_id: transactionId,
     method: 'contact_form',
+    page_path: window.location.pathname,
+    project_type: projectType,
+    service_interest: serviceInterest,
+    original_landing: window.sessionStorage.getItem(LANDING_STORAGE_KEY) || window.location.href,
+    original_referrer: window.sessionStorage.getItem(REFERRER_STORAGE_KEY) || document.referrer || '',
+    landing_city: window.sessionStorage.getItem('td_landing_city') || '',
+    landing_region: window.sessionStorage.getItem('td_landing_region') || '',
   });
 };
 
@@ -441,6 +478,7 @@ const createExternalId = () =>
 
 export default function ContactForm() {
   const [sitelinkPrefill] = useState<SitelinkPrefill | null>(() => getSitelinkPrefill());
+  const [serviceInterest] = useState(() => getServiceInterest());
   const [formData, setFormData] = useState<ContactFormState>(() => getInitialFormData());
   const [trackingParams] = useState<TrackingParams>(() => readTrackingParams());
 
@@ -467,7 +505,7 @@ export default function ContactForm() {
   const markFormStarted = () => {
     if (formStartedRef.current) return;
     formStartedRef.current = true;
-    pushTrackingEvent('quote_form_start', { form_name: 'project_quote' });
+    pushTrackingEvent('quote_form_start', { form_name: 'project_quote', service_interest: serviceInterest });
   };
 
   const openChat = () => {
@@ -510,6 +548,7 @@ export default function ContactForm() {
       data.append('email', formData.email.trim());
       data.append('phone', formData.phone.trim());
       data.append('project_type', formData.projectType);
+      data.append('service_interest', serviceInterest);
       data.append('project_city', formData.projectCity.trim());
       data.append('project_state', formData.projectState.trim());
       data.append('timeline', formData.timeline);
@@ -561,7 +600,7 @@ export default function ContactForm() {
       const formSnapshot = buildFormSnapshot(formData, trackingParams, submittedFiles);
       const submittedLeadDraft = buildLeadDraft(formData, trackingParams, leadId, submittedFiles);
 
-      fireLeadTrackingEvents(transactionId);
+      fireLeadTrackingEvents(transactionId, formData.projectType, serviceInterest);
 
       setSubmitted(true);
       if (leadId) {
@@ -590,6 +629,11 @@ export default function ContactForm() {
       return await createPromise;
     } catch (error) {
       console.error('Submission error:', error);
+      pushTrackingEvent('quote_form_error', {
+        form_name: 'project_quote',
+        service_interest: serviceInterest,
+        error_type: 'network_or_crm',
+      });
       setErrorMessage('Something went wrong. Please try again or contact us directly.');
       return '';
     } finally {
@@ -613,6 +657,11 @@ export default function ContactForm() {
 
     const validationMessage = getFirstRequiredFieldError(formData);
     if (validationMessage) {
+      pushTrackingEvent('quote_form_validation_error', {
+        form_name: 'project_quote',
+        service_interest: serviceInterest,
+        error_message: validationMessage,
+      });
       setErrorMessage(validationMessage);
       setIsLoading(false);
       return;
@@ -714,6 +763,13 @@ export default function ContactForm() {
                   </button>
                 </div>
               </div>
+
+              {serviceInterest && (
+                <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                  <strong>Service selected:</strong> {serviceInterest}. You can still choose the project
+                  type that best describes the work below.
+                </div>
+              )}
 
               <div className="hidden">
                 <label htmlFor="website">Website</label>
@@ -1025,6 +1081,15 @@ export default function ContactForm() {
           </div>
 
           <div className="space-y-6">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8">
+              <h3 className="mb-4 text-xl font-bold text-slate-900">What happens after you submit</h3>
+              <ol className="space-y-4 text-sm leading-6 text-slate-700">
+                <li><strong>1. Scope review:</strong> Timpson reviews the property, project type, files, and schedule you provide.</li>
+                <li><strong>2. Clarification:</strong> If important information is missing, the next response will identify what is needed.</li>
+                <li><strong>3. Defined next step:</strong> You receive a consultation, information request, or project-specific quote path—not an automatic permit or pricing promise.</li>
+              </ol>
+            </div>
+
             <div className="bg-white rounded-xl p-8 shadow-lg border border-slate-200">
               <h3 className="text-xl font-bold text-slate-900 mb-6">Contact Information</h3>
 
@@ -1047,7 +1112,12 @@ export default function ContactForm() {
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Email</p>
-                    <p className="text-slate-600">admin@timpsondrafting.com</p>
+                    <a
+                      href={`mailto:${PUBLIC_EMAIL}`}
+                      className="text-slate-600 hover:text-emerald-600 transition-colors"
+                    >
+                      {PUBLIC_EMAIL}
+                    </a>
                   </div>
                 </div>
 

@@ -21,20 +21,20 @@ const fitChecks = [
 
 const relatedLinks = [
   {
-    href: '/service-area/',
+    href: '/service-areas/',
     label: 'Full service area details',
   },
   {
-    href: '/garage-addition-plans/',
-    label: 'Garage, ADU, and addition plans',
+    href: '/service-areas/remote-drafting/',
+    label: 'Remote drafting nationwide',
   },
   {
-    href: '/remodel-as-built-drawings/',
-    label: 'Remodel and as-built drawings',
+    href: '/as-built-drawings/',
+    label: 'As-built drawings and field-measurement fit',
   },
   {
-    href: '/permit-ready-construction-documents/',
-    label: 'Permit-ready construction document guide',
+    href: '/resources/remote-drafting-measurement-guide/',
+    label: 'Remote drafting measurement guide',
   },
 ];
 
@@ -116,7 +116,7 @@ export default function ServiceArea() {
             </ul>
             <div className="mt-6 flex flex-wrap gap-4">
               <a
-                href="/service-area/"
+                href="/service-areas/"
                 className="inline-flex items-center rounded-lg bg-emerald-500 px-6 py-3 font-semibold text-white hover:bg-emerald-600 transition-colors"
               >
                 View the full service area page

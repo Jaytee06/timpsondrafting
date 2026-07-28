@@ -1,4 +1,6 @@
 export default function TermsAndConditions() {
+  const publicEmail = 'info@timpsondrafting.com';
+
   return (
     <section id="terms-and-conditions" className="bg-slate-50 py-20">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -58,10 +60,10 @@ export default function TermsAndConditions() {
                 Questions about these terms can be directed to
                 {' '}
                 <a
-                  href="mailto:admin@timpsondrafting.com"
+                  href={`mailto:${publicEmail}`}
                   className="font-medium text-emerald-700 hover:text-emerald-800"
                 >
-                  admin@timpsondrafting.com
+                  {publicEmail}
                 </a>
                 {' '}
                 or

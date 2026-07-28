@@ -251,6 +251,7 @@ function runStaticChecks() {
   assertIncludes(contactForm, `const buildLeadTransactionId = () => \`LEAD\${Date.now()}\``, 'ContactForm creates Google-compatible lead transaction IDs');
   assertIncludes(contactForm, `data.append('external_id', externalIdRef.current)`, 'Form payload includes stable external_id for CRM webhook lookup');
   assertIncludes(contactForm, `data.append('transaction_id', transactionId)`, 'Form payload sends transaction_id to CRM webhook for offline conversion cleanup');
+  assertIncludes(contactForm, `data.append('service_interest', serviceInterest)`, 'Form payload preserves selected service interest');
   assertIncludes(contactForm, `data.append('adminEmail', ADMIN_EMAIL)`, 'Form payload includes adminEmail');
   assertIncludes(contactForm, `data.append('gclid', trackingParams.gclid)`, 'Form payload preserves gclid');
   assertIncludes(contactForm, `data.append('gbraid', trackingParams.gbraid)`, 'Form payload preserves gbraid');
@@ -260,7 +261,7 @@ function runStaticChecks() {
   assertOrder(
     contactForm,
     `if (!response.ok)`,
-    `fireLeadTrackingEvents(transactionId);`,
+    `fireLeadTrackingEvents(transactionId, formData.projectType, serviceInterest);`,
     'Conversion events fire only after CRM response success check'
   );
 

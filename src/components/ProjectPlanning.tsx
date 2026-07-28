@@ -1,4 +1,4 @@
-import { ClipboardList, FileCheck, MapPinned } from 'lucide-react';
+import { ArrowRightCircle, ClipboardList, FileCheck, MapPinned } from 'lucide-react';
 
 const planningSteps = [
   {
@@ -19,6 +19,12 @@ const planningSteps = [
     description:
       'Project city, state, timeline, and any known building-department questions help shape the permit-ready document path and the amount of drafting coordination needed.',
   },
+  {
+    icon: ArrowRightCircle,
+    title: 'Receive a scoped next step',
+    description:
+      'Timpson reviews the available information, identifies important unknowns, and responds with the next clarification, consultation, or project-specific quote path.',
+  },
 ];
 
 const preparationItems = [
@@ -31,24 +37,24 @@ const preparationItems = [
 
 const relatedLinks = [
   {
-    href: '/service-area/',
+    href: '/service-areas/',
     label: 'Service area and project location details',
   },
   {
-    href: '/garage-addition-plans/',
-    label: 'Garage, ADU, and addition plans',
+    href: '/home-addition-plans/',
+    label: 'Home addition plans',
   },
   {
-    href: '/small-efficient-home-plans/',
-    label: 'Small and efficient home plans',
+    href: '/garage-shop-plans/',
+    label: 'Garage and shop plans',
   },
   {
-    href: '/remodel-as-built-drawings/',
-    label: 'Remodel and as-built drawings',
+    href: '/as-built-drawings/',
+    label: 'As-built drawings',
   },
   {
-    href: '/permit-ready-construction-documents/',
-    label: 'Permit-ready construction document guide',
+    href: '/resources/what-is-included-in-permit-ready-plans/',
+    label: 'What permit-ready plans include',
   },
 ];
 
@@ -64,14 +70,13 @@ export default function ProjectPlanning() {
             Helpful details before you request a drafting quote
           </h2>
           <p className="text-slate-300 text-lg leading-relaxed">
-            Google&apos;s people-first guidance rewards pages that help someone leave
-            with enough information to achieve their goal. For Timpson, that usually
-            means making the first project conversation easier, not just adding more
-            keywords to the page.
+            A useful first conversation should clarify the property, intended work,
+            available source information, and likely review path. These details help
+            Timpson identify unknowns before promising a drawing scope.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 mb-12">
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-8 mb-12">
           {planningSteps.map((step) => {
             const Icon = step.icon;
 

@@ -1,4 +1,6 @@
 export default function PrivacyPolicy() {
+  const publicEmail = 'info@timpsondrafting.com';
+
   return (
     <section id="privacy-policy" className="bg-white py-20">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -86,10 +88,10 @@ export default function PrivacyPolicy() {
               marketing. If you need help regarding a message from us, contact
               {' '}
               <a
-                href="mailto:admin@timpsondrafting.com"
+                href={`mailto:${publicEmail}`}
                 className="font-medium text-emerald-700 hover:text-emerald-800"
               >
-                admin@timpsondrafting.com
+                {publicEmail}
               </a>
               {' '}
               or

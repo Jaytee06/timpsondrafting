@@ -2,6 +2,7 @@ import { Home, Mail, Phone, MapPin } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const publicEmail = 'info@timpsondrafting.com';
 
   return (
     <footer className="bg-slate-900 text-white">
@@ -65,7 +66,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="/permit-ready-construction-documents/"
+                  href="/resources/what-is-included-in-permit-ready-plans/"
                   className="text-slate-400 hover:text-emerald-400 transition-colors"
                 >
                   Permit Guide
@@ -102,10 +103,10 @@ export default function Footer() {
               <li className="flex items-start gap-3">
                 <Mail className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                 <a
-                  href="mailto:admin@timpsondrafting.com"
+                  href={`mailto:${publicEmail}`}
                   className="text-slate-400 hover:text-emerald-400 transition-colors"
                 >
-                  admin@timpsondrafting.com
+                  {publicEmail}
                 </a>
               </li>
               <li className="flex items-start gap-3">

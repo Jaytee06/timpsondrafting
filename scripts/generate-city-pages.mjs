@@ -6,6 +6,7 @@ import { validateCityPages } from '../src/city-pages/city-page.validation.mjs';
 const BASE = 'https://timpsondrafting.com';
 const ORG_ID = `${BASE}/#organization`;
 const DIST = join(process.cwd(), 'dist');
+const PUBLIC_EMAIL = 'info@timpsondrafting.com';
 const validateOnly = process.argv.includes('--validate-only');
 const { enabled, errors, warnings } = validateCityPages(cityPages);
 
@@ -28,7 +29,7 @@ const services = {
 };
 
 const nav = `<a class="brand" href="/">Timpson <span>Drafting &amp; Design</span></a><button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button><nav id="site-nav" aria-label="Primary"><details><summary>Services</summary><div class="menu"><a href="/residential-drafting-services/">Residential Drafting Services</a><a href="/custom-home-plans/">Custom Home Plans</a><a href="/adu-plans/">ADU Plans</a><a href="/home-addition-plans/">Home Addition Plans</a><a href="/garage-shop-plans/">Garage and Shop Plans</a><a href="/remodel-drafting/">Remodel Drafting</a><a href="/as-built-drawings/">As-Built Drawings</a></div></details><details><summary>Service Areas</summary><div class="menu"><a href="/southern-utah-drafting-services/">Southern Utah</a><a href="/northern-arizona-drafting-services/">Northern Arizona</a><a href="/service-areas/remote-drafting/">Remote Drafting</a></div></details><a href="/resources/">Resources</a><a href="/about-us/">About</a><a href="/contact/">Contact</a><a class="nav-cta" href="/#contact">Request a Quote</a></nav>`;
-const footer = `<footer><div class="footer-grid"><div><strong>Timpson Drafting &amp; Design</strong><p>Residential drafting for homeowners and contractors, with remote service nationwide and local availability focused on Northern Arizona and Southern Utah.</p></div><div><strong>Contact</strong><p><a href="tel:+14353195331">(435) 319-5331</a><br><a href="mailto:admin@timpsondrafting.com">admin@timpsondrafting.com</a></p></div><div><strong>Service areas</strong><p><a href="/st-george-ut/">St. George drafting services</a><br><a href="/colorado-city-az/">Colorado City drafting services</a><br><a href="/service-areas/">All service areas</a></p></div></div><small>Project requirements and professional-stamp needs vary by jurisdiction. Confirm them with the applicable building department.</small></footer>`;
+const footer = `<footer><div class="footer-grid"><div><strong>Timpson Drafting &amp; Design</strong><p>Residential drafting for homeowners and contractors, with remote service nationwide and local availability focused on Northern Arizona and Southern Utah.</p></div><div><strong>Contact</strong><p><a href="tel:+14353195331">(435) 319-5331</a><br><a href="mailto:${PUBLIC_EMAIL}">${PUBLIC_EMAIL}</a></p></div><div><strong>Service areas</strong><p><a href="/st-george-ut/">St. George drafting services</a><br><a href="/colorado-city-az/">Colorado City drafting services</a><br><a href="/service-areas/">All service areas</a></p></div></div><small>Project requirements and professional-stamp needs vary by jurisdiction. Confirm them with the applicable building department.</small></footer>`;
 
 for (const city of enabled) write(city.slug, renderCity(city));
 write('southern-utah-drafting-services', renderHub('Southern Utah'));
