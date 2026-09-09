@@ -10,8 +10,13 @@ import TermsAndConditions from './components/TermsAndConditions';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import AnalyticsHooks from './components/AnalyticsHooks';
+import ModelViewer from './components/ModelViewer';
 
 function App() {
+  if (window.location.pathname === '/viewer') {
+    return <ModelViewer />;
+  }
+
   return (
     <div className="min-h-screen">
       <AnalyticsHooks />

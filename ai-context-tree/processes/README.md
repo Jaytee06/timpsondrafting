@@ -12,6 +12,7 @@ This folder contains workflow rules. Use process docs when the agent needs to de
 
 - [communications/](communications/README.md): lead outreach, inbound response handling, qualification branches, email and text routing.
 - [marketing/](marketing/README.md): Google Ads analysis, weekly probes, landing page strategy, SEO cross-pollination, and marketing optimization actions.
+- [interactive_3d_brochure.md](interactive_3d_brochure.md): Blender delivery requirements and the future GLB processing, collision, and presentation-options workflow.
 
 ## Role Routing
 

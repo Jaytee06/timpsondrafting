@@ -23,10 +23,13 @@
     "verify:sanity:live-api": "TIMPSON_LIVE_API_TEST=1 node scripts/sanity/timpson.mjs"
   },
   "dependencies": {
+    "@react-three/drei": "^9.117.3",
+    "@react-three/fiber": "^8.17.10",
     "@supabase/supabase-js": "^2.57.4",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

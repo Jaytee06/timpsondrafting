@@ -45,6 +45,12 @@ export default function Hero() {
             >
               Explore Drafting Services
             </a>
+            <a
+              href="/viewer"
+              className="inline-flex items-center justify-center px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg backdrop-blur-sm border border-white/20 transition-all duration-200"
+            >
+              Explore a 3D Model
+            </a>
             <a href="tel:+14353195331" className="inline-flex items-center justify-center px-8 py-4 font-semibold text-emerald-300 underline underline-offset-4">Call (435) 319-5331</a>
           </div>
 
