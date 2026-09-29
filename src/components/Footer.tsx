@@ -14,10 +14,10 @@ export default function Footer() {
               <h3 className="text-2xl font-bold">Timpson Drafting & Design</h3>
             </div>
             <p className="text-slate-400 leading-relaxed mb-4">
-              Professional residential drafting and design services for custom homes, garages, additions, remodels, and permit-ready residential projects, with remote drafting available nationwide and on-site support near Colorado City.
+              Professional residential drafting and design services for custom homes, garages, additions, remodels, and permit-ready residential projects, with drafting and on-site measuring services available nationwide.
             </p>
             <p className="text-slate-400 text-sm">
-              Remote drafting nationwide. Local field support in Northern Arizona and Southern Utah.
+              Drafting and on-site measuring services across the United States.
             </p>
           </div>
 

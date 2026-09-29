@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import Hero from './components/Hero';
 import Reviews from './components/Reviews';
 import Services from './components/Services';
@@ -10,11 +11,19 @@ import TermsAndConditions from './components/TermsAndConditions';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import AnalyticsHooks from './components/AnalyticsHooks';
-import ModelViewer from './components/ModelViewer';
+
+const ModelViewer = lazy(() => import('./components/ModelViewer'));
+const CesiumViewer = lazy(() => import('./components/CesiumViewer'));
+
+const viewerFallback = <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-300">Loading viewer…</div>;
 
 function App() {
-  if (window.location.pathname === '/viewer') {
-    return <ModelViewer />;
+  if (window.location.pathname.replace(/\/$/, '') === '/viewer') {
+    return <Suspense fallback={viewerFallback}><ModelViewer /></Suspense>;
+  }
+
+  if (window.location.pathname.replace(/\/$/, '') === '/cesium-viewer') {
+    return <Suspense fallback={viewerFallback}><CesiumViewer /></Suspense>;
   }
 
   return (

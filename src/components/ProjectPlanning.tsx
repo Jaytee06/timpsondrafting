@@ -29,7 +29,7 @@ const planningSteps = [
 
 const preparationItems = [
   'Project city and state',
-  'Whether the project needs remote drafting only or local field measurement',
+  'Whether the project needs remote drafting only or on-site field measurement',
   'Rough size or footprint',
   'Existing plans, photos, or sketches',
   'Timeline and permit questions',

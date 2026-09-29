@@ -15,11 +15,11 @@ export default function Hero() {
         <div className="max-w-3xl">
           <div className="flex items-center gap-2 mb-6">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-emerald-400 font-medium text-sm tracking-wide uppercase">Residential drafting from Colorado City</span>
+            <span className="text-emerald-400 font-medium text-sm tracking-wide uppercase">Serving homeowners and contractors nationwide</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
-            Residential Drafting for Southern Utah and Northern Arizona
+            Residential Drafting &amp; Design Nationwide
           </h1>
 
           <p className="text-xl sm:text-2xl text-slate-300 mb-2 font-light">
@@ -27,7 +27,7 @@ export default function Hero() {
           </p>
 
           <p className="text-slate-400 mb-10 text-lg">
-            Custom-home, addition, ADU, garage, remodel, and as-built plans for homeowners and contractors, with remote drafting available nationwide.
+            Custom-home, addition, ADU, garage, remodel, and as-built plans for homeowners and contractors, with drafting and on-site measuring services available nationwide.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
@@ -44,12 +44,6 @@ export default function Hero() {
               className="inline-flex items-center justify-center px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg backdrop-blur-sm border border-white/20 transition-all duration-200"
             >
               Explore Drafting Services
-            </a>
-            <a
-              href="/viewer"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg backdrop-blur-sm border border-white/20 transition-all duration-200"
-            >
-              Explore a 3D Model
             </a>
             <a href="tel:+14353195331" className="inline-flex items-center justify-center px-8 py-4 font-semibold text-emerald-300 underline underline-offset-4">Call (435) 319-5331</a>
           </div>

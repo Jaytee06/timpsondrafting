@@ -6,15 +6,15 @@ const remoteHighlights = [
   'Clear photos, sketches, dimensions, surveys, and local permit details usually help remote projects move faster.',
 ];
 
-const localHighlights = [
-  'On-site field measurement and in-person project support are currently focused around Colorado City.',
-  'Local site visits are the best fit when an existing home needs to be measured before remodel or addition drawings begin.',
-  'Northern Arizona and Southern Utah projects are the clearest local-service area for field verification and nearby coordination.',
+const onsiteHighlights = [
+  'On-site field measurement and in-person project support are available throughout the United States.',
+  'Site visits help when an existing home needs to be measured before remodel or addition drawings begin.',
+  'Share your project location and scope so travel and field measurement can be included in your quote.',
 ];
 
 const fitChecks = [
   'Project city and state',
-  'Whether the job needs remote drafting only or local field measurement',
+  'Whether the job needs remote drafting only or on-site field measurement',
   'Existing plans, photos, surveys, or sketches',
   'Any known permit-review or building-department questions',
 ];
@@ -47,14 +47,12 @@ export default function ServiceArea() {
             Service Area
           </p>
           <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-            Remote drafting nationwide, local on-site support near Colorado City
+            Drafting and on-site measuring nationwide
           </h2>
           <p className="text-slate-600 text-lg leading-relaxed">
-            Timpson supports residential drafting projects across the United States
-            when homeowners and contractors can share the right files, dimensions,
-            and permit details. On-site field measurement and in-person coordination
-            are currently the best fit for projects in Colorado City, Northern
-            Arizona, and Southern Utah.
+            Timpson supports homeowners and contractors across the United States.
+            Work with us remotely or arrange on-site field measurement and
+            in-person coordination wherever your residential project is located.
           </p>
         </div>
 
@@ -81,10 +79,10 @@ export default function ServiceArea() {
               <MapPinned className="w-7 h-7" />
             </div>
             <h3 className="text-2xl font-bold text-slate-900 mb-4">
-              On-site measurement in the Arizona-Utah region
+              On-site measuring across the U.S.
             </h3>
             <ul className="space-y-3 text-slate-700">
-              {localHighlights.map((item) => (
+              {onsiteHighlights.map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <MapPinned className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                   <span>{item}</span>
@@ -104,7 +102,7 @@ export default function ServiceArea() {
             </h3>
             <p className="text-slate-300 leading-relaxed mb-6">
               The project location often shapes whether Timpson should plan around a
-              remote drafting workflow or a local field-measurement visit.
+              remote drafting workflow or an on-site field-measurement visit.
             </p>
             <ul className="space-y-3">
               {fitChecks.map((item) => (
