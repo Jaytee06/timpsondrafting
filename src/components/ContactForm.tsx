@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
-import { Send, CheckCircle2, Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
-import ChatIntake from './ChatIntake';
+import { lazy, Suspense, useState, useRef } from 'react';
+import { Send, CheckCircle2, Mail, Phone, MessageCircle } from 'lucide-react';
+
+const ChatIntake = lazy(() => import('./ChatIntake'));
 
 const ADMIN_EMAIL = 'admin@timpsondrafting.com';
 const PUBLIC_EMAIL = 'info@timpsondrafting.com';
@@ -23,6 +24,10 @@ const SERVICE_INTEREST_LABELS: Record<string, string> = {
   'stock-plan-modifications': 'Stock plan modifications',
   'permit-drawing-services': 'Permit drawing services',
   'contractor-drafting-services': 'Contractor drafting services',
+  'barndominium-plans': 'Barndominium and shop plans',
+  'garage-adu-addition-plans': 'Garage, ADU and addition plans',
+  'remodel-as-built-drawings': 'Remodel and as-built drawings',
+  'permit-services': 'Permit services',
 };
 
 const pushTrackingEvent = (event: string, details: Record<string, string | number | boolean> = {}) => {
@@ -66,16 +71,18 @@ const EMPTY_TRACKING_PARAMS: TrackingParams = {
 };
 
 const PROJECT_TYPE_OPTIONS = [
-  'Build a custom home',
-  'Modify an existing plan',
-  'Addition or remodel',
-  "Not sure - I'd like some guidance",
+  'Barndominium / Shop',
+  'Custom Home',
+  'Garage / ADU / Addition',
+  'Remodel / As-Built',
+  'Other',
 ] as const;
 
 const TIMELINE_OPTIONS = [
-  'As soon as possible',
-  '1-3 months',
-  'No rush / just exploring',
+  'ASAP',
+  '1–3 months',
+  '3–6 months',
+  'Just planning',
 ] as const;
 
 const CRM_FILE_UPLOAD_KEY = 'files';
@@ -99,25 +106,25 @@ const TYPE_PREFILLS: Record<string, SitelinkPrefill> = {
     heading: 'Custom Home Design',
     description: 'Turn your vision into expert plans.',
     detail: 'Full 3D residential design docs.',
-    projectType: 'Build a custom home',
+    projectType: 'Custom Home',
   },
   modify: {
     heading: 'Modify Existing Plans',
     description: 'Need changes to a stock plan?',
     detail: 'Professional edits for permit prep.',
-    projectType: 'Modify an existing plan',
+    projectType: 'Other',
   },
   addition: {
     heading: 'Home Addition Drafting',
     description: 'Expand your home with expert plans.',
     detail: 'Designs for additions and remodels.',
-    projectType: 'Addition or remodel',
+    projectType: 'Garage / ADU / Addition',
   },
   'not-sure': {
     heading: 'Need Design Guidance?',
     description: 'Expert advice for your home vision.',
     detail: 'Map out your project with a pro.',
-    projectType: "Not sure - I'd like some guidance",
+    projectType: 'Other',
   },
 };
 
@@ -126,13 +133,13 @@ const TIMELINE_PREFILLS: Record<string, SitelinkPrefill> = {
     heading: 'Start Your Project ASAP',
     description: 'Fast-track your permit-ready docs.',
     detail: 'Reliable plans for urgent projects.',
-    timeline: 'As soon as possible',
+    timeline: 'ASAP',
   },
   exploring: {
     heading: 'Explore Design Options',
     description: 'In the early research phase?',
     detail: 'Get inspired and plan your dream.',
-    timeline: 'No rush / just exploring',
+    timeline: 'Just planning',
   },
 };
 
@@ -143,7 +150,9 @@ type ContactFormState = {
   projectCity: string;
   projectState: string;
   projectType: string;
+  squareFootage: string;
   timeline: string;
+  permitServices: string;
   description: string;
   consent: boolean;
   website: string;
@@ -186,7 +195,9 @@ const INITIAL_FORM_DATA: ContactFormState = {
   projectCity: '',
   projectState: '',
   projectType: '',
+  squareFootage: '',
   timeline: '',
+  permitServices: '',
   description: '',
   consent: false,
   website: '',
@@ -237,13 +248,6 @@ const getInitialFormData = (): ContactFormState => {
     timeline: sitelinkPrefill?.timeline || '',
   };
 };
-
-const getOptionCardClass = (selected: boolean) =>
-  `flex h-full cursor-pointer rounded-xl border p-4 transition-all ${
-    selected
-      ? 'border-emerald-500 bg-emerald-50 shadow-sm ring-1 ring-emerald-200'
-      : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
-  }`;
 
 const getFirstQueryParam = (params: URLSearchParams, keys: string[]) => {
   for (const key of keys) {
@@ -363,9 +367,11 @@ const buildFormSnapshot = (
     hasEmail: Boolean(formData.email.trim()),
     hasPhone: Boolean(formData.phone.trim()),
     projectType: formData.projectType,
+    squareFootage: formData.squareFootage,
     projectCity: formData.projectCity.trim(),
     projectState: formData.projectState.trim(),
     timeline: formData.timeline,
+    permitServices: formData.permitServices,
     description: formData.description.trim(),
     consentToText: formData.consent,
     keyword: trackingParams.keyword,
@@ -397,7 +403,6 @@ const getRequiredFieldErrors = (formData: ContactFormState) => {
   if (!formData.projectCity.trim()) errors.projectCity = 'Please enter your project city.';
   if (!formData.projectState.trim()) errors.projectState = 'Please enter your project state.';
   if (!formData.projectType) errors.projectType = 'Please select what you are looking to do.';
-  if (!formData.timeline) errors.timeline = 'Please select your timeline.';
 
   return errors;
 };
@@ -424,7 +429,9 @@ const buildLeadDraft = (
     projectCity: formData.projectCity.trim() ? 'provided' : 'empty',
     projectState: formData.projectState.trim() ? 'provided' : 'empty',
     projectType: formData.projectType ? 'provided' : 'empty',
+    squareFootage: formData.squareFootage ? 'provided' : 'empty',
     timeline: formData.timeline ? 'provided' : 'empty',
+    permitServices: formData.permitServices ? 'provided' : 'empty',
     description: formData.description.trim() ? 'provided' : 'empty',
     consent: formData.consent ? 'provided' : 'empty',
     files: fileMetadata.length > 0 ? 'provided' : 'empty',
@@ -437,9 +444,11 @@ const buildLeadDraft = (
       hasEmail: Boolean(formData.email.trim()),
       hasPhone: Boolean(formData.phone.trim()),
       projectType: formData.projectType,
+      squareFootage: formData.squareFootage,
       projectCity: formData.projectCity.trim(),
       projectState: formData.projectState.trim(),
       timeline: formData.timeline,
+      permitServices: formData.permitServices,
       description: formData.description.trim(),
       consentToText: formData.consent,
       keyword: trackingParams.keyword,
@@ -476,7 +485,12 @@ const readCrmLeadId = async (response: Response) => {
 const createExternalId = () =>
   `td-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-export default function ContactForm() {
+interface ContactFormProps {
+  heading?: string;
+  description?: string;
+}
+
+export default function ContactForm({ heading: headingOverride, description: descriptionOverride }: ContactFormProps = {}) {
   const [sitelinkPrefill] = useState<SitelinkPrefill | null>(() => getSitelinkPrefill());
   const [serviceInterest] = useState(() => getServiceInterest());
   const [formData, setFormData] = useState<ContactFormState>(() => getInitialFormData());
@@ -548,10 +562,12 @@ export default function ContactForm() {
       data.append('email', formData.email.trim());
       data.append('phone', formData.phone.trim());
       data.append('project_type', formData.projectType);
+      data.append('approx_heated_sq_ft', formData.squareFootage.trim());
       data.append('service_interest', serviceInterest);
       data.append('project_city', formData.projectCity.trim());
       data.append('project_state', formData.projectState.trim());
       data.append('timeline', formData.timeline);
+      data.append('permit_services', formData.permitServices);
       data.append('description', formData.description.trim());
       data.append('consent_to_text', String(formData.consent));
       data.append('website', formData.website);
@@ -672,7 +688,7 @@ export default function ContactForm() {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     markFormStarted();
     const { name, type, value } = e.target;
@@ -712,10 +728,10 @@ export default function ContactForm() {
     return createCrmLead();
   };
 
-  const heading = sitelinkPrefill?.heading || 'Tell Us About Your Project';
-  const description = sitelinkPrefill
+  const heading = headingOverride || sitelinkPrefill?.heading || 'Tell Us About Your Project';
+  const description = descriptionOverride || (sitelinkPrefill
     ? `${sitelinkPrefill.description} ${sitelinkPrefill.detail}`
-    : 'Share a few details and any reference files you have. We\'ll follow up with next steps.';
+    : 'Share a few details and any reference files you have. We\'ll follow up with next steps.');
   const currentFormSnapshot = buildFormSnapshot(formData, trackingParams, files);
   const activeChatLead: SubmittedLead = submittedLead?.leadId ? submittedLead : {
     leadId: draftLeadIdRef.current,
@@ -726,10 +742,11 @@ export default function ContactForm() {
   const leadDraft = submittedLead?.leadDraft || buildLeadDraft(formData, trackingParams, undefined, files);
 
   return (
-    <section id="contact" className="py-20 bg-slate-50">
+    <section id="contact" className="section-space bg-paper">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          <p className="plan-label mb-3">Start a project</p>
+          <h2 className="font-display text-4xl font-bold uppercase text-ink sm:text-5xl mb-4">
             {heading}
           </h2>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
@@ -739,10 +756,10 @@ export default function ContactForm() {
 
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} onFocus={markFormStarted} className="bg-white rounded-xl shadow-lg p-8 border border-slate-200">
+            <form onSubmit={handleSubmit} onFocus={markFormStarted} className="border border-steel/25 bg-white p-8 shadow-lg">
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-blueprint">
                     Project lead form
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
@@ -757,7 +774,7 @@ export default function ContactForm() {
                     type="button"
                     onClick={openChat}
                     aria-label="Open AI project chat"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-blueprint/20 bg-paper text-blueprint transition-colors hover:border-orange hover:text-orange focus:outline-none focus:ring-4 focus:ring-blueprint/10"
                   >
                     <MessageCircle className="h-5 w-5" />
                   </button>
@@ -765,7 +782,7 @@ export default function ContactForm() {
               </div>
 
               {serviceInterest && (
-                <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                <div className="mb-6 rounded border border-blueprint/20 bg-paper px-4 py-3 text-sm text-blueprint">
                   <strong>Service selected:</strong> {serviceInterest}. You can still choose the project
                   type that best describes the work below.
                 </div>
@@ -797,7 +814,7 @@ export default function ContactForm() {
                     autoComplete="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    className="w-full rounded border border-slate-300 px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                     placeholder="John Smith"
                   />
                 </div>
@@ -814,7 +831,7 @@ export default function ContactForm() {
                     autoComplete="tel"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    className="w-full rounded border border-slate-300 px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                     placeholder="(555) 123-4567"
                   />
                 </div>
@@ -833,7 +850,7 @@ export default function ContactForm() {
                     autoComplete="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    className="w-full rounded border border-slate-300 px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                     placeholder="john@example.com"
                   />
                 </div>
@@ -850,7 +867,7 @@ export default function ContactForm() {
                     autoComplete="address-level2"
                     value={formData.projectCity}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    className="w-full rounded border border-slate-300 px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                     placeholder="St. George"
                   />
                 </div>
@@ -867,87 +884,63 @@ export default function ContactForm() {
                     autoComplete="address-level1"
                     value={formData.projectState}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-colors outline-none"
+                    className="w-full rounded border border-slate-300 px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                     placeholder="UT"
                   />
                 </div>
               </div>
 
-              <fieldset className="mb-6">
-                <legend className="block text-sm font-semibold text-slate-700 mb-3">
-                  What are you looking to do? *
-                </legend>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {PROJECT_TYPE_OPTIONS.map((option) => {
-                    const selected = formData.projectType === option;
+              <div className="mb-6">
+                <label htmlFor="squareFootage" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Approx. heated sq ft <span className="ml-2 font-medium text-slate-500">Optional</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  id="squareFootage"
+                  name="squareFootage"
+                  value={formData.squareFootage}
+                  onChange={handleChange}
+                  className="w-full rounded border border-slate-300 px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
+                  placeholder="2,400"
+                />
+              </div>
 
-                    return (
-                      <label key={option} className={getOptionCardClass(selected)}>
-                        <input
-                          type="radio"
-                          name="projectType"
-                          value={option}
-                          checked={selected}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${
-                              selected ? 'border-emerald-600 bg-white' : 'border-slate-300 bg-white'
-                            }`}
-                          >
-                            <span
-                              className={`h-2.5 w-2.5 rounded-full ${
-                                selected ? 'bg-emerald-600' : 'bg-transparent'
-                              }`}
-                            />
-                          </span>
-                          <span className="text-sm font-medium text-slate-800 leading-6">{option}</span>
-                        </div>
-                      </label>
-                    );
-                  })}
+              <div className="mb-6 grid gap-6 md:grid-cols-2">
+                <div>
+                  <label htmlFor="projectType" className="mb-2 block text-sm font-semibold text-slate-700">Project type *</label>
+                  <select id="projectType" name="projectType" required value={formData.projectType} onChange={handleChange} className="w-full rounded border border-slate-300 bg-white px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20">
+                    <option value="">Select a project type</option>
+                    {PROJECT_TYPE_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
                 </div>
-              </fieldset>
-
-              <fieldset className="mb-6">
-                <legend className="block text-sm font-semibold text-slate-700 mb-3">
-                  What&apos;s your timeline? *
-                </legend>
-                <div className="grid gap-4 md:grid-cols-3">
-                  {TIMELINE_OPTIONS.map((option) => {
-                    const selected = formData.timeline === option;
-
-                    return (
-                      <label key={option} className={getOptionCardClass(selected)}>
-                        <input
-                          type="radio"
-                          name="timeline"
-                          value={option}
-                          checked={selected}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${
-                              selected ? 'border-emerald-600 bg-white' : 'border-slate-300 bg-white'
-                            }`}
-                          >
-                            <span
-                              className={`h-2.5 w-2.5 rounded-full ${
-                                selected ? 'bg-emerald-600' : 'bg-transparent'
-                              }`}
-                            />
-                          </span>
-                          <span className="text-sm font-medium text-slate-800 leading-6">{option}</span>
-                        </div>
-                      </label>
-                    );
-                  })}
+                <div>
+                  <label htmlFor="timeline" className="mb-2 block text-sm font-semibold text-slate-700">Timeline <span className="ml-2 font-medium text-slate-500">Optional</span></label>
+                  <select id="timeline" name="timeline" value={formData.timeline} onChange={handleChange} className="w-full rounded border border-slate-300 bg-white px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20">
+                    <option value="">Select a timeline</option>
+                    {TIMELINE_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
                 </div>
-              </fieldset>
+              </div>
+
+              <div className="mb-6">
+                <label htmlFor="permitServices" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Need permit services? <span className="ml-2 font-medium text-slate-500">Optional</span>
+                </label>
+                <select
+                  id="permitServices"
+                  name="permitServices"
+                  value={formData.permitServices}
+                  onChange={handleChange}
+                  className="w-full rounded border border-slate-300 bg-white px-4 py-3 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
+                >
+                  <option value="">Select one</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="Not sure">Not sure</option>
+                </select>
+              </div>
 
               <div className="mb-6">
                 <label htmlFor="description" className="mb-2 block text-sm font-semibold text-slate-700">
@@ -960,7 +953,7 @@ export default function ContactForm() {
                   value={formData.description}
                   onChange={handleChange}
                   rows={5}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-800 outline-none transition-colors resize-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="w-full resize-none rounded border border-slate-300 px-4 py-3 text-slate-800 outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                   placeholder="Share anything helpful about the project, such as scope, square footage, existing conditions, or questions you want to discuss."
                 />
               </div>
@@ -976,7 +969,7 @@ export default function ContactForm() {
                   name="file"
                   multiple
                   onChange={handleFileChange}
-                  className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-emerald-500 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-emerald-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                  className="w-full rounded border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none file:mr-4 file:rounded file:border-0 file:bg-blueprint file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-orange focus:border-orange focus:ring-2 focus:ring-orange/20"
                   accept=".pdf,.jpg,.jpeg,.png,.dwg"
                 />
                 <p className="mt-2 text-sm text-slate-500">
@@ -1005,10 +998,10 @@ export default function ContactForm() {
                 <div>
                   <div
                     role="status"
-                    className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3"
+                    className="flex items-center gap-3 rounded border border-blueprint/25 bg-paper p-4"
                   >
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                    <p className="text-emerald-800 font-medium">
+                    <CheckCircle2 className="h-6 w-6 text-blueprint" />
+                    <p className="font-medium text-blueprint">
                       Thank you. Your project details were sent successfully, and we&apos;ll follow up
                       soon.
                     </p>
@@ -1019,7 +1012,7 @@ export default function ContactForm() {
                       <button
                         type="button"
                         onClick={openChat}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                        className="inline-flex items-center justify-center gap-2 rounded bg-orange px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#a94718]"
                       >
                         <MessageCircle className="h-4 w-4" />
                         Add AI follow-up details
@@ -1037,7 +1030,7 @@ export default function ContactForm() {
                         name="consent"
                         checked={formData.consent}
                         onChange={handleChange}
-                        className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-orange focus:ring-orange"
                       />
                       <span className="leading-6">
                         I agree to receive SMS from Timpson Drafting about my inquiry,
@@ -1048,19 +1041,23 @@ export default function ContactForm() {
                     </label>
                   </div>
 
+                  <div className="border border-steel/30 bg-paper p-4 text-xs leading-5 text-steel">
+                    TDD is a residential design and drafting firm, not a licensed architect or engineer. Our mechanical, electrical and plumbing plans are construction planning documents, not stamped engineering. Where your jurisdiction requires a licensed professional, our plans give them a detailed head start.
+                  </div>
+
                   <p className="text-xs leading-5 text-slate-500">
                     By submitting this form, you confirm the phone number above is yours and,
                     if checked, you consent to receive SMS from Timpson Drafting. See our
                     {' '}
-                    <a href="#privacy-policy" className="font-medium text-emerald-700 hover:text-emerald-800">
+                    <a href="/privacy/" className="font-medium text-blueprint hover:text-orange">
                       Privacy Policy
                     </a>
                     {' '}
                     and
                     {' '}
                     <a
-                      href="#terms-and-conditions"
-                      className="font-medium text-emerald-700 hover:text-emerald-800"
+                      href="/terms/"
+                      className="font-medium text-blueprint hover:text-orange"
                     >
                       Terms &amp; Conditions
                     </a>
@@ -1070,9 +1067,9 @@ export default function ContactForm() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                    className="w-full bg-orange hover:bg-[#A94718] disabled:bg-orange/40 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
                   >
-                    {isLoading ? 'Sending...' : 'Submit Project Details'}
+                    {isLoading ? 'Sending...' : 'Send My Project'}
                     {!isLoading && <Send className="w-5 h-5" />}
                   </button>
                 </div>
@@ -1081,88 +1078,70 @@ export default function ContactForm() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8">
-              <h3 className="mb-4 text-xl font-bold text-slate-900">What happens after you submit</h3>
-              <ol className="space-y-4 text-sm leading-6 text-slate-700">
-                <li><strong>1. Scope review:</strong> Timpson reviews the property, project type, files, and schedule you provide.</li>
-                <li><strong>2. Clarification:</strong> If important information is missing, the next response will identify what is needed.</li>
-                <li><strong>3. Defined next step:</strong> You receive a consultation, information request, or project-specific quote path—not an automatic permit or pricing promise.</li>
-              </ol>
-            </div>
+            <aside className="border border-blueprint/20 bg-blueprint p-8 text-white" aria-labelledby="quote-expectations-heading">
+              <p className="plan-label text-[#F3A06F]">Project expectations</p>
+              <h3 id="quote-expectations-heading" className="mt-2 font-display text-2xl font-bold uppercase">Clear numbers. Clear timing.</h3>
+              <dl className="mt-7 grid gap-6">
+                <div className="border-t border-white/20 pt-4"><dt className="text-xs font-bold uppercase tracking-[.12em] text-white/55">Pricing</dt><dd className="mt-2 font-semibold">$1.50/sq ft · $3,000 minimum · or by bid</dd></div>
+                <div className="border-t border-white/20 pt-4"><dt className="text-xs font-bold uppercase tracking-[.12em] text-white/55">Initial concept</dt><dd className="mt-2 font-semibold">10 business days</dd></div>
+                <div className="border-t border-white/20 pt-4"><dt className="text-xs font-bold uppercase tracking-[.12em] text-white/55">Construction drawings</dt><dd className="mt-2 font-semibold">Two weeks after approval</dd></div>
+              </dl>
+            </aside>
 
-            <div className="bg-white rounded-xl p-8 shadow-lg border border-slate-200">
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Contact Information</h3>
-
+            <div className="border border-blueprint/20 bg-white p-8">
+              <h3 className="mb-6 font-display text-xl font-bold uppercase text-ink">Talk with TDD</h3>
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Phone className="w-5 h-5 text-emerald-600" />
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-blueprint/10">
+                    <Phone className="h-5 w-5 text-blueprint" />
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Phone</p>
-                    <a href="tel:+14353195331" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                    <a href="tel:+14353195331" className="font-medium text-blueprint hover:text-orange">
                       (435) 319-5331
                     </a>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Mail className="w-5 h-5 text-emerald-600" />
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-blueprint/10">
+                    <Mail className="h-5 w-5 text-blueprint" />
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Email</p>
                     <a
                       href={`mailto:${PUBLIC_EMAIL}`}
-                      className="text-slate-600 hover:text-emerald-600 transition-colors"
+                      className="text-slate-600 transition-colors hover:text-orange"
                     >
                       {PUBLIC_EMAIL}
                     </a>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">Location</p>
-                    <a href="https://maps.google.com/?q=10+Central+St+Suite+205,+Colorado+City,+AZ+86021" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-emerald-600 transition-colors">10 Central St Suite 205<br />Colorado City, AZ 86021</a>
-                  </div>
-                </div>
               </div>
-            </div>
-
-            <div className="rounded-xl overflow-hidden shadow-lg border border-slate-200 aspect-square bg-slate-900">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3183.176472658897!2d-112.97746352358988!3d36.9934273767083!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x80cadd4fe6f26e51%3A0x627d057760e86230!2s10%20Central%20St%20STE%20205%2C%20Colorado%20City%2C%20AZ%2086021!5e0!3m2!1sen!2sus!4v1710375486522!5m2!1sen!2sus"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen={true}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Office Location"
-              ></iframe>
             </div>
           </div>
         </div>
       </div>
 
-      <ChatIntake
-        leadId={activeChatLead.leadId}
-        externalId={activeChatLead.externalId}
-        formSnapshot={activeChatLead.formSnapshot}
-        leadDraft={leadDraft}
-        sessionFiles={files}
-        ensureCrmLead={ensureCrmLead}
-        onSessionStarted={setChatSessionId}
-        onFieldPatches={handleFieldPatches}
-        onFilesAdded={handleChatFilesAdded}
-        isOpen={chatOpen}
-        onOpen={openChat}
-        onClose={() => setChatOpen(false)}
-      />
+      {chatOpen && (
+        <Suspense fallback={null}>
+          <ChatIntake
+            leadId={activeChatLead.leadId}
+            externalId={activeChatLead.externalId}
+            formSnapshot={activeChatLead.formSnapshot}
+            leadDraft={leadDraft}
+            sessionFiles={files}
+            ensureCrmLead={ensureCrmLead}
+            onSessionStarted={setChatSessionId}
+            onFieldPatches={handleFieldPatches}
+            onFilesAdded={handleChatFilesAdded}
+            isOpen={chatOpen}
+            onOpen={openChat}
+            onClose={() => setChatOpen(false)}
+          />
+        </Suspense>
+      )}
     </section>
   );
 }

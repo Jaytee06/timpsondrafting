@@ -441,7 +441,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
         viewer.entities.add({
           position: Cartesian3.fromDegrees(property.longitude, property.latitude),
           point: {
-            color: Color.fromCssColorString('#10b981'),
+            color: Color.fromCssColorString('#C8581E'),
             heightReference: HeightReference.CLAMP_TO_GROUND,
             outlineColor: Color.WHITE,
             outlineWidth: 3,
@@ -465,7 +465,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             polyline: {
               positions: Cartesian3.fromDegreesArray(property.boundary),
               clampToGround: true,
-              material: Color.fromCssColorString('#10b981'),
+              material: Color.fromCssColorString('#C8581E'),
               width: 4,
             },
           });
@@ -1512,7 +1512,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
                 step={step}
                 value={placement[key]}
                 onChange={(event) => updatePlacement(key, event.target.valueAsNumber)}
-                className="mt-1 w-full rounded-md border border-white/15 bg-slate-900 px-2 py-2 text-xs outline-none focus:border-emerald-400"
+                className="mt-1 w-full rounded border border-white/15 bg-slate-900 px-2 py-2 text-xs outline-none focus:border-orange"
               />
             </label>
           ))}
@@ -1528,7 +1528,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
                 key={degrees}
                 type="button"
                 onClick={() => setHeading(placement.heading + degrees)}
-                className="rounded-md border border-white/15 px-1 py-2 text-[11px] hover:border-emerald-400 hover:text-emerald-300"
+                className="rounded border border-white/15 px-1 py-2 text-[11px] hover:border-orange hover:text-[#F3A06F]"
               >
                 {degrees > 0 ? '+' : ''}{degrees}°
               </button>
@@ -1540,7 +1540,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
                 key={label}
                 type="button"
                 onClick={() => setHeading(heading)}
-                className="rounded-md border border-white/10 px-2 py-1.5 text-xs text-slate-300 hover:border-emerald-400 hover:text-white"
+                className="rounded border border-white/10 px-2 py-1.5 text-xs text-slate-300 hover:border-orange hover:text-white"
               >
                 {label}
               </button>
@@ -1605,7 +1605,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             type="button"
             disabled={!modelUrl || modelStatus !== 'Model placed'}
             onClick={flyToHouse}
-            className="rounded-lg border border-emerald-400 px-3 py-2 font-semibold text-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-orange px-3 py-2 font-semibold text-[#F3A06F] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Fly to house
           </button>
@@ -1613,7 +1613,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             type="button"
             disabled={!modelUrl || modelStatus !== 'Model placed'}
             onClick={enterWalkingMode}
-            className="rounded-lg bg-emerald-500 px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded bg-orange px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
           >
             Enter walking
           </button>
@@ -1680,13 +1680,13 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             type="button"
             disabled={!modelUrl || modelStatus !== 'Model placed' || isCapturing}
             onClick={() => void exportBlenderPackage()}
-            className="col-span-2 rounded-lg border border-white/20 px-3 py-2 font-semibold text-white hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="col-span-2 rounded border border-white/20 px-3 py-2 font-semibold text-white hover:border-orange disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isCapturing ? 'Building package…' : 'Confirm & export for Blender'}
           </button>
         </div>
         {modelStatus && <div className="mt-2 text-xs text-slate-300">{modelStatus}</div>}
-        {captureStatus && <div className="mt-2 text-xs text-emerald-300">{captureStatus}</div>}
+        {captureStatus && <div className="mt-2 text-xs text-[#F3A06F]">{captureStatus}</div>}
         {streetViewStatus && <div className="mt-2 text-xs text-sky-200">{streetViewStatus}</div>}
       </div>}
       {isStreetView && (
@@ -1695,7 +1695,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
           <p className="mt-1 text-xs leading-5 text-slate-400">
             Draft alignment only. Foreground trees, fences, and the existing building are not automatically masked.
           </p>
-          <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-950/20 px-3 py-2 text-xs leading-5 text-emerald-100">
+          <div className="mt-3 rounded border border-orange/20 bg-orange/10 px-3 py-2 text-xs leading-5 text-white/80">
             The proposed house is locked to its confirmed geographic placement.
           </div>
           <label className="mt-4 block">
@@ -1714,7 +1714,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
                 setStreetViewHeadHeight(value);
                 applyStreetViewMatchCamera(value);
               }}
-              className="mt-2 w-full accent-emerald-400"
+              className="mt-2 w-full accent-orange"
             />
           </label>
           <label className="mt-3 block">
@@ -1831,14 +1831,14 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             <button
               type="button"
               onClick={() => applyStreetViewMatchCamera()}
-              className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:border-emerald-300"
+              className="rounded border border-white/20 px-3 py-2 text-xs font-semibold hover:border-orange"
             >
               Re-aim at house
             </button>
             <button
               type="button"
               onClick={captureStreetViewMatch}
-              className="col-span-2 rounded-lg bg-emerald-500 px-3 py-2 font-semibold hover:bg-emerald-600"
+              className="col-span-2 rounded bg-orange px-3 py-2 font-semibold hover:bg-[#a94718]"
             >
               Capture matched view
             </button>
@@ -1877,7 +1877,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
           if (isStreetView) exitStreetView();
           else if (viewerRef.current) flyToProperty(viewerRef.current);
         }}
-        className="absolute bottom-5 right-5 rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-xl hover:bg-emerald-600"
+        className="absolute bottom-5 right-5 rounded bg-orange px-4 py-3 text-sm font-semibold text-white shadow-xl hover:bg-[#a94718]"
       >
         Reset view
       </button>
@@ -2061,7 +2061,7 @@ export default function CesiumViewer() {
     <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-950 text-white">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
         <div>
-          <a href="/viewer" className="text-sm text-emerald-400 hover:text-emerald-300">
+          <a href="/viewer" className="text-sm text-[#F3A06F] hover:text-white">
             ← Three.js viewer
           </a>
           <h1 className="mt-1 text-xl font-semibold">Cesium property model viewer</h1>
@@ -2080,7 +2080,7 @@ export default function CesiumViewer() {
           >
             Change property
           </button>}
-          <label className={`rounded-lg px-5 py-3 font-semibold ${property ? 'cursor-pointer bg-emerald-500 hover:bg-emerald-600' : 'cursor-not-allowed bg-slate-700 text-slate-400'}`}>
+          <label className={`rounded px-5 py-3 font-semibold ${property ? 'cursor-pointer bg-orange hover:bg-[#a94718]' : 'cursor-not-allowed bg-slate-700 text-slate-400'}`}>
             Open house GLB
             <input className="sr-only" type="file" accept=".glb,model/gltf-binary" onChange={loadModel} disabled={!property} />
           </label>
@@ -2101,7 +2101,7 @@ export default function CesiumViewer() {
                 value={propertyLabel}
                 onChange={(event) => setPropertyLabel(event.target.value)}
                 placeholder="Street address, city, state, or ZIP"
-                className="mt-2 w-full rounded-lg border border-white/15 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                className="mt-2 w-full rounded border border-white/15 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-orange"
                 required
               />
               <label className="mt-4 block text-sm font-medium" htmlFor="parcel-number">Parcel/APN <span className="text-slate-500">(optional)</span></label>
@@ -2110,9 +2110,9 @@ export default function CesiumViewer() {
                 value={parcelInput}
                 onChange={(event) => setParcelInput(event.target.value)}
                 placeholder="Enter parcel number"
-                className="mt-2 w-full rounded-lg border border-white/15 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                className="mt-2 w-full rounded border border-white/15 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-orange"
               />
-              <button disabled={isLookingUpParcel} className="mt-5 rounded-lg bg-emerald-500 px-5 py-3 font-semibold hover:bg-emerald-600 disabled:opacity-50" type="submit">
+              <button disabled={isLookingUpParcel} className="mt-5 rounded bg-orange px-5 py-3 font-semibold hover:bg-[#a94718] disabled:opacity-50" type="submit">
                 {isLookingUpParcel ? 'Finding property…' : 'Open property'}
               </button>
               {propertyLookupError && <div className="mt-4 rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{propertyLookupError}</div>}
@@ -2137,7 +2137,7 @@ export default function CesiumViewer() {
                         key={`${propertyStorageId(entry.site)}:${entry.lastOpenedAt}`}
                         type="button"
                         onClick={() => openProperty(entry.site)}
-                        className="rounded-lg border border-white/10 bg-slate-950/60 px-4 py-3 text-left hover:border-emerald-400/70 hover:bg-slate-950"
+                        className="rounded border border-white/10 bg-slate-950/60 px-4 py-3 text-left hover:border-orange/70 hover:bg-slate-950"
                       >
                         <span className="block truncate text-sm font-medium text-slate-100">{entry.site.address}</span>
                         <span className="mt-1 block truncate text-xs text-slate-500">
@@ -2175,11 +2175,11 @@ export default function CesiumViewer() {
                 type="password"
                 value={tokenInput}
                 onChange={(event) => setTokenInput(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-white/15 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                className="mt-2 w-full rounded border border-white/15 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-orange"
                 autoComplete="off"
                 required
               />
-              <button className="mt-4 rounded-lg bg-emerald-500 px-5 py-3 font-semibold hover:bg-emerald-600" type="submit">
+              <button className="mt-4 rounded bg-orange px-5 py-3 font-semibold hover:bg-[#a94718]" type="submit">
                 Load terrain
               </button>
             </form>

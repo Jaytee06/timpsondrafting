@@ -36,10 +36,10 @@ test('unapproved or incomplete projects cannot be published', () => {
   assert.ok(result.errors.some((error) => error.includes('placeholder')));
 });
 
-test('project library stays out of the sitemap until proof threshold is met', () => {
+test('project library is indexable after the three-project proof threshold is met', () => {
   const root = process.cwd();
   const projects = readFileSync(join(root, 'dist', 'projects', 'index.html'), 'utf8');
   const sitemap = readFileSync(join(root, 'dist', 'sitemap.xml'), 'utf8');
-  assert.ok(projects.includes('content="noindex,follow"'));
-  assert.equal(sitemap.includes('https://timpsondrafting.com/projects/'), false);
+  assert.ok(projects.includes('content="index,follow"'));
+  assert.equal(sitemap.includes('https://timpsondrafting.com/projects/'), true);
 });

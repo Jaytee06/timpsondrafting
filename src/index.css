@@ -1,7 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 html {
   scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #f4f1ea;
+  color: #1f2328;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+@layer components {
+  .plan-label { @apply text-xs font-bold uppercase tracking-[0.12em] text-steel; }
+  .section-shell { @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8; }
+  .section-space { @apply py-20 lg:py-28; }
+  .display-heading { @apply font-display text-4xl font-bold uppercase leading-none sm:text-5xl lg:text-6xl; }
+  .button-primary { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded bg-orange px-6 py-3 text-sm font-bold text-white transition hover:bg-[#A94718]; }
+  .button-outline-light { @apply inline-flex min-h-12 items-center justify-center rounded border border-white/60 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10; }
+}
+
+.blueprint-grid {
+  background-image: linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.hero-media-frame {
+  opacity: 0;
+  animation: hero-crossfade 24s infinite ease-in-out;
+  will-change: opacity;
+}
+
+@keyframes hero-crossfade {
+  0% { opacity: 0; }
+  8%, 30% { opacity: .7; }
+  42%, 100% { opacity: 0; }
+}
+
+:focus-visible {
+  outline: 3px solid #c8581e;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+  .hero-media-frame { display: none; animation: none; }
+  .hero-media-frame:first-child { display: block; opacity: .72; }
 }

@@ -1,140 +1,24 @@
-import { Home, Mail, Phone, MapPin } from 'lucide-react';
+const transparency = 'TDD is a residential design and drafting firm, not a licensed architect or engineer. Our mechanical, electrical and plumbing plans are construction planning documents, not stamped engineering. Where your jurisdiction requires a licensed professional, our plans give them a detailed head start.';
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
-  const publicEmail = 'info@timpsondrafting.com';
-
   return (
-    <footer className="bg-slate-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <Home className="w-8 h-8 text-emerald-400" />
-              <h3 className="text-2xl font-bold">Timpson Drafting & Design</h3>
-            </div>
-            <p className="text-slate-400 leading-relaxed mb-4">
-              Professional residential drafting and design services for custom homes, garages, additions, remodels, and permit-ready residential projects, with drafting and on-site measuring services available nationwide.
-            </p>
-            <p className="text-slate-400 text-sm">
-              Drafting and on-site measuring services across the United States.
-            </p>
-          </div>
-
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-            <ul className="space-y-2">
-              <li>
-                <a href="/" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  Home
-                </a>
-              </li>
-              <li>
-                <a href="/services/" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  Services
-                </a>
-              </li>
-              <li>
-                <a href="/about-us/" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  About Timpson
-                </a>
-              </li>
-              <li>
-                <a href="/service-areas/" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  Service Area
-                </a>
-              </li>
-              <li>
-                <a href="/#process" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  How It Works
-                </a>
-              </li>
-              <li>
-                <a href="/#pricing" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  Pricing
-                </a>
-              </li>
-              <li>
-                <a href="/#contact" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  Get a Quote
-                </a>
-              </li>
-              <li>
-                <a href="/contact/" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  Contact Page
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/resources/what-is-included-in-permit-ready-plans/"
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
-                  Permit Guide
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#privacy-policy"
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#terms-and-conditions"
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
-                  Terms &amp; Conditions
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Contact</h4>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <a href="tel:+14353195331" className="text-slate-400 hover:text-emerald-400 transition-colors">
-                  (435) 319-5331
-                </a>
-              </li>
-              <li className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <a
-                  href={`mailto:${publicEmail}`}
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
-                  {publicEmail}
-                </a>
-              </li>
-              <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <a
-                  href="https://maps.google.com/?q=10+Central+St+Suite+205,+Colorado+City,+AZ+86021"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                >
-                  10 Central St Suite 205<br />Colorado City, AZ 86021
-                </a>
-              </li>
-            </ul>
-          </div>
+    <footer className="bg-ink pb-20 text-white md:pb-0">
+      <div className="section-shell grid gap-10 py-14 md:grid-cols-3">
+        <div>
+          <p className="font-display text-3xl font-bold uppercase">TDD</p>
+          <p className="mt-3 font-semibold">Designed by Tradesmen.</p>
+          <p className="mt-5 text-white/65"><a href="tel:+14353195331">(435) 319-5331</a><br /><a href="mailto:info@timpsondrafting.com">info@timpsondrafting.com</a></p>
         </div>
-
-        <div className="border-t border-slate-800 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-slate-400 text-sm">
-              © {currentYear} Timpson Drafting & Design. All rights reserved.
-            </p>
-            <p className="text-slate-500 text-sm">
-              Professional Residential Drafting Services
-            </p>
-          </div>
+        <div>
+          <p className="plan-label text-white/50">Services</p>
+          <p className="mt-4 grid gap-2 text-white/70"><a href="/barndominium-plans/">Barndominiums &amp; Shops</a><a href="/custom-home-plans/">Custom Homes</a><a href="/garage-adu-addition-plans/">Garages, ADUs &amp; Additions</a><a href="/remodel-as-built-drawings/">Remodels &amp; As-Builts</a><a href="/permit-services/">Permit Services</a></p>
+        </div>
+        <div>
+          <p className="plan-label text-white/50">Explore</p>
+          <p className="mt-4 grid gap-2 text-white/70"><a href="/projects/">Projects</a><a href="/viewer">3D Viewer</a><a href="/about/">About</a><a href="/quote/">Get a Quote</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></p>
         </div>
       </div>
+      <div className="border-t border-white/10"><div className="section-shell py-7 text-xs leading-5 text-white/50"><p>{transparency}</p><p className="mt-4">© {new Date().getFullYear()} Timpson Drafting &amp; Design</p></div></div>
     </footer>
   );
 }

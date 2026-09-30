@@ -1,2 +1,41 @@
+import { Menu, Phone, X } from 'lucide-react';
 import { useState } from 'react';
-export default function Header(){const[open,setOpen]=useState(false);return <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur"><a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3">Skip to content</a><div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8"><a href="/" className="font-bold text-slate-900">Timpson <span className="text-emerald-700">Drafting &amp; Design</span></a><button type="button" className="rounded-md border border-slate-300 px-3 py-2 font-semibold md:hidden" aria-expanded={open} aria-controls="primary-navigation" onClick={()=>setOpen(!open)}>Menu</button><nav id="primary-navigation" aria-label="Primary" className={`${open?'flex':'hidden'} absolute left-0 right-0 top-full flex-col gap-4 border-b border-slate-200 bg-white p-5 shadow-lg md:static md:flex md:flex-row md:items-center md:border-0 md:p-0 md:shadow-none`}><a href="/services/">Services</a><a href="/service-areas/">Service Areas</a><a href="/resources/">Resources</a><a href="/about-us/">About</a><a href="/contact/">Contact</a><a href="/#contact" className="rounded-full bg-emerald-600 px-4 py-2 font-semibold text-white">Request a Quote</a></nav></div></header>}
+
+const navigation = [
+  ['Services', '/services/'],
+  ['Build-Ready Planning', '/build-ready-planning/'],
+  ['Projects', '/projects/'],
+  ['3D Viewer', '/viewer'],
+  ['About', '/about/'],
+  ['Get a Quote', '/quote/'],
+];
+
+export default function Header() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-blueprint text-white shadow-lg">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:bg-white focus:p-3 focus:text-ink">
+        Skip to content
+      </a>
+      <div className="section-shell flex items-center gap-5 py-3">
+        <a href="/" className="mr-auto leading-none" aria-label="Timpson Drafting and Design home">
+          <span className="block font-display text-2xl font-bold uppercase tracking-wide">TDD</span>
+          <span className="hidden text-[10px] font-semibold uppercase tracking-[.16em] text-white/70 sm:block">Timpson Drafting &amp; Design</span>
+        </a>
+        <nav aria-label="Primary" className="hidden items-center gap-5 lg:flex">
+          {navigation.map(([label, href]) => <a key={href} href={href} className="text-sm font-semibold text-white/85 transition hover:text-white">{label}</a>)}
+        </nav>
+        <a href="tel:+14353195331" className="hidden items-center gap-2 text-sm font-semibold xl:flex"><Phone className="h-4 w-4" />(435) 319-5331</a>
+        <a href="/quote/" className="hidden min-h-12 items-center justify-center rounded border border-orange px-6 py-3 text-sm font-bold text-[#F3A06F] transition hover:bg-orange hover:text-white sm:inline-flex">Request a Quote</a>
+        <a href="tel:+14353195331" className="p-2 sm:hidden" aria-label="Call Timpson Drafting"><Phone className="h-5 w-5" /></a>
+        <button type="button" className="p-2 lg:hidden" aria-expanded={open} aria-controls="mobile-navigation" onClick={() => setOpen(!open)} aria-label="Toggle menu">{open ? <X /> : <Menu />}</button>
+      </div>
+      {open && (
+        <nav id="mobile-navigation" aria-label="Mobile" className="border-t border-white/10 bg-blueprint px-4 py-4 lg:hidden">
+          {navigation.map(([label, href]) => <a key={href} href={href} className="block border-b border-white/10 py-3 font-semibold" onClick={() => setOpen(false)}>{label}</a>)}
+        </nav>
+      )}
+    </header>
+  );
+}

@@ -42,5 +42,14 @@
       track(eventName, { link_url: link.href, service_interest: link.dataset.service || '' });
     }
   });
+  const projectFilters = document.querySelectorAll('[data-project-filter]');
+  const projectCards = document.querySelectorAll('[data-project-category]');
+  for (const button of projectFilters) {
+    button.addEventListener('click', () => {
+      const selected = button.dataset.projectFilter;
+      for (const candidate of projectFilters) candidate.setAttribute('aria-pressed', String(candidate === button));
+      for (const card of projectCards) card.hidden = selected !== 'all' && card.dataset.projectCategory !== selected;
+    });
+  }
   if (document.body.dataset.pageType) track('city_page_view');
 })();

@@ -1,16 +1,10 @@
 import { lazy, Suspense } from 'react';
 import Hero from './components/Hero';
-import Reviews from './components/Reviews';
-import Services from './components/Services';
-import ProjectPlanning from './components/ProjectPlanning';
-import ServiceArea from './components/ServiceArea';
-import Pricing from './components/Pricing';
 import ContactForm from './components/ContactForm';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import TermsAndConditions from './components/TermsAndConditions';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import AnalyticsHooks from './components/AnalyticsHooks';
+import { HowItWorks, ProblemAndBundle, ProjectsWhyServices, Walkthrough } from './components/HomeSections';
 
 const ModelViewer = lazy(() => import('./components/ModelViewer'));
 const CesiumViewer = lazy(() => import('./components/CesiumViewer'));
@@ -26,22 +20,27 @@ function App() {
     return <Suspense fallback={viewerFallback}><CesiumViewer /></Suspense>;
   }
 
+  if (window.location.pathname.replace(/\/$/, '') === '/quote') {
+    return <div className="min-h-screen bg-paper text-ink"><AnalyticsHooks /><Header /><main id="main-content"><ContactForm heading="Request a Quote" description="Tell us about your project. We'll follow up with a quote and next steps." /></main><Footer /><div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t border-white/15 bg-blueprint text-center font-bold text-white md:hidden"><a className="py-4" href="tel:+14353195331">Call</a><a className="bg-orange py-4" href="#contact">Get a Quote</a></div></div>;
+  }
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-paper text-ink">
       <AnalyticsHooks />
       <Header />
       <main id="main-content">
       <Hero />
-      <Services />
-      <ProjectPlanning />
-      <ServiceArea />
-      <Pricing />
+      <ProblemAndBundle />
+      <Walkthrough />
+      <ProjectsWhyServices />
+      <HowItWorks />
       <ContactForm />
-      <Reviews />
-      <PrivacyPolicy />
-      <TermsAndConditions />
       </main>
       <Footer />
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t border-white/15 bg-blueprint text-center font-bold text-white md:hidden">
+        <a className="py-4" href="tel:+14353195331">Call</a>
+        <a className="bg-orange py-4" href="/quote/">Get a Quote</a>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Grid, PointerLockControls, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ChangeEvent, PointerEvent as ReactPointerEvent, Suspense, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, Suspense, useEffect, useRef, useState } from 'react';
 import { Box3, Euler, MathUtils, Object3D, Raycaster, Vector3 } from 'three';
 
 const EYE_HEIGHT = 1.65;
@@ -265,7 +265,7 @@ function MobileControl({ label, keyName, code, className = '' }: { label: string
     <button
       type="button"
       aria-label={label}
-      className={`grid h-14 w-14 touch-none select-none place-items-center rounded-2xl border border-white/25 bg-slate-950/75 text-xl font-bold shadow-xl backdrop-blur active:bg-emerald-500/80 ${className}`}
+      className={`grid h-14 w-14 touch-none select-none place-items-center rounded border border-white/25 bg-slate-950/75 text-xl font-bold shadow-xl backdrop-blur active:bg-orange/80 ${className}`}
       onPointerDown={handleDown}
       onPointerUp={handleUp}
       onPointerCancel={handleUp}
@@ -335,7 +335,7 @@ function MobileJoystick() {
     >
       <div className="pointer-events-none absolute inset-5 rounded-full border border-white/10" />
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35 bg-emerald-500/85 shadow-lg"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35 bg-orange/85 shadow-lg"
         style={{ marginLeft: position.x, marginTop: position.y }}
       />
     </div>
@@ -350,6 +350,9 @@ export default function ModelViewer() {
   const [collisionObjects, setCollisionObjects] = useState<Object3D[]>([]);
   const [wallCollisionObjects, setWallCollisionObjects] = useState<Object3D[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [fileError, setFileError] = useState('');
+  const dragDepth = useRef(0);
 
   useEffect(() => {
     const query = window.matchMedia('(pointer: coarse)');
@@ -365,25 +368,65 @@ export default function ModelViewer() {
     };
   }, [modelUrl]);
 
-  const loadModel = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const openModelFile = (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.glb')) {
+      setFileError('That file is not a GLB model. Drop a file ending in .glb.');
+      return;
+    }
+    setFileError('');
     setModelUrl(URL.createObjectURL(file));
     setFileName(file.name);
   };
 
+  const loadModel = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) openModelFile(file);
+    event.target.value = '';
+  };
+
+  const handleDragEnter = (event: ReactDragEvent<HTMLElement>) => {
+    event.preventDefault();
+    if (!event.dataTransfer.types.includes('Files')) return;
+    dragDepth.current += 1;
+    setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = (event: ReactDragEvent<HTMLElement>) => {
+    event.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setIsDraggingFile(false);
+  };
+
+  const handleDragOver = (event: ReactDragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (event: ReactDragEvent<HTMLElement>) => {
+    event.preventDefault();
+    dragDepth.current = 0;
+    setIsDraggingFile(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) openModelFile(file);
+  };
+
   return (
-    <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-950 text-white">
+    <main
+      className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-950 text-white"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <header className="shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
         <div>
-          <a href="/" className="text-sm text-emerald-400 hover:text-emerald-300">
+          <a href="/" className="text-sm text-[#F3A06F] hover:text-white">
             ← Timpson Drafting &amp; Design
           </a>
           <h1 className="mt-1 text-xl font-semibold">3D model viewer</h1>
         </div>
 
-        <label className="cursor-pointer rounded-lg bg-emerald-500 px-5 py-3 font-semibold transition hover:bg-emerald-600">
+        <label className="cursor-pointer rounded bg-orange px-5 py-3 font-semibold transition hover:bg-[#a94718]">
           Open .glb
           <input className="sr-only" type="file" accept=".glb,model/gltf-binary" onChange={loadModel} />
         </label>
@@ -395,9 +438,19 @@ export default function ModelViewer() {
             <div className="max-w-md rounded-2xl border border-white/10 bg-slate-900/90 p-8 shadow-2xl">
               <p className="text-lg font-medium">Open a GLB model to enter the scene</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Your file stays on this device. Use the button above, then drag to orbit, scroll to zoom,
-                and right-drag to pan.
+                Your file stays on this device. Drop a .glb anywhere on this page or use the button above,
+                then drag to orbit, scroll to zoom, and right-drag to pan.
               </p>
+              {fileError && <p className="mt-4 text-sm font-medium text-[#F3A06F]" role="alert">{fileError}</p>}
+            </div>
+          </div>
+        )}
+
+        {isDraggingFile && (
+          <div className="pointer-events-none absolute inset-4 z-30 grid place-items-center rounded border-2 border-dashed border-orange bg-slate-950/85 text-center backdrop-blur-sm">
+            <div>
+              <p className="font-display text-3xl font-bold uppercase text-white">Drop GLB to open</p>
+              <p className="mt-2 text-sm text-slate-300">The model stays on this device.</p>
             </div>
           </div>
         )}
@@ -417,7 +470,7 @@ export default function ModelViewer() {
             fadeDistance={80}
             fadeStrength={5}
             cellColor="#334155"
-            sectionColor="#10b981"
+            sectionColor="#C8581E"
           />
 
           {modelUrl && (
@@ -445,7 +498,7 @@ export default function ModelViewer() {
           <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/20 p-6">
             <button
               id="enter-world"
-              className="rounded-xl border border-white/20 bg-slate-950/85 px-7 py-4 font-semibold shadow-2xl backdrop-blur transition hover:border-emerald-400 hover:text-emerald-300"
+              className="rounded border border-white/20 bg-slate-950/85 px-7 py-4 font-semibold shadow-2xl backdrop-blur transition hover:border-orange hover:text-[#F3A06F]"
             >
               Click to walk through the model
               <span className="mt-1 block text-xs font-normal text-slate-400">

@@ -74,7 +74,7 @@ const statusLabels: Record<ChatStatus, string> = {
 };
 
 const getStatusClass = (status: ChatStatus) => {
-  if (status === 'connected' || status === 'completed') return 'bg-emerald-500';
+  if (status === 'connected' || status === 'completed') return 'bg-blueprint';
   if (status === 'thinking' || status === 'connecting') return 'bg-amber-400';
   if (status === 'error') return 'bg-red-500';
   return 'bg-slate-300';
@@ -557,7 +557,7 @@ export default function ChatIntake({
         type="button"
         onClick={onOpen}
         aria-label="Open AI project chat"
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-xl shadow-emerald-900/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200"
+        className="fixed bottom-20 right-5 z-40 flex h-14 w-14 items-center justify-center rounded bg-blueprint text-white shadow-xl transition hover:bg-orange focus:outline-none focus:ring-4 focus:ring-blueprint/20 md:bottom-5"
       >
         <MessageCircle className="h-6 w-6" />
       </button>
@@ -570,14 +570,14 @@ export default function ChatIntake({
             onClick={onClose}
             className="absolute inset-0 hidden bg-slate-950/20 pointer-events-auto sm:block"
           />
-          <aside className="absolute bottom-0 right-0 top-auto flex h-[min(760px,calc(100dvh-1.5rem))] w-full max-w-[440px] flex-col rounded-t-2xl border border-slate-200 bg-white shadow-2xl pointer-events-auto sm:bottom-6 sm:right-6 sm:top-auto sm:h-[min(720px,calc(100dvh-3rem))] sm:rounded-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+          <aside className="absolute bottom-0 right-0 top-auto flex h-[min(760px,calc(100dvh-1.5rem))] w-full max-w-[440px] flex-col border border-blueprint/20 bg-white shadow-2xl pointer-events-auto sm:bottom-6 sm:right-6 sm:top-auto sm:h-[min(720px,calc(100dvh-3rem))] sm:rounded">
+            <div className="flex items-start justify-between gap-4 border-b border-blueprint/15 bg-blueprint p-5 text-white">
               <div>
                 <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-emerald-700" />
-                  <h3 className="font-bold text-slate-900">Project chat</h3>
+                  <Bot className="h-5 w-5 text-orange" />
+                  <h3 className="font-display text-lg font-bold uppercase">Project chat</h3>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-white/70">
                   Share extra details that may help the drafting team.
                 </p>
               </div>
@@ -585,7 +585,7 @@ export default function ChatIntake({
                 type="button"
                 onClick={onClose}
                 aria-label="Close AI project chat"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-white/25 text-white/70 transition hover:border-orange hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -627,7 +627,7 @@ export default function ChatIntake({
                     type="button"
                     onClick={startSession}
                     disabled={status === 'connecting'}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded bg-orange px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#a94718] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {status === 'connecting' && <Loader2 className="h-4 w-4 animate-spin" />}
                     {status === 'connecting' ? 'Connecting' : 'Start chat'}
@@ -644,7 +644,7 @@ export default function ChatIntake({
                         <p
                           className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-6 ${
                             message.role === 'user'
-                              ? 'bg-emerald-600 text-white'
+                              ? 'bg-blueprint text-white'
                               : 'border border-slate-200 bg-slate-50 text-slate-700'
                           }`}
                         >
@@ -676,7 +676,7 @@ export default function ChatIntake({
                           type="button"
                           onClick={() => handleResponseOption(option)}
                           disabled={status === 'thinking'}
-                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-right text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded border border-blueprint/25 bg-paper px-3 py-2 text-right text-xs font-semibold text-blueprint transition hover:border-orange hover:text-orange disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {option}
                         </button>
@@ -685,7 +685,7 @@ export default function ChatIntake({
                   )}
 
                   {showCallbackPicker && (
-                    <div className="ml-auto grid w-full max-w-[360px] gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-slate-700">
+                    <div className="ml-auto grid w-full max-w-[360px] gap-3 rounded border border-blueprint/25 bg-paper p-4 text-sm text-slate-700">
                       <div>
                         <p className="font-semibold text-slate-900">Preferred callback time</p>
                         <p className="mt-1 text-xs leading-5 text-slate-600">
@@ -696,7 +696,7 @@ export default function ChatIntake({
                       <button
                         type="button"
                         onClick={() => submitCallbackPreference('asap')}
-                        className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                        className="rounded border border-blueprint/30 bg-white px-3 py-2 text-sm font-semibold text-blueprint transition hover:border-orange hover:text-orange"
                       >
                         ASAP / within 2 minutes
                       </button>
@@ -708,7 +708,7 @@ export default function ChatIntake({
                             min={formatDateForInput(new Date())}
                             value={callbackDate}
                             onChange={(event) => setCallbackDate(event.target.value)}
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                            className="rounded border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
                           />
                         </label>
                         <label className="grid gap-1 text-xs font-semibold text-slate-600">
@@ -717,7 +717,7 @@ export default function ChatIntake({
                             type="time"
                             value={callbackTime}
                             onChange={(event) => setCallbackTime(event.target.value)}
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                            className="rounded border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
                           />
                         </label>
                       </div>
@@ -725,7 +725,7 @@ export default function ChatIntake({
                       <button
                         type="button"
                         onClick={() => submitCallbackPreference('custom')}
-                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                        className="rounded bg-orange px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#a94718]"
                       >
                         Send preferred time
                       </button>
@@ -733,7 +733,7 @@ export default function ChatIntake({
                   )}
 
                   {status === 'completed' && (
-                    <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
+                    <div className="flex items-center gap-2 rounded border border-blueprint/25 bg-paper p-3 text-sm font-medium text-blueprint">
                       <CheckCircle2 className="h-4 w-4" />
                       Extra project context was saved.
                     </div>
@@ -749,7 +749,7 @@ export default function ChatIntake({
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={handleDraftKeyDown}
                   rows={3}
-                  className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="w-full resize-none rounded border border-slate-300 px-3 py-2 text-sm outline-none transition-colors focus:border-orange focus:ring-2 focus:ring-orange/20"
                   placeholder={
                     messages.some((message) => message.role === 'user')
                       ? 'Type here...'
@@ -760,7 +760,7 @@ export default function ChatIntake({
                   <button
                     type="submit"
                     disabled={!draft.trim() || status === 'thinking'}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded bg-orange px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#a94718] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {status === 'thinking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     Send
@@ -770,7 +770,7 @@ export default function ChatIntake({
                     onClick={() => fileInputRef.current?.click()}
                     disabled={status === 'thinking' || fileSyncStatus === 'saving'}
                     aria-label="Attach project files"
-                    className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded border border-slate-300 text-slate-700 transition-colors hover:border-orange hover:bg-paper hover:text-orange disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {fileSyncStatus === 'saving' ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

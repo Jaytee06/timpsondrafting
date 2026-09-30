@@ -1,66 +1,33 @@
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+
+const heroFrames = [
+  '/project-assets/custom-home-render-front.webp',
+  '/project-assets/custom-home-render-rear.webp',
+  '/project-assets/residential-concept.webp',
+];
 
 export default function Hero() {
   return (
-    <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
-        style={{
-          backgroundImage: 'url(/timpson-banner.jpg), url(/haus-grundriss-zeichnen.jpg)',
-        }}
-      ></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/70 to-slate-900/80"></div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 lg:py-40">
+    <section className="blueprint-grid relative overflow-hidden bg-blueprint text-white">
+      <div className="absolute inset-0" aria-hidden="true">
+        {heroFrames.map((src, index) => (
+          <div key={src} className="hero-media-frame absolute inset-0" style={{ animationDelay: `${index * 8}s` }}>
+            <img src={src} alt="" className="h-full w-full object-cover object-center" loading={index === 0 ? 'eager' : 'lazy'} decoding="async" />
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-r from-blueprint/95 via-blueprint/65 to-blueprint/15" />
+      <div className="section-shell relative py-24 sm:py-32 lg:py-36">
         <div className="max-w-3xl">
-          <div className="flex items-center gap-2 mb-6">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-emerald-400 font-medium text-sm tracking-wide uppercase">Serving homeowners and contractors nationwide</span>
+          <p className="plan-label text-[#F3A06F]">Full-service residential drafting</p>
+          <h1 className="mt-5 font-display text-5xl font-bold uppercase leading-[.95] sm:text-7xl">Designed by Tradesmen.</h1>
+          <p className="mt-7 max-w-2xl text-lg leading-8 text-white/80 sm:text-xl">Complete residential plans with mechanical, electrical, plumbing and a 3D walk-through included. Drawn by people who know how a house goes together.</p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <a href="/quote/" className="button-primary">Request a Quote <ArrowRight className="h-4 w-4" /></a>
+            <a href="#how-it-works" className="button-outline-light">See How It Works</a>
           </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
-            Residential Drafting &amp; Design Nationwide
-          </h1>
-
-          <p className="text-xl sm:text-2xl text-slate-300 mb-2 font-light">
-            Timpson Drafting &amp; Design
-          </p>
-
-          <p className="text-slate-400 mb-10 text-lg">
-            Custom-home, addition, ADU, garage, remodel, and as-built plans for homeowners and contractors, with drafting and on-site measuring services available nationwide.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <a
-              href="/#contact"
-              className="inline-flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Get a Project Quote
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </a>
-
-            <a
-              href="/services/"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg backdrop-blur-sm border border-white/20 transition-all duration-200"
-            >
-              Explore Drafting Services
-            </a>
-            <a href="tel:+14353195331" className="inline-flex items-center justify-center px-8 py-4 font-semibold text-emerald-300 underline underline-offset-4">Call (435) 319-5331</a>
-          </div>
-
-          <div className="mt-12 flex flex-wrap gap-8 text-sm text-slate-400">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Garage &amp; Addition Plans</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Permit-Ready Documents</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Remodel &amp; As-Built Support</span>
-            </div>
+          <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/20 pt-5 text-sm font-semibold uppercase tracking-wider text-white/75">
+            <span>$1.50/sq ft</span><span>10-day initial concept</span><span>Nationwide</span>
           </div>
         </div>
       </div>

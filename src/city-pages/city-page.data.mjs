@@ -11,7 +11,7 @@ export const cityPages = [
       title: 'Residential Drafting Services in St. George, UT | Timpson',
       description: 'Residential drafting for custom homes, additions, ADUs, garages, and remodels in St. George, Utah. Request a project-based quote from Timpson.',
       canonicalUrl: 'https://timpsondrafting.com/st-george-ut/',
-      socialImage: 'https://timpsondrafting.com/timpson-banner.jpg',
+      socialImage: 'https://timpsondrafting.com/tdd-social-share.png',
     },
     serviceAvailability: {
       remoteDrafting: true,
@@ -87,7 +87,7 @@ export const cityPages = [
       title: 'Residential Drafting in Colorado City, AZ | Timpson',
       description: 'Residential drafting for homes, additions, garages, shops, and remodels in Colorado City, Arizona. Start with a project-based quote from Timpson.',
       canonicalUrl: 'https://timpsondrafting.com/colorado-city-az/',
-      socialImage: 'https://timpsondrafting.com/timpson-banner.jpg',
+      socialImage: 'https://timpsondrafting.com/tdd-social-share.png',
     },
     serviceAvailability: {
       remoteDrafting: true,
