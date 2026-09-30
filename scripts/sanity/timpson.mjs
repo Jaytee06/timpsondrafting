@@ -373,7 +373,8 @@ function runStaticChecks() {
   assertIncludes(chatIntake, 'Preferred callback time: ${preference}', 'ChatIntake sends selected callback preference through chat');
   assertIncludes(chatIntake, 'Preferred callback time: ${callbackPreference}', 'ChatIntake appends callback preference to CRM description');
   assertIncludes(chatIntake, `skipCrmUpdate`, 'ChatIntake forwards CRM update skip flag to backend');
-  assertIncludes(chatIntake, `bottom-5 right-5`, 'ChatIntake launcher is positioned bottom-right');
+  assertIncludes(chatIntake, `bottom-20 right-5`, 'ChatIntake launcher clears the mobile action bar');
+  assertIncludes(chatIntake, `md:bottom-5`, 'ChatIntake launcher returns to the lower-right position on desktop');
   if (chatIntake.includes('OPENAI') || chatIntake.includes('sk-')) {
     fail('ChatIntake must not expose OpenAI configuration or API keys');
   } else {

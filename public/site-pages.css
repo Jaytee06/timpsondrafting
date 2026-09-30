@@ -402,3 +402,27 @@ body>footer{margin-top:0;background:#1f2328}.footer-grid strong{font-family:Oswa
 
 @media(max-width:860px){.about-values{grid-template-columns:1fr}.about-values .card{min-height:0}.about-values .value-number{margin-bottom:1rem}.about-values h2{min-height:0}}
 .asset-note{display:none}
+
+.build-ready-intro{background:#fff!important}
+.build-ready-intro .eyebrow{margin:0 0 .85rem;padding:0;background:transparent;color:#c8581e}
+.build-ready-intro h2{max-width:46rem;margin:0;font-size:clamp(2rem,4vw,3.4rem);line-height:1.05}
+.build-ready-intro p:not(.eyebrow){max-width:48rem;margin-top:1rem!important;color:#6b7280}
+.build-ready-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important}
+.build-ready-card{display:grid;grid-template-rows:11rem 1fr;overflow:hidden;border:1px solid var(--line);border-top:3px solid #c8581e;background:#fff}
+.build-ready-media{position:relative;display:grid;overflow:hidden;place-items:center;background:#dedbd3}
+.build-ready-media img{display:block;width:100%;height:100%;object-fit:cover}
+.build-ready-media--document{padding:1rem}
+.build-ready-media--document img{object-fit:contain;background:#fff;box-shadow:0 4px 16px rgba(31,35,40,.14)}
+.build-ready-media--video{color:#fff;text-decoration:none}
+.build-ready-media--video span{position:absolute;inset:auto 1rem 1rem;padding:.6rem .8rem;background:#c8581e;font-weight:800}
+.build-ready-copy{padding:1.15rem}
+.build-ready-copy .eyebrow{margin:0 0 .8rem;padding:0;background:transparent;color:#c8581e}
+.build-ready-copy h2{margin:0 0 .65rem;font-size:1.45rem}
+.build-ready-copy p{color:#6b7280}
+.build-ready-copy .button{margin-top:1rem}
+
+@media(max-width:1050px){.build-ready-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.build-ready-card{grid-template-rows:14rem auto}}
+@media(max-width:700px){.build-ready-grid{grid-template-columns:1fr}.build-ready-card{grid-template-rows:13rem auto}}
+
+.project-card--outcome{border-top:3px solid #c8581e}
+.project-card--outcome .project-card-media img{object-position:center 42%}
