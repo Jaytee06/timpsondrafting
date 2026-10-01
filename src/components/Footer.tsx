@@ -7,7 +7,7 @@ export default function Footer() {
         <div>
           <p className="font-display text-3xl font-bold uppercase">TDD</p>
           <p className="mt-3 font-semibold">Designed by Tradesmen.</p>
-          <p className="mt-5 text-white/65"><a href="tel:+14353195331">(435) 319-5331</a><br /><a href="mailto:info@timpsondrafting.com">info@timpsondrafting.com</a></p>
+          <p className="mt-5 text-white/65"><a href="tel:+14353195311">435-319-5311</a><br /><a href="mailto:info@timpsondrafting.com">info@timpsondrafting.com</a></p>
         </div>
         <div>
           <p className="plan-label text-white/50">Services</p>

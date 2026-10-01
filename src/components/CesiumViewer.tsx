@@ -1,28 +1,24 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { strToU8, zipSync } from 'fflate';
 import {
+  BoundingSphere,
   Cartographic,
   Cartesian2,
   Cartesian3,
   CameraEventType,
   Color,
   ConstantPositionProperty,
-  CubeMapPanorama,
   createWorldTerrainAsync,
   Entity,
   HeadingPitchRange,
   HeadingPitchRoll,
   HeightReference,
   Ion,
-  GoogleMaps,
-  GoogleStreetViewCubeMapPanoramaProvider,
   KeyboardEventModifier,
   LabelStyle,
   Math as CesiumMath,
-  Matrix4,
   Model,
   Ray,
-  Resource,
+  Rectangle,
   sampleTerrainMostDetailed,
   ScreenSpaceEventType,
   Transforms,
@@ -44,6 +40,7 @@ type PropertySite = {
   boundary: number[];
   jurisdiction: string;
   sourceUrl: string;
+  limitRadiusMiles?: number;
 };
 
 type RecentProperty = {
@@ -98,17 +95,78 @@ const polygonCenter = (ring: number[][]) => {
   };
 };
 
-const WALK_EYE_HEIGHT = 1.65;
-const WALK_SPEED = 4.5;
+const WALK_EYE_HEIGHT = 1.45;
+const WALK_SPEED = 5.25;
 const JUMP_SPEED = 5.8;
 const GRAVITY = 15;
 const WALK_COLLISION_PADDING = 0.35;
 const MAX_STEP_HEIGHT = 0.75;
 const MAX_STEP_DOWN = 0.6;
-const STREET_VIEW_CAMERA_HEIGHT = 2.7;
 const MODEL_PICK_ID = 'placed-house-model';
 const RECENT_PROPERTIES_KEY = 'timpson:cesium-recent-properties:v1';
 const MAX_RECENT_PROPERTIES = 8;
+const DEFAULT_SITE_LIMIT_RADIUS_MILES = 10;
+const FLIGHT_DEFAULT_HEIGHT = 9;
+const FLIGHT_MIN_HEIGHT = 3;
+const FLIGHT_MAX_HEIGHT = 45;
+const FLIGHT_SPEED = 12;
+const FLIGHT_FAST_SPEED = 28;
+
+const projectLimitRectangle = (property: PropertySite) => {
+  const points = Array.from({ length: property.boundary.length / 2 }, (_, index) => ({
+    longitude: property.boundary[index * 2],
+    latitude: property.boundary[(index * 2) + 1],
+  }));
+  const longitudes = points.length ? points.map((point) => point.longitude) : [property.longitude];
+  const latitudes = points.length ? points.map((point) => point.latitude) : [property.latitude];
+  const paddingMeters = (property.limitRadiusMiles ?? DEFAULT_SITE_LIMIT_RADIUS_MILES) * 1_609.344;
+  const latitudePadding = paddingMeters / 111_320;
+  const longitudePadding = paddingMeters
+    / (111_320 * Math.max(0.1, Math.cos(CesiumMath.toRadians(property.latitude))));
+  return Rectangle.fromDegrees(
+    Math.min(...longitudes) - longitudePadding,
+    Math.min(...latitudes) - latitudePadding,
+    Math.max(...longitudes) + longitudePadding,
+    Math.max(...latitudes) + latitudePadding,
+  );
+};
+
+const readProjectPreset = (): PropertySite | null => {
+  const parameters = new URLSearchParams(window.location.search);
+  const latitudeParameter = parameters.get('lat');
+  const longitudeParameter = parameters.get('lng');
+  if (!latitudeParameter || !longitudeParameter) return null;
+  const latitude = Number(latitudeParameter);
+  const longitude = Number(longitudeParameter);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  const radius = Number(parameters.get('radiusMiles'));
+  return {
+    address: parameters.get('address')?.trim() || 'Configured project site',
+    parcel: parameters.get('parcel')?.trim() || 'Not provided',
+    statedLotSize: 'Project-specific viewer',
+    latitude,
+    longitude,
+    boundary: [],
+    jurisdiction: parameters.get('jurisdiction')?.trim() || 'Configured project',
+    sourceUrl: window.location.href,
+    limitRadiusMiles: Number.isFinite(radius)
+      ? CesiumMath.clamp(Math.max(radius, DEFAULT_SITE_LIMIT_RADIUS_MILES), DEFAULT_SITE_LIMIT_RADIUS_MILES, 25)
+      : DEFAULT_SITE_LIMIT_RADIUS_MILES,
+  };
+};
+
+const clampToRectangle = (longitude: number, latitude: number, rectangle: Rectangle) => ({
+  longitude: CesiumMath.clamp(
+    longitude,
+    CesiumMath.toDegrees(rectangle.west),
+    CesiumMath.toDegrees(rectangle.east),
+  ),
+  latitude: CesiumMath.clamp(
+    latitude,
+    CesiumMath.toDegrees(rectangle.south),
+    CesiumMath.toDegrees(rectangle.north),
+  ),
+});
 
 const readRecentProperties = (): RecentProperty[] => {
   try {
@@ -141,20 +199,33 @@ const isWallNode = (name: string) => /collider[_ -]?wall|wall|sill infill|above 
 const isWalkableNode = (name: string) => /collider[_ -]?(floor|stairs?)|floor|stair|step|landing|walkable/.test(name);
 
 const CESIUM_UNSUPPORTED_GLTF_EXTENSIONS = new Set(['KHR_lights_punctual']);
+const EMBEDDED_SITE_IMAGE_PATTERN = /aerial|orthophoto|ortho photo|satellite|site imagery|parcel imagery/i;
 
-async function prepareGlbForCesium(file: File) {
+type PreparedGlb = {
+  blob: Blob;
+  embeddedSiteImageNodes: string[];
+};
+
+async function prepareGlbForCesium(file: File): Promise<PreparedGlb> {
   const buffer = await file.arrayBuffer();
   const view = new DataView(buffer);
   if (view.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
-    return file;
+    return { blob: file, embeddedSiteImageNodes: [] };
   }
 
   const jsonLength = view.getUint32(12, true);
   const jsonType = view.getUint32(16, true);
-  if (jsonType !== 0x4e4f534a || 20 + jsonLength > view.byteLength) return file;
+  if (jsonType !== 0x4e4f534a || 20 + jsonLength > view.byteLength) {
+    return { blob: file, embeddedSiteImageNodes: [] };
+  }
 
   const bytes = new Uint8Array(buffer);
   const gltf = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)).trim()) as Record<string, unknown>;
+  const embeddedSiteImageNodes = Array.isArray(gltf.nodes)
+    ? (gltf.nodes as Array<{ name?: unknown }>).flatMap((node) => (
+      typeof node.name === 'string' && EMBEDDED_SITE_IMAGE_PATTERN.test(node.name) ? [node.name] : []
+    ))
+    : [];
   let changed = false;
 
   const stripUnsupportedExtensions = (value: unknown) => {
@@ -189,13 +260,13 @@ async function prepareGlbForCesium(file: File) {
   };
 
   stripUnsupportedExtensions(gltf);
-  if (!changed) return file;
+  if (!changed) return { blob: file, embeddedSiteImageNodes };
 
   const cleanedJson = new TextEncoder().encode(JSON.stringify(gltf));
   if (cleanedJson.length > jsonLength) throw new Error('The Cesium-safe GLB metadata did not fit in the source file.');
   bytes.fill(0x20, 20, 20 + jsonLength);
   bytes.set(cleanedJson, 20);
-  return new Blob([bytes], { type: 'model/gltf-binary' });
+  return { blob: new Blob([bytes], { type: 'model/gltf-binary' }), embeddedSiteImageNodes };
 }
 
 const waitForModelReady = (model: Model) => {
@@ -233,48 +304,58 @@ type SpawnPoint = {
   };
 };
 
-type SavedCamera = {
-  position: Cartesian3;
-  direction: Cartesian3;
-  up: Cartesian3;
-};
-
-type StreetViewMatchLocation = {
-  latitude: number;
-  longitude: number;
-  groundHeight: number;
-  panoId: string;
-};
-
-type StreetViewOption = {
-  panoId: string;
-  latitude: number;
-  longitude: number;
-  linkHeading?: number;
-};
-
-type StreetViewMetadata = {
-  panoId?: string;
-  pano_id?: string;
-  location?: { lat?: number; lng?: number };
-  links?: Array<{
-    panoId?: string;
-    pano_id?: string;
-    pano?: string;
-    heading?: number;
-  }>;
-};
-
-type SavedPlacementCheckpoint = {
+type CachedProjectModel = {
+  propertyId: string;
+  fileName: string;
+  blob: Blob;
+  embeddedSiteImageNodes: string[];
   placement: Placement;
-  spawnPoint: SpawnPoint | null;
-  confirmedAt: string;
+  updatedAt: string;
 };
 
-const placementStorageKey = (parcel: string, fileName: string) => `timpson:cesium-placement:${parcel}:${fileName}`;
 const propertyStorageId = (property: PropertySite) => property.parcel !== 'Not provided'
   ? property.parcel
   : `${property.latitude.toFixed(6)},${property.longitude.toFixed(6)}`;
+
+const PROJECT_MODEL_DB = 'timpson-cesium-projects';
+const PROJECT_MODEL_STORE = 'models';
+
+const openProjectModelDatabase = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const request = window.indexedDB.open(PROJECT_MODEL_DB, 1);
+  request.onupgradeneeded = () => {
+    if (!request.result.objectStoreNames.contains(PROJECT_MODEL_STORE)) {
+      request.result.createObjectStore(PROJECT_MODEL_STORE, { keyPath: 'propertyId' });
+    }
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error ?? new Error('Project model storage could not be opened.'));
+});
+
+const readCachedProjectModel = async (propertyId: string) => {
+  const database = await openProjectModelDatabase();
+  try {
+    return await new Promise<CachedProjectModel | undefined>((resolve, reject) => {
+      const request = database.transaction(PROJECT_MODEL_STORE, 'readonly').objectStore(PROJECT_MODEL_STORE).get(propertyId);
+      request.onsuccess = () => resolve(request.result as CachedProjectModel | undefined);
+      request.onerror = () => reject(request.error ?? new Error('Cached project model could not be read.'));
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const writeCachedProjectModel = async (model: CachedProjectModel) => {
+  const database = await openProjectModelDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const request = database.transaction(PROJECT_MODEL_STORE, 'readwrite').objectStore(PROJECT_MODEL_STORE).put(model);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error ?? new Error('Project model could not be cached.'));
+    });
+  } finally {
+    database.close();
+  }
+};
 
 const spawnWorldPoint = (spawn: SpawnPoint, placement: Placement, anchorHeight: number): SpawnPoint => {
   if (!spawn.localOffset) return spawn;
@@ -292,19 +373,17 @@ const spawnWorldPoint = (spawn: SpawnPoint, placement: Placement, anchorHeight: 
   };
 };
 
-function Terrain({ property, token, modelUrl, modelFile, fileName, placement, onPlacementChange }: { property: PropertySite; token: string; modelUrl: string; modelFile: File | null; fileName: string; placement: Placement; onPlacementChange: (placement: Placement) => void }) {
+function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, placement, onPlacementChange }: { property: PropertySite; token: string; modelUrl: string; fileName: string; embeddedSiteImageNodes: string[]; placement: Placement; onPlacementChange: (placement: Placement) => void }) {
   const container = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer>();
   const modelPrimitive = useRef<Model>();
+  const propertyEntity = useRef<Entity>();
   const anchorEntity = useRef<Entity>();
   const spawnEntity = useRef<Entity>();
   const loadedModelUrl = useRef('');
-  const streetViewProvider = useRef<GoogleStreetViewCubeMapPanoramaProvider>();
-  const streetViewPanorama = useRef<CubeMapPanorama>();
-  const streetViewReturnCamera = useRef<SavedCamera>();
-  const streetViewMatchLocation = useRef<StreetViewMatchLocation>();
   const placementRequest = useRef(0);
   const placedHeight = useRef(0);
+  const siteGroundHeight = useRef(0);
   const walkKeys = useRef(new Set<string>());
   const walkHeading = useRef(0);
   const walkPitch = useRef(0);
@@ -314,44 +393,22 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
   const walkVerticalVelocity = useRef(0);
   const walkJumpCount = useRef(0);
   const lastWalkFrame = useRef(0);
+  const navigationMode = useRef<'walk' | 'flight' | null>(null);
+  const flightCoordinates = useRef({ latitude: placement.latitude, longitude: placement.longitude });
+  const flightHeight = useRef(FLIGHT_DEFAULT_HEIGHT);
+  const flightGroundHeight = useRef(0);
   const inspectionHeading = useRef(CesiumMath.toRadians(placement.heading));
   const inspectionPitch = useRef(CesiumMath.toRadians(-25));
   const [viewerReady, setViewerReady] = useState(false);
   const [isWalking, setIsWalking] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [captureStatus, setCaptureStatus] = useState('');
+  const [isFlying, setIsFlying] = useState(false);
   const [isChoosingAnchor, setIsChoosingAnchor] = useState(false);
-  const [isChoosingGroundContact, setIsChoosingGroundContact] = useState(false);
   const [isChoosingSpawn, setIsChoosingSpawn] = useState(false);
   const [spawnPoint, setSpawnPoint] = useState<SpawnPoint | null>(null);
   const [modelStatus, setModelStatus] = useState('');
+  const [showEmbeddedSiteImagery, setShowEmbeddedSiteImagery] = useState(false);
   const [nudgeFeet, setNudgeFeet] = useState(1);
-  const [isStreetView, setIsStreetView] = useState(false);
-  const [isLoadingStreetView, setIsLoadingStreetView] = useState(false);
-  const [streetViewStatus, setStreetViewStatus] = useState('');
-  const [streetViewModelOpacity, setStreetViewModelOpacity] = useState(1);
-  const [showStreetViewModel, setShowStreetViewModel] = useState(true);
-  const [streetViewOptions, setStreetViewOptions] = useState<StreetViewOption[]>([]);
-  const [activeStreetViewIndex, setActiveStreetViewIndex] = useState(0);
-  const [streetViewHeadHeight, setStreetViewHeadHeight] = useState(STREET_VIEW_CAMERA_HEIGHT);
-  const [streetViewFieldOfView, setStreetViewFieldOfView] = useState(80);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!fileName) return;
-    try {
-      const saved = window.localStorage.getItem(placementStorageKey(propertyStorageId(property), fileName));
-      if (!saved) {
-        setSpawnPoint(null);
-        return;
-      }
-      const checkpoint = JSON.parse(saved) as SavedPlacementCheckpoint;
-      setSpawnPoint(checkpoint.spawnPoint ?? null);
-      setCaptureStatus(`Restored confirmed placement from ${new Date(checkpoint.confirmedAt).toLocaleString()}`);
-    } catch {
-      setSpawnPoint(null);
-    }
-  }, [fileName, property]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -388,15 +445,10 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
 
   const flyToProperty = useCallback((viewer: Viewer, duration = 1.2) => {
     viewer.camera.flyTo({
-      destination: Cartesian3.fromDegrees(property.longitude, property.latitude, 4200),
-      orientation: {
-        heading: CesiumMath.toRadians(0),
-        pitch: CesiumMath.toRadians(-42),
-        roll: 0,
-      },
+      destination: projectLimitRectangle(property),
       duration,
     });
-  }, [property.latitude, property.longitude]);
+  }, [property]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -423,6 +475,22 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
           timeline: false,
         });
         viewerRef.current = viewer;
+
+        const siteRectangle = projectLimitRectangle(property);
+        viewer.scene.globe.cartographicLimitRectangle = siteRectangle;
+        viewer.scene.globe.maximumScreenSpaceError = 3;
+        viewer.scene.globe.tileCacheSize = 300;
+        viewer.scene.globe.preloadSiblings = true;
+
+        try {
+          const [sitePoint] = await sampleTerrainMostDetailed(terrainProvider, [
+            Cartographic.fromDegrees(property.longitude, property.latitude),
+          ]);
+          siteGroundHeight.current = sitePoint.height ?? 0;
+        } catch {
+          siteGroundHeight.current = 0;
+        }
+        if (cancelled || viewer.isDestroyed()) return;
         setViewerReady(true);
 
         const controls = viewer.scene.screenSpaceCameraController;
@@ -438,7 +506,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
         ];
         controls.enableCollisionDetection = true;
 
-        viewer.entities.add({
+        propertyEntity.current = viewer.entities.add({
           position: Cartesian3.fromDegrees(property.longitude, property.latitude),
           point: {
             color: Color.fromCssColorString('#C8581E'),
@@ -484,13 +552,16 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
       viewerRef.current = undefined;
       modelPrimitive.current = undefined;
       anchorEntity.current = undefined;
+      propertyEntity.current = undefined;
       spawnEntity.current = undefined;
-      streetViewProvider.current = undefined;
-      streetViewPanorama.current = undefined;
-      streetViewReturnCamera.current = undefined;
-      streetViewMatchLocation.current = undefined;
     };
   }, [flyToProperty, property, token]);
+
+  useEffect(() => {
+    if (propertyEntity.current) propertyEntity.current.show = !modelUrl;
+    if (anchorEntity.current) anchorEntity.current.show = !modelUrl;
+    viewerRef.current?.scene.requestRender();
+  }, [modelUrl, modelStatus]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -515,51 +586,6 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
 
     return () => viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
   }, [isChoosingAnchor, onPlacementChange, placement, viewerReady]);
-
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewerReady || !viewer || !isChoosingGroundContact) return;
-
-    let cancelled = false;
-    viewer.screenSpaceEventHandler.setInputAction((movement: { position: Cartesian2 }) => {
-      void (async () => {
-        const picked = viewer.scene.pick(movement.position) as CesiumRayHit['object'] | undefined;
-        const pickedId = picked?.id ?? picked?.primitive?.id;
-        const modelPoint = viewer.scene.pickPositionSupported
-          ? viewer.scene.pickPosition(movement.position)
-          : undefined;
-        if (pickedId !== MODEL_PICK_ID || !modelPoint) {
-          setError('Click a visible point on the house foundation that should touch the terrain.');
-          return;
-        }
-
-        try {
-          const modelCartographic = Cartographic.fromCartesian(modelPoint);
-          const [terrainPoint] = await sampleTerrainMostDetailed(viewer.terrainProvider, [
-            Cartographic.fromRadians(modelCartographic.longitude, modelCartographic.latitude),
-          ]);
-          if (cancelled || viewer.isDestroyed()) return;
-          const terrainHeight = terrainPoint.height;
-          if (terrainHeight === undefined) throw new Error('Terrain elevation was unavailable at that point.');
-          const adjustment = terrainHeight - modelCartographic.height;
-          onPlacementChange({
-            ...placement,
-            elevationOffset: placement.elevationOffset + adjustment,
-          });
-          setIsChoosingGroundContact(false);
-          setCaptureStatus(`Model height adjusted ${(adjustment * 3.28084).toFixed(1)} ft to meet terrain`);
-          setError('');
-        } catch (caught) {
-          setError(caught instanceof Error ? caught.message : 'The model could not be fitted to the terrain.');
-        }
-      })();
-    }, ScreenSpaceEventType.LEFT_CLICK);
-
-    return () => {
-      cancelled = true;
-      viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
-    };
-  }, [isChoosingGroundContact, onPlacementChange, placement, viewerReady]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -695,12 +721,14 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
         }
 
         if (shouldFrameModel && modelPrimitive.current) {
-          const loadedModel = modelPrimitive.current;
           inspectionHeading.current = CesiumMath.toRadians(placement.heading);
           inspectionPitch.current = CesiumMath.toRadians(-25);
-          viewer.camera.flyToBoundingSphere(loadedModel.boundingSphere, {
+          viewer.camera.flyToBoundingSphere(new BoundingSphere(
+            Cartesian3.fromDegrees(placement.longitude, placement.latitude, placedHeight.current + 4),
+            Math.max(32, 45 * placement.scale),
+          ), {
             duration: 1.2,
-            offset: new HeadingPitchRange(CesiumMath.toRadians(placement.heading), CesiumMath.toRadians(-25), 0),
+            offset: new HeadingPitchRange(CesiumMath.toRadians(placement.heading), CesiumMath.toRadians(-25), Math.max(55, 85 * placement.scale)),
           });
         }
         setModelStatus('Model placed');
@@ -715,30 +743,49 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
 
   useEffect(() => {
     const viewer = viewerRef.current;
+    const model = modelPrimitive.current;
+    if (!viewer || !model?.ready || !embeddedSiteImageNodes.length) return;
+    embeddedSiteImageNodes.forEach((nodeName) => {
+      try {
+        model.getNode(nodeName).show = showEmbeddedSiteImagery;
+      } catch {
+        // A duplicate or sanitized node name may not be exposed by Cesium.
+      }
+    });
+    viewer.scene.requestRender();
+  }, [embeddedSiteImageNodes, modelStatus, showEmbeddedSiteImagery]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
     if (!viewerReady || !viewer) return;
     const canvas = viewer.canvas;
 
-    const stopWalking = () => {
+    const stopNavigation = () => {
       walkKeys.current.clear();
       walkVerticalOffset.current = 0;
       walkVerticalVelocity.current = 0;
       walkJumpCount.current = 0;
+      navigationMode.current = null;
+      viewer.resolutionScale = 1;
       viewer.scene.screenSpaceCameraController.enableInputs = true;
       setIsWalking(false);
+      setIsFlying(false);
     };
     const pointerLockChange = () => {
       if (document.pointerLockElement === canvas) {
         lastWalkFrame.current = performance.now();
         viewer.scene.screenSpaceCameraController.enableInputs = false;
-        setIsWalking(true);
+        setIsWalking(navigationMode.current === 'walk');
+        setIsFlying(navigationMode.current === 'flight');
+        viewer.resolutionScale = navigationMode.current === 'flight' ? 0.9 : 1;
       } else {
-        stopWalking();
+        stopNavigation();
       }
     };
     const keyDown = (event: KeyboardEvent) => {
       if (document.pointerLockElement !== canvas) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
-      if (event.code === 'Space' && !event.repeat && walkJumpCount.current < 2) {
+      if (navigationMode.current === 'walk' && event.code === 'Space' && !event.repeat && walkJumpCount.current < 2) {
         walkVerticalVelocity.current = JUMP_SPEED;
         walkJumpCount.current += 1;
       }
@@ -748,10 +795,11 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
     const mouseMove = (event: MouseEvent) => {
       if (document.pointerLockElement !== canvas) return;
       walkHeading.current += event.movementX * 0.002;
+      const isFlight = navigationMode.current === 'flight';
       walkPitch.current = CesiumMath.clamp(
         walkPitch.current - event.movementY * 0.002,
         CesiumMath.toRadians(-85),
-        CesiumMath.toRadians(85),
+        CesiumMath.toRadians(isFlight ? -5 : 85),
       );
     };
     const tick = () => {
@@ -764,6 +812,46 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
         - Number(walkKeys.current.has('s') || walkKeys.current.has('arrowdown'));
       const right = Number(walkKeys.current.has('d') || walkKeys.current.has('arrowright'))
         - Number(walkKeys.current.has('a') || walkKeys.current.has('arrowleft'));
+      if (navigationMode.current === 'flight') {
+        const length = Math.hypot(forward, right) || 1;
+        const speed = walkKeys.current.has('shift') ? FLIGHT_FAST_SPEED : FLIGHT_SPEED;
+        const distance = speed * delta;
+        const northMeters = ((forward * Math.cos(walkHeading.current)) - (right * Math.sin(walkHeading.current))) / length * distance;
+        const eastMeters = ((forward * Math.sin(walkHeading.current)) + (right * Math.cos(walkHeading.current))) / length * distance;
+        const latitudeRadians = CesiumMath.toRadians(flightCoordinates.current.latitude);
+        const unclampedLatitude = flightCoordinates.current.latitude + (northMeters / 111_320);
+        const unclampedLongitude = flightCoordinates.current.longitude + (eastMeters / (111_320 * Math.cos(latitudeRadians)));
+        flightCoordinates.current = clampToRectangle(
+          unclampedLongitude,
+          unclampedLatitude,
+          projectLimitRectangle(property),
+        );
+
+        const vertical = Number(walkKeys.current.has('e')) - Number(walkKeys.current.has('q'));
+        flightHeight.current = CesiumMath.clamp(
+          flightHeight.current + (vertical * 8 * delta),
+          FLIGHT_MIN_HEIGHT,
+          FLIGHT_MAX_HEIGHT,
+        );
+        const groundPosition = Cartographic.fromDegrees(
+          flightCoordinates.current.longitude,
+          flightCoordinates.current.latitude,
+        );
+        const sampledGround = viewer.scene.globe.getHeight(groundPosition);
+        if (sampledGround !== undefined) {
+          const groundBlend = 1 - Math.exp(-6 * delta);
+          flightGroundHeight.current += (sampledGround - flightGroundHeight.current) * groundBlend;
+        }
+        viewer.camera.setView({
+          destination: Cartesian3.fromDegrees(
+            flightCoordinates.current.longitude,
+            flightCoordinates.current.latitude,
+            flightGroundHeight.current + flightHeight.current,
+          ),
+          orientation: { heading: walkHeading.current, pitch: walkPitch.current, roll: 0 },
+        });
+        return;
+      }
       const rayPicker = viewer.scene as typeof viewer.scene & {
         pickFromRay: (ray: Ray, excluded?: object[], width?: number) => CesiumRayHit | undefined;
         drillPickFromRay: (ray: Ray, limit?: number, excluded?: object[], width?: number) => CesiumRayHit[];
@@ -888,17 +976,17 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
     document.addEventListener('mousemove', mouseMove);
     window.addEventListener('keydown', keyDown);
     window.addEventListener('keyup', keyUp);
-    window.addEventListener('blur', stopWalking);
+    window.addEventListener('blur', stopNavigation);
     viewer.clock.onTick.addEventListener(tick);
     return () => {
       document.removeEventListener('pointerlockchange', pointerLockChange);
       document.removeEventListener('mousemove', mouseMove);
       window.removeEventListener('keydown', keyDown);
       window.removeEventListener('keyup', keyUp);
-      window.removeEventListener('blur', stopWalking);
+      window.removeEventListener('blur', stopNavigation);
       viewer.clock.onTick.removeEventListener(tick);
     };
-  }, [placement.elevationOffset, viewerReady]);
+  }, [placement.elevationOffset, property, viewerReady]);
 
   const updatePlacement = (key: keyof Placement, value: number) => {
     if (!Number.isFinite(value)) return;
@@ -943,9 +1031,12 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
       setModelStatus('Model is still loading…');
       return;
     }
-    viewer.camera.flyToBoundingSphere(modelPrimitive.current.boundingSphere, {
+    viewer.camera.flyToBoundingSphere(new BoundingSphere(
+      Cartesian3.fromDegrees(placement.longitude, placement.latitude, placedHeight.current + 4),
+      Math.max(32, 45 * placement.scale),
+    ), {
       duration: 1.2,
-      offset: new HeadingPitchRange(CesiumMath.toRadians(placement.heading), CesiumMath.toRadians(-25), 0),
+      offset: new HeadingPitchRange(CesiumMath.toRadians(placement.heading), CesiumMath.toRadians(-25), Math.max(55, 85 * placement.scale)),
     });
   };
 
@@ -960,298 +1051,13 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
       CesiumMath.toRadians(-80),
       CesiumMath.toRadians(-5),
     );
-    viewer.camera.flyToBoundingSphere(model.boundingSphere, {
+    viewer.camera.flyToBoundingSphere(new BoundingSphere(
+      Cartesian3.fromDegrees(placement.longitude, placement.latitude, placedHeight.current + 4),
+      Math.max(32, 45 * placement.scale),
+    ), {
       duration: 0.25,
-      offset: new HeadingPitchRange(inspectionHeading.current, inspectionPitch.current, 0),
+      offset: new HeadingPitchRange(inspectionHeading.current, inspectionPitch.current, Math.max(55, 85 * placement.scale)),
     });
-  };
-
-  const applyStreetViewMatchCamera = (headHeight = streetViewHeadHeight) => {
-    const viewer = viewerRef.current;
-    const match = streetViewMatchLocation.current;
-    const model = modelPrimitive.current;
-    if (!viewer || !match) return;
-
-    const cameraHeightMeters = match.groundHeight + headHeight;
-    if (!model?.ready) {
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewer.camera.setView({
-        destination: Cartesian3.fromDegrees(match.longitude, match.latitude, cameraHeightMeters),
-        orientation: {
-          heading: CesiumMath.toRadians(placement.heading),
-          pitch: 0,
-          roll: 0,
-        },
-      });
-      viewer.scene.requestRender();
-      return;
-    }
-    const targetCartographic = Cartographic.fromCartesian(model.boundingSphere.center);
-    const cameraLatitude = CesiumMath.toRadians(match.latitude);
-    const targetLatitude = targetCartographic.latitude;
-    const longitudeDelta = targetCartographic.longitude - CesiumMath.toRadians(match.longitude);
-    const bearing = Math.atan2(
-      Math.sin(longitudeDelta) * Math.cos(targetLatitude),
-      (Math.cos(cameraLatitude) * Math.sin(targetLatitude))
-        - (Math.sin(cameraLatitude) * Math.cos(targetLatitude) * Math.cos(longitudeDelta)),
-    );
-    const northMeters = (CesiumMath.toDegrees(targetLatitude) - match.latitude) * 111_320;
-    const eastMeters = (CesiumMath.toDegrees(targetCartographic.longitude) - match.longitude)
-      * 111_320 * Math.cos(cameraLatitude);
-    const horizontalDistance = Math.max(1, Math.hypot(northMeters, eastMeters));
-    const pitch = Math.atan2(targetCartographic.height - cameraHeightMeters, horizontalDistance);
-
-    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-    viewer.camera.setView({
-      destination: Cartesian3.fromDegrees(match.longitude, match.latitude, cameraHeightMeters),
-      orientation: {
-        heading: bearing,
-        pitch,
-        roll: 0,
-      },
-    });
-    viewer.scene.requestRender();
-  };
-
-  const applyStreetViewFieldOfView = (fieldOfView: number) => {
-    const viewer = viewerRef.current;
-    if (!viewer || !('fov' in viewer.camera.frustum)) return;
-    viewer.camera.frustum.fov = CesiumMath.toRadians(fieldOfView);
-    viewer.scene.requestRender();
-  };
-
-  const captureStreetViewMatch = () => {
-    const viewer = viewerRef.current;
-    const match = streetViewMatchLocation.current;
-    if (!viewer || !match) return;
-    const remove = viewer.scene.postRender.addEventListener(() => {
-      remove();
-      viewer.canvas.toBlob((blob) => {
-        if (!blob) {
-          setError('The browser could not create the Street View reference image.');
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${(fileName || 'house').replace(/\.glb$/i, '')}-street-view-match.png`;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-        setStreetViewStatus('Draft Street View match downloaded');
-      }, 'image/png');
-    });
-    viewer.scene.requestRender();
-  };
-
-  const loadStreetViewOption = async (option: StreetViewOption, index: number) => {
-    const viewer = viewerRef.current;
-    const provider = streetViewProvider.current;
-    if (!viewer || !provider) return;
-
-    setIsLoadingStreetView(true);
-    setStreetViewStatus(`Loading nearby Street View ${index + 1}…`);
-    setError('');
-    try {
-      const [streetTerrain] = await sampleTerrainMostDetailed(viewer.terrainProvider, [
-        Cartographic.fromDegrees(option.longitude, option.latitude),
-      ]);
-      const groundHeight = streetTerrain.height ?? (placedHeight.current - placement.elevationOffset);
-      const panorama = await provider.loadPanorama({
-        cartographic: Cartographic.fromDegrees(option.longitude, option.latitude, groundHeight),
-        panoId: option.panoId,
-      });
-      viewer.scene.primitives.add(panorama);
-      if (streetViewPanorama.current) viewer.scene.primitives.remove(streetViewPanorama.current);
-      streetViewPanorama.current = panorama;
-      streetViewMatchLocation.current = {
-        latitude: option.latitude,
-        longitude: option.longitude,
-        groundHeight,
-        panoId: option.panoId,
-      };
-      setActiveStreetViewIndex(index);
-      applyStreetViewMatchCamera();
-      setStreetViewStatus(`Street View ${index + 1} of ${streetViewOptions.length || 1} · proposed house locked`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'That linked Street View panorama could not be loaded.');
-      setStreetViewStatus('The previous Street View remains active');
-    } finally {
-      setIsLoadingStreetView(false);
-    }
-  };
-
-  const collectLinkedStreetViews = async (
-    provider: GoogleStreetViewCubeMapPanoramaProvider,
-    start: StreetViewOption,
-  ) => {
-    const collected: StreetViewOption[] = [];
-    const visited = new Set<string>();
-    const queue: StreetViewOption[] = [start];
-
-    while (queue.length && collected.length < 4) {
-      const candidate = queue.shift();
-      if (!candidate || visited.has(candidate.panoId)) continue;
-      visited.add(candidate.panoId);
-      try {
-        const metadata = await provider.getPanoIdMetadata(candidate.panoId) as StreetViewMetadata;
-        const latitude = metadata.location?.lat;
-        const longitude = metadata.location?.lng;
-        const resolved = Number.isFinite(latitude) && Number.isFinite(longitude)
-          ? { ...candidate, latitude: latitude as number, longitude: longitude as number }
-          : candidate;
-        collected.push(resolved);
-
-        const links = (metadata.links ?? [])
-          .map((link) => ({
-            panoId: link.panoId ?? link.pano_id ?? link.pano ?? '',
-            heading: link.heading,
-          }))
-          .filter((link) => link.panoId && !visited.has(link.panoId));
-        links.sort((a, b) => {
-          const incomingHeading = candidate.linkHeading;
-          if (incomingHeading === undefined) return 0;
-          const angularDifference = (heading?: number) => heading === undefined
-            ? 360
-            : Math.abs((((heading - incomingHeading) + 540) % 360) - 180);
-          return angularDifference(a.heading) - angularDifference(b.heading);
-        });
-        links.forEach((link) => queue.push({
-          panoId: link.panoId,
-          latitude: resolved.latitude,
-          longitude: resolved.longitude,
-          linkHeading: link.heading,
-        }));
-      } catch {
-        collected.push(candidate);
-      }
-    }
-    return collected;
-  };
-
-  const exitStreetView = () => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-
-    if (streetViewPanorama.current) {
-      viewer.scene.primitives.remove(streetViewPanorama.current);
-      streetViewPanorama.current = undefined;
-    }
-    viewer.scene.globe.show = true;
-    if (modelPrimitive.current) {
-      modelPrimitive.current.show = true;
-      modelPrimitive.current.color = Color.WHITE.withAlpha(1);
-    }
-    if (anchorEntity.current) anchorEntity.current.show = true;
-    if (spawnEntity.current) spawnEntity.current.show = true;
-
-    const controls = viewer.scene.screenSpaceCameraController;
-    controls.enableRotate = true;
-    controls.enableTilt = true;
-    controls.enableTranslate = true;
-    controls.enableZoom = true;
-    controls.enableLook = true;
-
-    const savedCamera = streetViewReturnCamera.current;
-    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-    if (savedCamera) {
-      viewer.camera.setView({
-        destination: savedCamera.position,
-        orientation: { direction: savedCamera.direction, up: savedCamera.up },
-      });
-    }
-    streetViewReturnCamera.current = undefined;
-    streetViewMatchLocation.current = undefined;
-    setStreetViewOptions([]);
-    setActiveStreetViewIndex(0);
-    setIsStreetView(false);
-    setStreetViewStatus('Returned to the site model');
-  };
-
-  const enterStreetView = async () => {
-    const viewer = viewerRef.current;
-    if (!viewer || isLoadingStreetView) return;
-
-    if (document.pointerLockElement) document.exitPointerLock();
-    setIsLoadingStreetView(true);
-    setStreetViewStatus('Finding nearby Street View coverage…');
-    setError('');
-
-    try {
-      if (!streetViewProvider.current) {
-        const ionServer = Ion.defaultServer instanceof Resource
-          ? Ion.defaultServer.url
-          : Ion.defaultServer;
-        const endpoint = `${ionServer.replace(/\/$/, '')}/experimental/panoramas/google`;
-        const request = Resource.fetchJson({
-          url: endpoint,
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!request) throw new Error('Cesium could not start the Street View request. Please try again.');
-        const configuration = await request as { options?: { key?: string; url?: string } };
-        if (!configuration.options?.key || !configuration.options.url) {
-          throw new Error('This Cesium token does not currently provide Google Street View access.');
-        }
-        GoogleMaps.defaultStreetViewStaticApiKey = configuration.options.key;
-        GoogleMaps.streetViewStaticApiEndpoint = configuration.options.url;
-        streetViewProvider.current = await GoogleStreetViewCubeMapPanoramaProvider.fromUrl({});
-      }
-
-      const searchPosition = Cartographic.fromDegrees(placement.longitude, placement.latitude, 0);
-      const panoramaResult = await streetViewProvider.current.getNearestPanoId(searchPosition, 300) as {
-        panoId?: string;
-        latitude?: number;
-        longitude?: number;
-        location?: { lat?: number; lng?: number };
-      } | undefined;
-      const latitude = panoramaResult?.latitude ?? panoramaResult?.location?.lat;
-      const longitude = panoramaResult?.longitude ?? panoramaResult?.location?.lng;
-      if (!panoramaResult?.panoId || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        throw new Error('No Google Street View panorama was found within 300 meters of this property.');
-      }
-
-      streetViewReturnCamera.current = {
-        position: Cartesian3.clone(viewer.camera.positionWC),
-        direction: Cartesian3.clone(viewer.camera.directionWC),
-        up: Cartesian3.clone(viewer.camera.upWC),
-      };
-      setStreetViewStatus('Following connected Street View locations…');
-      const linkedOptions = await collectLinkedStreetViews(streetViewProvider.current, {
-        panoId: panoramaResult.panoId,
-        latitude: latitude as number,
-        longitude: longitude as number,
-      });
-      setStreetViewOptions(linkedOptions);
-
-      viewer.scene.globe.show = false;
-      if (modelPrimitive.current) {
-        modelPrimitive.current.show = Boolean(modelUrl);
-        modelPrimitive.current.color = Color.WHITE.withAlpha(streetViewModelOpacity);
-      }
-      if (anchorEntity.current) anchorEntity.current.show = false;
-      if (spawnEntity.current) spawnEntity.current.show = false;
-
-      setShowStreetViewModel(true);
-      applyStreetViewFieldOfView(streetViewFieldOfView);
-      const controls = viewer.scene.screenSpaceCameraController;
-      controls.enableRotate = true;
-      controls.enableTilt = true;
-      controls.enableTranslate = false;
-      controls.enableZoom = false;
-      controls.enableLook = true;
-      setIsStreetView(true);
-      await loadStreetViewOption(linkedOptions[0], 0);
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Street View could not be loaded.';
-      setError(message);
-      setStreetViewStatus('');
-      if (streetViewPanorama.current) {
-        viewer.scene.primitives.remove(streetViewPanorama.current);
-        streetViewPanorama.current = undefined;
-      }
-      streetViewReturnCamera.current = undefined;
-    } finally {
-      setIsLoadingStreetView(false);
-    }
   };
 
   const enterWalkingMode = () => {
@@ -1270,6 +1076,7 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
     walkVerticalVelocity.current = 0;
     walkJumpCount.current = 0;
     lastWalkFrame.current = performance.now();
+    navigationMode.current = 'walk';
     viewer.camera.setView({
       destination: Cartesian3.fromDegrees(
         start.longitude,
@@ -1287,217 +1094,50 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
     }
   };
 
-  const exportBlenderPackage = async () => {
+  const enterSiteFlight = () => {
     const viewer = viewerRef.current;
-    if (!viewer || !modelUrl || !modelFile || !modelPrimitive.current || isCapturing) return;
-
-    if (document.pointerLockElement) document.exitPointerLock();
-    setIsCapturing(true);
-    setCaptureStatus('Preparing Blender package…');
-    setError('');
-
-    const savedPosition = Cartesian3.clone(viewer.camera.positionWC);
-    const savedDirection = Cartesian3.clone(viewer.camera.directionWC);
-    const savedUp = Cartesian3.clone(viewer.camera.upWC);
-    const savedHeading = viewer.camera.heading;
-    const savedPitch = viewer.camera.pitch;
-    const savedRoll = viewer.camera.roll;
-    const target = Cartesian3.fromDegrees(
-      placement.longitude,
-      placement.latitude,
-      placedHeight.current + (4 * Math.max(placement.scale, 0.25)),
-    );
-    const range = Math.max(35, 55 * placement.scale);
-    const baseName = (fileName.replace(/\.glb$/i, '') || 'house').replace(/[^a-z0-9_-]+/gi, '-');
-
-    const renderPng = () => new Promise<Blob>((resolve, reject) => {
-      const remove = viewer.scene.postRender.addEventListener(() => {
-        remove();
-        viewer.canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('The browser could not create the screenshot.'));
-        }, 'image/png');
-      });
-      viewer.scene.requestRender();
+    if (!viewer) return;
+    const bounded = clampToRectangle(placement.longitude, placement.latitude, projectLimitRectangle(property));
+    flightCoordinates.current = bounded;
+    const groundPosition = Cartographic.fromDegrees(bounded.longitude, bounded.latitude);
+    const groundHeight = viewer.scene.globe.getHeight(groundPosition)
+      ?? siteGroundHeight.current;
+    flightGroundHeight.current = groundHeight;
+    flightHeight.current = FLIGHT_DEFAULT_HEIGHT;
+    walkHeading.current = CesiumMath.toRadians(placement.heading);
+    walkPitch.current = CesiumMath.toRadians(-18);
+    lastWalkFrame.current = performance.now();
+    navigationMode.current = 'flight';
+    viewer.camera.setView({
+      destination: Cartesian3.fromDegrees(
+        bounded.longitude,
+        bounded.latitude,
+        groundHeight + flightHeight.current,
+      ),
+      orientation: { heading: walkHeading.current, pitch: walkPitch.current, roll: 0 },
     });
-
-    try {
-      const captures: Blob[] = [];
-      for (let index = 0; index < 8; index += 1) {
-        setCaptureStatus(`Capturing view ${index + 1} of 8…`);
-        viewer.camera.lookAt(
-          target,
-          new HeadingPitchRange(
-            CesiumMath.toRadians(index * 45),
-            CesiumMath.toRadians(-18),
-            range,
-          ),
-        );
-        captures.push(await renderPng());
-      }
-
-      setCaptureStatus('Building contact sheet and sampling terrain…');
-      const bitmaps = await Promise.all(captures.map((capture) => createImageBitmap(capture)));
-      const tileWidth = 640;
-      const tileHeight = Math.round(tileWidth * (viewer.canvas.height / viewer.canvas.width));
-      const contactSheet = document.createElement('canvas');
-      contactSheet.width = tileWidth * 4;
-      contactSheet.height = tileHeight * 2;
-      const context = contactSheet.getContext('2d');
-      if (!context) throw new Error('The browser could not create the contact sheet.');
-      bitmaps.forEach((bitmap, index) => {
-        const x = (index % 4) * tileWidth;
-        const y = Math.floor(index / 4) * tileHeight;
-        context.drawImage(bitmap, x, y, tileWidth, tileHeight);
-        context.fillStyle = 'rgba(2, 6, 23, 0.72)';
-        context.fillRect(x + 12, y + 12, 92, 28);
-        context.fillStyle = '#ffffff';
-        context.font = '16px sans-serif';
-        context.fillText(`${index * 45}°`, x + 24, y + 32);
-        bitmap.close();
+    const pointerLockRequest = viewer.canvas.requestPointerLock();
+    if (pointerLockRequest) {
+      void pointerLockRequest.catch(() => {
+        navigationMode.current = null;
+        viewer.scene.screenSpaceCameraController.enableInputs = true;
+        setError('Site flight needs pointer lock. Click Site flight and allow mouse control.');
       });
-      const contactSheetBlob = await new Promise<Blob>((resolve, reject) => {
-        contactSheet.toBlob((blob) => blob ? resolve(blob) : reject(new Error('The contact sheet could not be encoded.')), 'image/png');
-      });
-
-      const gridRadius = 3;
-      const spacingMeters = 6;
-      const terrainPoints: Array<{
-        eastMeters: number;
-        northMeters: number;
-        latitude: number;
-        longitude: number;
-        elevationMeters: number;
-      }> = [];
-      const cartographics: Cartographic[] = [];
-      for (let northIndex = -gridRadius; northIndex <= gridRadius; northIndex += 1) {
-        for (let eastIndex = -gridRadius; eastIndex <= gridRadius; eastIndex += 1) {
-          const northMeters = northIndex * spacingMeters;
-          const eastMeters = eastIndex * spacingMeters;
-          const latitude = placement.latitude + (northMeters / 111_320);
-          const longitude = placement.longitude + (eastMeters / (111_320 * Math.cos(CesiumMath.toRadians(placement.latitude))));
-          terrainPoints.push({ eastMeters, northMeters, latitude, longitude, elevationMeters: 0 });
-          cartographics.push(Cartographic.fromDegrees(longitude, latitude));
-        }
-      }
-      const sampledTerrain = await sampleTerrainMostDetailed(viewer.terrainProvider, cartographics);
-      sampledTerrain.forEach((sample, index) => {
-        terrainPoints[index].elevationMeters = sample.height ?? 0;
-      });
-
-      const modelBytes = new Uint8Array(await modelFile.arrayBuffer());
-      const modelDigest = await crypto.subtle.digest('SHA-256', modelBytes);
-      const modelSha256 = Array.from(new Uint8Array(modelDigest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-      const cameraCartographic = Cartographic.fromCartesian(savedPosition);
-      const currentSpawn = spawnPoint ? spawnWorldPoint(spawnPoint, placement, placedHeight.current) : null;
-      const spawnLocalOffset = spawnPoint?.localOffset ?? (currentSpawn ? {
-        eastMeters: (currentSpawn.longitude - placement.longitude) * 111_320 * Math.cos(CesiumMath.toRadians(placement.latitude)),
-        northMeters: (currentSpawn.latitude - placement.latitude) * 111_320,
-        upMeters: currentSpawn.surfaceHeight - placedHeight.current,
-      } : null);
-      const activeModel = modelPrimitive.current;
-      const placementData = {
-        schema: 'timpson-site-package-v1',
-        exportedAt: new Date().toISOString(),
-        model: {
-          fileName: modelFile.name,
-          bytes: modelFile.size,
-          lastModified: new Date(modelFile.lastModified).toISOString(),
-          sha256: modelSha256,
-        },
-        address: property.address,
-        parcel: property.parcel,
-        statedLotSize: property.statedLotSize,
-        jurisdiction: property.jurisdiction,
-        parcelSourceUrl: property.sourceUrl,
-        placement: {
-          ...placement,
-          anchorElevationMeters: placedHeight.current,
-          groundElevationMeters: placedHeight.current - placement.elevationOffset,
-          headingConvention: 'Clockwise degrees from true north',
-          modelMatrixEcef: activeModel
-            ? Array.from({ length: 16 }, (_, index) => activeModel.modelMatrix[index])
-            : null,
-        },
-        coordinateFrame: {
-          origin: 'House SITE_ANCHOR at confirmed latitude, longitude, and anchor elevation',
-          units: 'meters',
-          xAxis: 'east',
-          yAxis: 'north',
-          zAxis: 'up',
-        },
-        firstPersonSpawn: currentSpawn ? { ...currentSpawn, localOffsetFromAnchor: spawnLocalOffset } : null,
-        exportCamera: {
-          latitude: CesiumMath.toDegrees(cameraCartographic.latitude),
-          longitude: CesiumMath.toDegrees(cameraCartographic.longitude),
-          elevationMeters: cameraCartographic.height,
-          headingDegrees: CesiumMath.toDegrees(savedHeading),
-          pitchDegrees: CesiumMath.toDegrees(savedPitch),
-          rollDegrees: CesiumMath.toDegrees(savedRoll),
-          directionEcef: { x: savedDirection.x, y: savedDirection.y, z: savedDirection.z },
-          upEcef: { x: savedUp.x, y: savedUp.y, z: savedUp.z },
-        },
-        modelBounds: activeModel?.ready ? {
-          radiusMeters: activeModel.boundingSphere.radius,
-          centerEcef: {
-            x: activeModel.boundingSphere.center.x,
-            y: activeModel.boundingSphere.center.y,
-            z: activeModel.boundingSphere.center.z,
-          },
-        } : null,
-        parcelBoundary: Array.from({ length: property.boundary.length / 2 }, (_, index) => ({
-          longitude: property.boundary[index * 2],
-          latitude: property.boundary[(index * 2) + 1],
-        })),
-        captureViews: Array.from({ length: 8 }, (_, index) => ({ headingDegrees: index * 45, pitchDegrees: -18, rangeMeters: range })),
-        terrainGrid: { spacingMeters, width: 7, points: terrainPoints },
-        accuracyNote: 'Cesium terrain and county parcel data are approximate design-context references, not survey data.',
-      };
-      const checkpoint: SavedPlacementCheckpoint = {
-        placement: { ...placement },
-        spawnPoint,
-        confirmedAt: placementData.exportedAt,
-      };
-      try {
-        window.localStorage.setItem(placementStorageKey(propertyStorageId(property), modelFile.name), JSON.stringify(checkpoint));
-      } catch {
-        // The downloaded package remains the durable checkpoint if browser storage is unavailable.
-      }
-      const readme = `Timpson Blender site proof of concept\n\nImport ${modelFile.name}. Treat SITE_ANCHOR as local 0,0,0 with X east, Y north, Z up. Use placement.json for the confirmed geographic anchor, heading, elevation, scale, model fingerprint, FP spawn, and export camera. Use site-reference.png for visual context. terrain-samples.json contains a 7x7 grid at 6-meter spacing centered on the house anchor. Build a simple low-poly yard surface from the samples, keep the finished floor level, and extend foundation geometry down to meet the sampled terrain. This is design context, not survey-grade grading.\n`;
-      const packageBytes = zipSync({
-        [modelFile.name]: modelBytes,
-        'site-reference.png': new Uint8Array(await contactSheetBlob.arrayBuffer()),
-        'placement.json': strToU8(JSON.stringify(placementData, null, 2)),
-        'terrain-samples.json': strToU8(JSON.stringify(placementData.terrainGrid, null, 2)),
-        'README.txt': strToU8(readme),
-      }, { level: 6 });
-      const packageUrl = URL.createObjectURL(new Blob([packageBytes], { type: 'application/zip' }));
-      const link = document.createElement('a');
-      link.href = packageUrl;
-      link.download = `${baseName}-blender-site-package.zip`;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(packageUrl), 10_000);
-      setCaptureStatus('Blender package downloaded');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The Blender package could not be created.');
-      setCaptureStatus('');
-    } finally {
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewer.camera.setView({
-        destination: savedPosition,
-        orientation: { direction: savedDirection, up: savedUp },
-      });
-      setIsCapturing(false);
     }
   };
 
   return (
     <div className="relative h-full w-full">
       <div ref={container} className="h-full w-full" />
-      {!isStreetView && <div className="absolute left-4 top-4 z-10 max-h-[calc(100%-2rem)] w-72 overflow-y-auto rounded-xl bg-slate-950/85 p-4 text-sm shadow-2xl backdrop-blur">
-        <div className="font-semibold">House placement</div>
+      {!isWalking && <div className="absolute left-4 top-4 z-10 max-h-[calc(100%-2rem)] w-80 overflow-y-auto rounded-xl border border-white/10 bg-slate-950/90 p-4 text-sm shadow-2xl backdrop-blur">
+        <div className="font-semibold">Project model</div>
         <div className="mt-1 truncate text-xs text-slate-400">{fileName || 'Open a GLB above to begin'}</div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <details className="mt-4 rounded-lg border border-white/10 bg-white/[0.03]">
+          <summary className="cursor-pointer select-none px-3 py-2.5 text-xs font-semibold text-slate-200 hover:text-white">
+            Fine-tune placement
+          </summary>
+          <div className="border-t border-white/10 p-3">
+        <div className="grid grid-cols-2 gap-3">
           {([
             ['latitude', 'Latitude', 0.000001],
             ['longitude', 'Longitude', 0.000001],
@@ -1577,8 +1217,11 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             ))}
           </div>
         </div>
+          </div>
+        </details>
         <div className="mt-4">
-          <div className="text-xs text-slate-300">Adjust view around house</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Camera</div>
+          <div className="mt-2 text-xs text-slate-300">Adjust view around house</div>
           <div className="mt-2 grid grid-cols-4 gap-1">
             {([
               ['↶', -15, 0, 'Orbit left'],
@@ -1600,7 +1243,30 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             ))}
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        {embeddedSiteImageNodes.length > 0 && (
+          <label className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-sky-300/20 bg-sky-400/5 px-3 py-2.5 text-xs text-slate-200">
+            <span>
+              <span className="block font-semibold">Embedded site imagery</span>
+              <span className="mt-0.5 block text-[11px] text-slate-400">Off by default to prevent overlap with Cesium</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={showEmbeddedSiteImagery}
+              onChange={(event) => setShowEmbeddedSiteImagery(event.target.checked)}
+              className="h-4 w-4 accent-orange"
+            />
+          </label>
+        )}
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
+          <div className="col-span-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Explore</div>
+          <button
+            type="button"
+            disabled={!viewerReady}
+            onClick={enterSiteFlight}
+            className="col-span-2 rounded bg-orange px-3 py-2.5 font-semibold hover:bg-[#a94718] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Enter site flight
+          </button>
           <button
             type="button"
             disabled={!modelUrl || modelStatus !== 'Model placed'}
@@ -1613,15 +1279,15 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             type="button"
             disabled={!modelUrl || modelStatus !== 'Model placed'}
             onClick={enterWalkingMode}
-            className="rounded bg-orange px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-white/20 px-3 py-2 font-semibold hover:border-orange disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Enter walking
+            Walk house
           </button>
+          <div className="col-span-2 mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Model setup</div>
           <button
             type="button"
             onClick={() => {
               setIsChoosingSpawn(false);
-              setIsChoosingGroundContact(false);
               setIsChoosingAnchor((choosing) => !choosing);
             }}
             className={`col-span-2 rounded-lg px-3 py-2 font-semibold ${isChoosingAnchor ? 'bg-orange-500 text-slate-950' : 'border border-orange-300/60 text-orange-200 hover:border-orange-300'}`}
@@ -1633,28 +1299,12 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             disabled={!modelUrl || modelStatus !== 'Model placed'}
             onClick={() => {
               setIsChoosingAnchor(false);
-              setIsChoosingGroundContact(false);
               setIsChoosingSpawn((choosing) => !choosing);
             }}
             className={`col-span-2 rounded-lg px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${isChoosingSpawn ? 'bg-cyan-400 text-slate-950' : 'border border-cyan-300/60 text-cyan-100 hover:border-cyan-300'}`}
           >
             {isChoosingSpawn ? 'Click a floor or ground point…' : 'Choose FP spawn'}
           </button>
-          <button
-            type="button"
-            disabled={!modelUrl || modelStatus !== 'Model placed'}
-            onClick={() => {
-              setIsChoosingAnchor(false);
-              setIsChoosingSpawn(false);
-              setIsChoosingGroundContact((choosing) => !choosing);
-            }}
-            className={`col-span-2 rounded-lg px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${isChoosingGroundContact ? 'bg-violet-400 text-slate-950' : 'border border-violet-300/60 text-violet-100 hover:border-violet-300'}`}
-          >
-            {isChoosingGroundContact ? 'Click the foundation point now…' : 'Fit model point to terrain'}
-          </button>
-          <div className="col-span-2 text-[11px] leading-4 text-slate-400">
-            Pick a bottom edge or foundation point that should touch the earth. This adjusts the whole model height.
-          </div>
           {spawnPoint && (
             <button
               type="button"
@@ -1664,193 +1314,17 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
               Reset FP spawn to model anchor
             </button>
           )}
-          <button
-            type="button"
-            disabled={!viewerReady || isLoadingStreetView}
-            onClick={() => isStreetView ? exitStreetView() : void enterStreetView()}
-            className="col-span-2 rounded-lg border border-sky-300/60 px-3 py-2 font-semibold text-sky-100 hover:border-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isLoadingStreetView
-              ? 'Finding Street View…'
-              : isStreetView
-                ? 'Return to site model'
-                : 'View existing Street View'}
-          </button>
-          <button
-            type="button"
-            disabled={!modelUrl || modelStatus !== 'Model placed' || isCapturing}
-            onClick={() => void exportBlenderPackage()}
-            className="col-span-2 rounded border border-white/20 px-3 py-2 font-semibold text-white hover:border-orange disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isCapturing ? 'Building package…' : 'Confirm & export for Blender'}
-          </button>
         </div>
         {modelStatus && <div className="mt-2 text-xs text-slate-300">{modelStatus}</div>}
-        {captureStatus && <div className="mt-2 text-xs text-[#F3A06F]">{captureStatus}</div>}
-        {streetViewStatus && <div className="mt-2 text-xs text-sky-200">{streetViewStatus}</div>}
       </div>}
-      {isStreetView && (
-        <div className="absolute right-4 top-4 z-10 max-h-[calc(100%-2rem)] w-72 overflow-y-auto rounded-xl bg-slate-950/90 p-4 text-sm shadow-2xl backdrop-blur">
-          <div className="font-semibold">Street View photo match</div>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Draft alignment only. Foreground trees, fences, and the existing building are not automatically masked.
-          </p>
-          <div className="mt-3 rounded border border-orange/20 bg-orange/10 px-3 py-2 text-xs leading-5 text-white/80">
-            The proposed house is locked to its confirmed geographic placement.
-          </div>
-          <label className="mt-4 block">
-            <span className="flex justify-between text-xs text-slate-300">
-              <span>Head height</span>
-              <span>{(streetViewHeadHeight * 3.28084).toFixed(1)} ft</span>
-            </span>
-            <input
-              type="range"
-              min="1.5"
-              max="5"
-              step="0.1"
-              value={streetViewHeadHeight}
-              onChange={(event) => {
-                const value = event.target.valueAsNumber;
-                setStreetViewHeadHeight(value);
-                applyStreetViewMatchCamera(value);
-              }}
-              className="mt-2 w-full accent-orange"
-            />
-          </label>
-          <label className="mt-3 block">
-            <span className="flex justify-between text-xs text-slate-300">
-              <span>Wider view</span>
-              <span>{streetViewFieldOfView.toFixed(0)}°</span>
-            </span>
-            <input
-              type="range"
-              min="45"
-              max="115"
-              step="1"
-              value={streetViewFieldOfView}
-              onChange={(event) => {
-                const value = event.target.valueAsNumber;
-                setStreetViewFieldOfView(value);
-                applyStreetViewFieldOfView(value);
-              }}
-              className="mt-2 w-full accent-sky-400"
-            />
-            <span className="mt-1 block text-[11px] leading-4 text-slate-500">
-              A wider lens shows more of the site without moving the house or inventing a new Street View position.
-            </span>
-          </label>
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <span>Connected road views</span>
-              <span>{streetViewOptions.length || 1} found</span>
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={isLoadingStreetView || activeStreetViewIndex <= 0}
-                onClick={() => {
-                  const index = activeStreetViewIndex - 1;
-                  void loadStreetViewOption(streetViewOptions[index], index);
-                }}
-                className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:border-sky-300 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                ← Previous
-              </button>
-              <button
-                type="button"
-                disabled={isLoadingStreetView || activeStreetViewIndex >= streetViewOptions.length - 1}
-                onClick={() => {
-                  const index = activeStreetViewIndex + 1;
-                  void loadStreetViewOption(streetViewOptions[index], index);
-                }}
-                className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:border-sky-300 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                Next →
-              </button>
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-1.5">
-              {streetViewOptions.map((option, index) => {
-                const northMeters = (option.latitude - placement.latitude) * 111_320;
-                const eastMeters = (option.longitude - placement.longitude)
-                  * 111_320 * Math.cos(CesiumMath.toRadians(placement.latitude));
-                const distanceFeet = Math.round(Math.hypot(northMeters, eastMeters) * 3.28084);
-                return (
-                  <button
-                    key={option.panoId}
-                    type="button"
-                    disabled={isLoadingStreetView}
-                    onClick={() => void loadStreetViewOption(option, index)}
-                    className={`rounded-md border px-2 py-2 text-left text-[11px] disabled:opacity-40 ${index === activeStreetViewIndex ? 'border-sky-300 bg-sky-400/15 text-sky-100' : 'border-white/10 text-slate-300 hover:border-sky-300/60'}`}
-                  >
-                    <span className="block font-semibold">Road stop {index + 1}</span>
-                    <span className="text-slate-500">about {distanceFeet} ft away</span>
-                  </button>
-                );
-              })}
-            </div>
-            {streetViewOptions.length <= 1 && (
-              <p className="mt-2 text-[11px] leading-4 text-amber-200/80">
-                Google returned this panorama but no connected road links through Cesium, so only the nearest real view is available.
-              </p>
-            )}
-          </div>
-          <label className="mt-4 block">
-            <span className="flex justify-between text-xs text-slate-300">
-              <span>Proposed model opacity</span>
-              <span>{Math.round(streetViewModelOpacity * 100)}%</span>
-            </span>
-            <input
-              type="range"
-              min="0.1"
-              max="1"
-              step="0.05"
-              value={streetViewModelOpacity}
-              onChange={(event) => {
-                const value = event.target.valueAsNumber;
-                setStreetViewModelOpacity(value);
-                if (modelPrimitive.current) modelPrimitive.current.color = Color.WHITE.withAlpha(value);
-                viewerRef.current?.scene.requestRender();
-              }}
-              className="mt-2 w-full accent-violet-400"
-            />
-          </label>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={!modelUrl}
-              onClick={() => {
-                const next = !showStreetViewModel;
-                setShowStreetViewModel(next);
-                if (modelPrimitive.current) modelPrimitive.current.show = next;
-                viewerRef.current?.scene.requestRender();
-              }}
-              className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold hover:border-violet-300 disabled:opacity-40"
-            >
-              {showStreetViewModel ? 'Hide proposal' : 'Show proposal'}
-            </button>
-            <button
-              type="button"
-              onClick={() => applyStreetViewMatchCamera()}
-              className="rounded border border-white/20 px-3 py-2 text-xs font-semibold hover:border-orange"
-            >
-              Re-aim at house
-            </button>
-            <button
-              type="button"
-              onClick={captureStreetViewMatch}
-              className="col-span-2 rounded bg-orange px-3 py-2 font-semibold hover:bg-[#a94718]"
-            >
-              Capture matched view
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="pointer-events-none absolute bottom-5 left-5 rounded-xl bg-slate-950/80 px-4 py-3 text-xs leading-5 text-slate-200 shadow-xl backdrop-blur">
-        {isStreetView ? (
+      {(isFlying || isWalking) && <div className="pointer-events-none absolute bottom-5 left-5 rounded-xl bg-slate-950/80 px-4 py-3 text-xs leading-5 text-slate-200 shadow-xl backdrop-blur">
+        {isFlying ? (
           <>
-            <div>Drag: look around existing conditions</div>
-            <div>Shift + drag: tilt</div>
-            <div>Use the panel to return to the model</div>
+            <div>WASD/arrows: fly over site</div>
+            <div>Shift: move faster</div>
+            <div>Q / E: lower / raise altitude</div>
+            <div>Mouse: look · Escape: exit</div>
+            <div className="mt-1 text-orange-200">Limited to the project area</div>
           </>
         ) : isWalking ? (
           <>
@@ -1859,28 +1333,22 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
             <div>Mouse: look</div>
             <div>Escape: leave walking mode</div>
           </>
-        ) : (
-          <>
-            <div>Drag: rotate</div>
-            <div>Two-finger scroll/pinch: zoom</div>
-            <div>Shift + drag: tilt</div>
-            <div>Control + drag: look</div>
-          </>
-        )}
-      </div>
-      {isWalking && (
+        ) : null}
+      </div>}
+      {(isWalking || isFlying) && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow" />
       )}
-      <button
-        type="button"
-        onClick={() => {
-          if (isStreetView) exitStreetView();
-          else if (viewerRef.current) flyToProperty(viewerRef.current);
-        }}
-        className="absolute bottom-5 right-5 rounded bg-orange px-4 py-3 text-sm font-semibold text-white shadow-xl hover:bg-[#a94718]"
-      >
-        Reset view
-      </button>
+      {!isWalking && (
+        <button
+          type="button"
+          onClick={() => {
+            if (viewerRef.current) flyToProperty(viewerRef.current);
+          }}
+          className="absolute bottom-5 right-5 rounded bg-orange px-4 py-3 text-sm font-semibold text-white shadow-xl hover:bg-[#a94718]"
+        >
+          Reset view
+        </button>
+      )}
       {error && (
         <div className="absolute left-1/2 top-6 max-w-lg -translate-x-1/2 rounded-xl border border-red-400/40 bg-slate-950/90 px-5 py-4 text-sm text-red-200 shadow-2xl">
           {error}
@@ -1892,20 +1360,23 @@ function Terrain({ property, token, modelUrl, modelFile, fileName, placement, on
 
 export default function CesiumViewer() {
   const configuredToken = import.meta.env.VITE_CESIUM_ION_TOKEN?.trim() ?? '';
+  const presetProperty = useRef(readProjectPreset()).current;
   const [tokenInput, setTokenInput] = useState(configuredToken);
   const [activeToken, setActiveToken] = useState(configuredToken);
-  const [property, setProperty] = useState<PropertySite | null>(null);
+  const [property, setProperty] = useState<PropertySite | null>(presetProperty);
   const [parcelInput, setParcelInput] = useState('');
   const [propertyLabel, setPropertyLabel] = useState('');
   const [isLookingUpParcel, setIsLookingUpParcel] = useState(false);
   const [propertyLookupError, setPropertyLookupError] = useState('');
   const [recentProperties, setRecentProperties] = useState<RecentProperty[]>(readRecentProperties);
   const [modelUrl, setModelUrl] = useState('');
-  const [modelFile, setModelFile] = useState<File | null>(null);
+  const [modelBlob, setModelBlob] = useState<Blob | null>(null);
   const [fileName, setFileName] = useState('');
+  const [embeddedSiteImageNodes, setEmbeddedSiteImageNodes] = useState<string[]>([]);
+  const [cacheStatus, setCacheStatus] = useState('');
   const [placement, setPlacement] = useState<Placement>({
-    latitude: 0,
-    longitude: 0,
+    latitude: presetProperty?.latitude ?? 0,
+    longitude: presetProperty?.longitude ?? 0,
     heading: 0,
     elevationOffset: 0,
     scale: 1,
@@ -1917,12 +1388,59 @@ export default function CesiumViewer() {
     };
   }, [modelUrl]);
 
+  useEffect(() => {
+    if (!property) return;
+    let cancelled = false;
+    setCacheStatus('Checking saved project…');
+    void readCachedProjectModel(propertyStorageId(property))
+      .then((cached) => {
+        if (cancelled) return;
+        if (!cached) {
+          setCacheStatus('');
+          return;
+        }
+        setPlacement(cached.placement);
+        setModelBlob(cached.blob);
+        setModelUrl(URL.createObjectURL(cached.blob));
+        setFileName(cached.fileName);
+        setEmbeddedSiteImageNodes(cached.embeddedSiteImageNodes ?? []);
+        setCacheStatus(`Restored ${cached.fileName}`);
+      })
+      .catch(() => {
+        if (!cancelled) setCacheStatus('Project caching is unavailable in this browser.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [property]);
+
+  useEffect(() => {
+    if (!property || !modelBlob || !fileName) return;
+    const timeout = window.setTimeout(() => {
+      void writeCachedProjectModel({
+        propertyId: propertyStorageId(property),
+        fileName,
+        blob: modelBlob,
+        embeddedSiteImageNodes,
+        placement,
+        updatedAt: new Date().toISOString(),
+      })
+        .then(() => setCacheStatus('Model placement saved in this browser'))
+        .catch(() => setCacheStatus('The model is loaded, but browser storage could not save it.'));
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [embeddedSiteImageNodes, fileName, modelBlob, placement, property]);
+
   const submitToken = (event: FormEvent) => {
     event.preventDefault();
     setActiveToken(tokenInput.trim());
   };
 
   const openProperty = (site: PropertySite) => {
+    setModelUrl('');
+    setModelBlob(null);
+    setFileName('');
+    setEmbeddedSiteImageNodes([]);
     setProperty(site);
     setPropertyLabel(site.address);
     setParcelInput(site.parcel === 'Not provided' ? '' : site.parcel);
@@ -1974,7 +1492,7 @@ export default function CesiumViewer() {
       const inferredJurisdiction = [inferredCounty, inferredRegion].filter(Boolean).join(', ') || 'Location lookup';
       let site: PropertySite = {
         address: candidate?.attributes?.Match_addr || candidate?.address || locationSearch,
-        parcel: normalizedApn ? formatApn(normalizedApn) : 'Not provided',
+        parcel: parcelInput.trim() || 'Not provided',
         statedLotSize: 'Lot size unavailable',
         latitude: geocodedLatitude as number,
         longitude: geocodedLongitude as number,
@@ -2031,19 +1549,11 @@ export default function CesiumViewer() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const cesiumSafeGlb = await prepareGlbForCesium(file);
-      const savedCheckpoint = property
-        ? window.localStorage.getItem(placementStorageKey(propertyStorageId(property), file.name))
-        : null;
-      if (savedCheckpoint) {
-        const checkpoint = JSON.parse(savedCheckpoint) as SavedPlacementCheckpoint;
-        if (checkpoint.placement && Object.values(checkpoint.placement).every(Number.isFinite)) {
-          setPlacement(checkpoint.placement);
-        }
-      }
-      setModelUrl(URL.createObjectURL(cesiumSafeGlb));
-      setModelFile(file);
+      const preparedGlb = await prepareGlbForCesium(file);
+      setModelUrl(URL.createObjectURL(preparedGlb.blob));
+      setModelBlob(preparedGlb.blob);
       setFileName(file.name);
+      setEmbeddedSiteImageNodes(preparedGlb.embeddedSiteImageNodes);
     } catch (caught) {
       window.alert(caught instanceof Error ? caught.message : 'The GLB could not be prepared for Cesium.');
     }
@@ -2052,9 +1562,33 @@ export default function CesiumViewer() {
   const changeProperty = () => {
     setProperty(null);
     setModelUrl('');
-    setModelFile(null);
+    setModelBlob(null);
     setFileName('');
+    setEmbeddedSiteImageNodes([]);
+    setCacheStatus('');
     setPropertyLookupError('');
+  };
+
+  const exportPlacement = () => {
+    if (!property || !fileName) return;
+    const payload = {
+      format: 'timpson-cesium-placement-v1',
+      exportedAt: new Date().toISOString(),
+      property: {
+        address: property.address,
+        parcel: property.parcel,
+        latitude: property.latitude,
+        longitude: property.longitude,
+      },
+      model: { fileName },
+      placement,
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${propertyStorageId(property).replace(/[^a-z0-9-]+/gi, '-')}-model-placement.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
   };
 
   return (
@@ -2072,7 +1606,14 @@ export default function CesiumViewer() {
             Placement and any displayed boundary use approximate GIS data.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {property && fileName && <button
+            type="button"
+            onClick={exportPlacement}
+            className="rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-slate-200 hover:border-orange hover:text-white"
+          >
+            Export placement
+          </button>}
           {property && <button
             type="button"
             onClick={changeProperty}
@@ -2084,6 +1625,7 @@ export default function CesiumViewer() {
             Open house GLB
             <input className="sr-only" type="file" accept=".glb,model/gltf-binary" onChange={loadModel} disabled={!property} />
           </label>
+          {property && cacheStatus && <div className="w-full text-right text-[11px] text-slate-400">{cacheStatus}</div>}
         </div>
       </header>
 
@@ -2157,8 +1699,8 @@ export default function CesiumViewer() {
             property={property}
             token={activeToken}
             modelUrl={modelUrl}
-            modelFile={modelFile}
             fileName={fileName}
+            embeddedSiteImageNodes={embeddedSiteImageNodes}
             placement={placement}
             onPlacementChange={setPlacement}
           />

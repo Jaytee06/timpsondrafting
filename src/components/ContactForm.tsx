@@ -1097,8 +1097,8 @@ export default function ContactForm({ heading: headingOverride, description: des
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Phone</p>
-                    <a href="tel:+14353195331" className="font-medium text-blueprint hover:text-orange">
-                      (435) 319-5331
+                    <a href="tel:+14353195311" className="font-medium text-blueprint hover:text-orange">
+                      435-319-5311
                     </a>
                   </div>
                 </div>

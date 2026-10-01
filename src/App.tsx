@@ -21,7 +21,7 @@ function App() {
   }
 
   if (window.location.pathname.replace(/\/$/, '') === '/quote') {
-    return <div className="min-h-screen bg-paper text-ink"><AnalyticsHooks /><Header /><main id="main-content"><ContactForm heading="Request a Quote" description="Tell us about your project. We'll follow up with a quote and next steps." /></main><Footer /><div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t border-white/15 bg-blueprint text-center font-bold text-white md:hidden"><a className="py-4" href="tel:+14353195331">Call</a><a className="bg-orange py-4" href="#contact">Get a Quote</a></div></div>;
+    return <div className="min-h-screen bg-paper text-ink"><AnalyticsHooks /><Header /><main id="main-content"><ContactForm heading="Request a Quote" description="Tell us about your project. We'll follow up with a quote and next steps." /></main><Footer /><div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t border-white/15 bg-blueprint text-center font-bold text-white md:hidden"><a className="py-4" href="tel:+14353195311">Call</a><a className="bg-orange py-4" href="#contact">Get a Quote</a></div></div>;
   }
 
   return (
@@ -38,7 +38,7 @@ function App() {
       </main>
       <Footer />
       <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t border-white/15 bg-blueprint text-center font-bold text-white md:hidden">
-        <a className="py-4" href="tel:+14353195331">Call</a>
+        <a className="py-4" href="tel:+14353195311">Call</a>
         <a className="bg-orange py-4" href="/quote/">Get a Quote</a>
       </div>
     </div>

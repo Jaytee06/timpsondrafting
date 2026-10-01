@@ -8,7 +8,7 @@ const heroFrames = [
 
 export default function Hero() {
   return (
-    <section className="blueprint-grid relative overflow-hidden bg-blueprint text-white">
+    <section className="blueprint-grid relative overflow-hidden bg-blueprint text-white lg:flex lg:min-h-[calc(100svh-4.5rem)] lg:items-center">
       <div className="absolute inset-0" aria-hidden="true">
         {heroFrames.map((src, index) => (
           <div key={src} className="hero-media-frame absolute inset-0" style={{ animationDelay: `${index * 8}s` }}>
@@ -17,7 +17,7 @@ export default function Hero() {
         ))}
       </div>
       <div className="absolute inset-0 bg-gradient-to-r from-blueprint/95 via-blueprint/65 to-blueprint/15" />
-      <div className="section-shell relative py-24 sm:py-32 lg:py-36">
+      <div className="section-shell relative w-full py-24 sm:py-32 lg:py-24 xl:py-28">
         <div className="max-w-3xl">
           <p className="plan-label text-[#F3A06F]">Full-service residential drafting</p>
           <h1 className="mt-5 font-display text-5xl font-bold uppercase leading-[.95] sm:text-7xl">Designed by Tradesmen.</h1>

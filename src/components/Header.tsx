@@ -26,9 +26,9 @@ export default function Header() {
         <nav aria-label="Primary" className="hidden items-center gap-5 lg:flex">
           {navigation.map(([label, href]) => <a key={href} href={href} className="text-sm font-semibold text-white/85 transition hover:text-white">{label}</a>)}
         </nav>
-        <a href="tel:+14353195331" className="hidden items-center gap-2 text-sm font-semibold xl:flex"><Phone className="h-4 w-4" />(435) 319-5331</a>
+        <a href="tel:+14353195311" className="hidden items-center gap-2 text-sm font-semibold xl:flex"><Phone className="h-4 w-4" />435-319-5311</a>
         <a href="/quote/" className="hidden min-h-12 items-center justify-center rounded border border-orange px-6 py-3 text-sm font-bold text-[#F3A06F] transition hover:bg-orange hover:text-white sm:inline-flex">Request a Quote</a>
-        <a href="tel:+14353195331" className="p-2 sm:hidden" aria-label="Call Timpson Drafting"><Phone className="h-5 w-5" /></a>
+        <a href="tel:+14353195311" className="p-2 sm:hidden" aria-label="Call Timpson Drafting"><Phone className="h-5 w-5" /></a>
         <button type="button" className="p-2 lg:hidden" aria-expanded={open} aria-controls="mobile-navigation" onClick={() => setOpen(!open)} aria-label="Toggle menu">{open ? <X /> : <Menu />}</button>
       </div>
       {open && (

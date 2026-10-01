@@ -36,10 +36,10 @@ export default function TermsAndConditions() {
                 To opt out, reply STOP at any time. For help, reply HELP or contact us at
                 {' '}
                 <a
-                  href="tel:+14353195331"
+                  href="tel:+14353195311"
                   className="font-medium text-emerald-700 hover:text-emerald-800"
                 >
-                  (435) 319-5331
+                  435-319-5311
                 </a>
                 .
               </p>
@@ -69,10 +69,10 @@ export default function TermsAndConditions() {
                 or
                 {' '}
                 <a
-                  href="tel:+14353195331"
+                  href="tel:+14353195311"
                   className="font-medium text-emerald-700 hover:text-emerald-800"
                 >
-                  (435) 319-5331
+                  435-319-5311
                 </a>
                 .
               </p>
