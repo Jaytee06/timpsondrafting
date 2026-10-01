@@ -74,7 +74,7 @@ type ViewerManifestDoor = {
 
 type ViewerManifest = { doors?: ViewerManifestDoor[] };
 
-function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapingChange, onCapabilitiesChange, onContextTarget, onGroundChange, onCollisionChange, onWallCollisionChange }: { url: string; showLandscaping: boolean; finishTheme: FinishTheme; finishOverrides: Record<string, FinishTheme>; onLandscapingChange: (count: number) => void; onCapabilitiesChange: (doors: number, finishes: FinishOption[]) => void; onContextTarget: (target: ContextTarget | null) => void; onGroundChange: (height: number) => void; onCollisionChange: (objects: Object3D[]) => void; onWallCollisionChange: (objects: Object3D[]) => void }) {
+function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapingChange, onCapabilitiesChange, onContextTarget, onSceneReady, onGroundChange, onCollisionChange, onWallCollisionChange }: { url: string; showLandscaping: boolean; finishTheme: FinishTheme; finishOverrides: Record<string, FinishTheme>; onLandscapingChange: (count: number) => void; onCapabilitiesChange: (doors: number, finishes: FinishOption[]) => void; onContextTarget: (target: ContextTarget | null) => void; onSceneReady: (scene: Object3D | null) => void; onGroundChange: (height: number) => void; onCollisionChange: (objects: Object3D[]) => void; onWallCollisionChange: (objects: Object3D[]) => void }) {
   const { scene } = useGLTF(url);
   const camera = useThree((state) => state.camera);
   const doors = useRef<DoorState[]>([]);
@@ -82,6 +82,11 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
   const originalMaterials = useRef(new Map<string, { material: MeshStandardMaterial; color: Color; roughness: number; metalness: number; category: string }>());
   const finishTargets = useRef<Array<{ mesh: Mesh; index: number; original: Material; category: string; surface: string }>>([]);
   const finishVariants = useRef(new Map<string, Material>());
+
+  useEffect(() => {
+    onSceneReady(scene);
+    return () => onSceneReady(null);
+  }, [onSceneReady, scene]);
 
   const toggleDoor = (object: Object3D) => {
     let current: Object3D | null = object;
@@ -675,10 +680,11 @@ const contextSwatches: Array<{ theme: FinishTheme; label: string; color: string 
   { theme: 'dark', label: 'Dark', color: '#34383b' },
 ];
 
-function ContextWheel({ target, activeTheme, onApplyFinish, onClose }: {
+function ContextWheel({ target, activeTheme, onApplyFinish, onModelChange, onClose }: {
   target: ContextTarget;
   activeTheme: FinishTheme;
   onApplyFinish: (theme: FinishTheme) => void;
+  onModelChange: () => void;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<'actions' | 'finishes'>('actions');
@@ -711,7 +717,7 @@ function ContextWheel({ target, activeTheme, onApplyFinish, onClose }: {
         {mode === 'actions' ? (
           <>
             {target.doorAction && (
-              <button type="button" className={`${radialButton} left-1/2 top-2 -translate-x-1/2`} onClick={() => { target.doorAction?.(); onClose(); }}>
+              <button type="button" className={`${radialButton} left-1/2 top-2 -translate-x-1/2`} onClick={() => { target.doorAction?.(); onModelChange(); onClose(); }}>
                 Open / close
               </button>
             )}
@@ -755,6 +761,13 @@ function ContextWheel({ target, activeTheme, onApplyFinish, onClose }: {
 }
 
 export default function ModelViewer() {
+  const isAppleMobile = typeof navigator !== 'undefined' && (
+    /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+  const canOpenAppleAr = isAppleMobile
+    && typeof document !== 'undefined'
+    && document.createElement('a').relList.supports('ar');
   const [modelUrl, setModelUrl] = useState<string>('');
   const [fileName, setFileName] = useState('');
   const [isWalking, setIsWalking] = useState(false);
@@ -773,7 +786,21 @@ export default function ModelViewer() {
   const [finishCategorySelection, setFinishCategorySelection] = useState('');
   const [finishScope, setFinishScope] = useState('');
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
+  const [exportScene, setExportScene] = useState<Object3D | null>(null);
+  const [usdzUrl, setUsdzUrl] = useState('');
+  const [isExportingUsdz, setIsExportingUsdz] = useState(false);
+  const [usdzError, setUsdzError] = useState('');
   const dragDepth = useRef(0);
+
+  const clearUsdz = useCallback(() => {
+    setUsdzUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return '';
+    });
+    setUsdzError('');
+  }, []);
+
+  const handleSceneReady = useCallback((scene: Object3D | null) => setExportScene(scene), []);
 
   const handleCapabilitiesChange = useCallback((doors: number, finishes: FinishOption[]) => {
     setDoorCount(doors);
@@ -798,6 +825,37 @@ export default function ModelViewer() {
     };
   }, [modelUrl]);
 
+  useEffect(() => () => {
+    if (usdzUrl) URL.revokeObjectURL(usdzUrl);
+  }, [usdzUrl]);
+
+  const prepareUsdz = async () => {
+    if (!exportScene || isExportingUsdz) return;
+    clearUsdz();
+    setIsExportingUsdz(true);
+    try {
+      exportScene.updateMatrixWorld(true);
+      const { USDZExporter } = await import('three/examples/jsm/exporters/USDZExporter.js');
+      const exporter = new USDZExporter();
+      const bytes = await exporter.parseAsync(exportScene, {
+        onlyVisible: true,
+        quickLookCompatible: true,
+        maxTextureSize: 1024,
+        includeAnchoringProperties: true,
+        ar: {
+          anchoring: { type: 'plane' },
+          planeAnchoring: { alignment: 'horizontal' },
+        },
+      });
+      setUsdzUrl(URL.createObjectURL(new Blob([bytes], { type: 'model/vnd.usdz+zip' })));
+    } catch (error) {
+      console.error('USDZ export failed', error);
+      setUsdzError('This model could not be prepared for Apple AR. Check its materials and textures.');
+    } finally {
+      setIsExportingUsdz(false);
+    }
+  };
+
   const openModelFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith('.glb')) {
       setFileError('That file is not a GLB model. Drop a file ending in .glb.');
@@ -811,6 +869,8 @@ export default function ModelViewer() {
     setFinishCategorySelection('');
     setFinishScope('');
     setContextTarget(null);
+    setExportScene(null);
+    clearUsdz();
     setDoorCount(0);
     setFinishOptions([]);
     setModelUrl(URL.createObjectURL(file));
@@ -872,7 +932,10 @@ export default function ModelViewer() {
               <input
                 type="checkbox"
                 checked={showLandscaping}
-                onChange={(event) => setShowLandscaping(event.target.checked)}
+                onChange={(event) => {
+                  setShowLandscaping(event.target.checked);
+                  clearUsdz();
+                }}
                 className="h-4 w-4 accent-orange"
               />
             </label>
@@ -882,7 +945,10 @@ export default function ModelViewer() {
               <span>Finish</span>
               <select
                 value={finishTheme}
-                onChange={(event) => setFinishTheme(event.target.value as FinishTheme)}
+                onChange={(event) => {
+                  setFinishTheme(event.target.value as FinishTheme);
+                  clearUsdz();
+                }}
                 className="rounded border border-white/15 bg-slate-950 px-2 py-1.5 text-sm outline-none focus:border-orange"
               >
                 <option value="original">Original</option>
@@ -891,6 +957,26 @@ export default function ModelViewer() {
                 <option value="dark">Dark contemporary</option>
               </select>
             </label>
+          )}
+          {modelUrl && canOpenAppleAr && !usdzUrl && (
+            <button
+              type="button"
+              disabled={!exportScene || isExportingUsdz}
+              onClick={prepareUsdz}
+              className="rounded border border-white/20 bg-slate-900 px-4 py-3 text-sm font-semibold transition hover:border-orange disabled:cursor-wait disabled:opacity-50"
+            >
+              {isExportingUsdz ? 'Preparing AR…' : 'Prepare AR'}
+            </button>
+          )}
+          {modelUrl && canOpenAppleAr && usdzUrl && (
+            <a
+              rel="ar"
+              href={usdzUrl}
+              className="flex items-center gap-2 rounded border border-orange bg-slate-900 px-4 py-3 text-sm font-semibold text-[#F3A06F] transition hover:bg-orange hover:text-white"
+            >
+              <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" className="h-1 w-1 opacity-0" />
+              Open in AR
+            </a>
           )}
           {modelUrl && finishOptions.length > 0 && (
             <details className="relative">
@@ -938,6 +1024,7 @@ export default function ModelViewer() {
                         else next[scope] = value as FinishTheme;
                         return next;
                       });
+                      clearUsdz();
                     }}
                     className="mt-1 w-full rounded border border-white/15 bg-slate-900 px-3 py-2 outline-none focus:border-orange"
                   >
@@ -948,7 +1035,7 @@ export default function ModelViewer() {
                     <option value="dark">Dark contemporary</option>
                   </select>
                 </label>
-                <button type="button" onClick={() => setFinishOverrides({})} className="mt-3 w-full rounded border border-white/15 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-orange hover:text-white">
+                <button type="button" onClick={() => { setFinishOverrides({}); clearUsdz(); }} className="mt-3 w-full rounded border border-white/15 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-orange hover:text-white">
                   Clear individual overrides
                 </button>
               </div>
@@ -962,6 +1049,11 @@ export default function ModelViewer() {
       </header>
 
       <section className="relative min-h-0 flex-1">
+        {usdzError && (
+          <div role="alert" className="absolute left-1/2 top-4 z-40 max-w-md -translate-x-1/2 rounded-lg border border-red-400/30 bg-slate-950/95 px-4 py-3 text-center text-sm text-red-200 shadow-xl">
+            {usdzError}
+          </div>
+        )}
         {!modelUrl && (
           <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-6 text-center">
             <div className="max-w-md rounded-2xl border border-white/10 bg-slate-900/90 p-8 shadow-2xl">
@@ -1013,6 +1105,7 @@ export default function ModelViewer() {
                 onLandscapingChange={setLandscapingCount}
                 onCapabilitiesChange={handleCapabilitiesChange}
                 onContextTarget={setContextTarget}
+                onSceneReady={handleSceneReady}
                 onGroundChange={setGroundHeight}
                 onCollisionChange={setCollisionObjects}
                 onWallCollisionChange={setWallCollisionObjects}
@@ -1053,7 +1146,9 @@ export default function ModelViewer() {
             onApplyFinish={(theme) => {
               if (!contextTarget.finish) return;
               setFinishOverrides((current) => ({ ...current, [contextTarget.finish!.key]: theme }));
+              clearUsdz();
             }}
+            onModelChange={clearUsdz}
             onClose={() => setContextTarget(null)}
           />
         )}
