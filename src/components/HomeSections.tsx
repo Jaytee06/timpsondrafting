@@ -30,7 +30,7 @@ const serviceLinks = [['Barndominiums & Shops','/barndominium-plans/'],['Custom 
 
 const projectExamples = [
   { label: 'Design visualization', title: 'Custom home planning', href: '/projects/page-arizona-custom-residence/', image: '/project-assets/custom-home-render-front.webp', alt: 'Design visualization of a custom desert residence' },
-  { label: '3D model', title: 'Farmhouse visualization', href: '/projects/farmhouse-design-visualization/', image: '/project-assets/farmhouse-render-front.webp', alt: 'Front three-quarter design visualization of a single-story farmhouse' },
+  { label: '3D model', title: 'Farmhouse visualization', href: '/projects/farmhouse-design-visualization/', image: '/project-assets/farmhouse-render-front-enhanced.webp', alt: 'Front three-quarter design visualization of a single-story farmhouse' },
   { label: 'Existing condition', title: 'Remodel planning', href: '/projects/arizona-whole-home-remodel/', image: '/project-assets/remodel-existing-photo.webp', alt: 'Existing-condition photograph of a residential remodel project' },
   { label: 'Drawing example', title: 'Detached garage', href: '/garage-adu-addition-plans/', image: '/project-assets/garage-elevations.webp', alt: 'Cropped garage elevations and building section drafted by Timpson Drafting and Design' },
 ];
