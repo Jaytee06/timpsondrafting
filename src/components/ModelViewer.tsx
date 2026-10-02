@@ -1123,17 +1123,14 @@ export default function ModelViewer() {
         </Canvas>
 
         {!isMobile && !isWalking && modelUrl && (
-          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-slate-950/20 p-6">
-            <button
-              id="enter-world"
-              className="pointer-events-auto rounded border border-white/20 bg-slate-950/85 px-7 py-4 font-semibold shadow-2xl backdrop-blur transition hover:border-orange hover:text-[#F3A06F]"
-            >
-              Click to walk through the model
-              <span className="mt-1 block text-xs font-normal text-slate-400">
-                Mouse to look · WASD/arrows to move · Space to double jump · Escape to exit
-              </span>
-            </button>
-          </div>
+          <button
+            id="enter-world"
+            type="button"
+            title="Mouse to look · WASD or arrows to move · Space to jump · Escape to exit"
+            className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-slate-950/55 px-4 py-2 text-xs font-medium text-white/75 opacity-40 shadow-lg backdrop-blur-sm transition hover:border-orange/70 hover:text-white hover:opacity-100 focus:border-orange focus:opacity-100 focus:outline-none"
+          >
+            Walk through <span aria-hidden="true">→</span>
+          </button>
         )}
 
         {contextTarget && !isWalking && (
