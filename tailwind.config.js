@@ -6,12 +6,12 @@ export default {
       colors: {
         paper: '#F4F1EA',
         ink: '#1F2328',
-        blueprint: '#1E3A5F',
-        orange: '#C8581E',
+        blueprint: '#293F50',
+        orange: '#A6532B',
         steel: '#6B7280',
       },
       fontFamily: {
-        display: ['Oswald', 'Barlow Condensed', 'Arial Narrow', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       borderRadius: { DEFAULT: '4px' },

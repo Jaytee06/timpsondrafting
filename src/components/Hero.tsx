@@ -20,13 +20,13 @@ export default function Hero() {
       <div className="section-shell relative w-full py-24 sm:py-32 lg:py-24 xl:py-28">
         <div className="max-w-3xl">
           <p className="plan-label text-[#F3A06F]">Full-service residential drafting</p>
-          <h1 className="mt-5 font-display text-5xl font-bold uppercase leading-[.95] sm:text-7xl">Designed by Tradesmen.</h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-white/80 sm:text-xl">Complete residential plans with mechanical, electrical, plumbing and a 3D walk-through included. Drawn by people who know how a house goes together.</p>
+          <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.12] tracking-tight sm:text-6xl">Residential plans, carefully considered.</h1>
+          <p className="mt-7 max-w-2xl text-lg leading-8 text-white/80 sm:text-xl">Thoughtful residential drafting informed by hands-on construction experience. Complete plans with mechanical, electrical, plumbing and a 3D walk-through included.</p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <a href="/quote/" className="button-primary">Request a Quote <ArrowRight className="h-4 w-4" /></a>
             <a href="#how-it-works" className="button-outline-light">See How It Works</a>
           </div>
-          <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/20 pt-5 text-sm font-semibold uppercase tracking-wider text-white/75">
+          <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/20 pt-5 text-sm font-medium text-white/75">
             <span>$1.50/sq ft</span><span>10-day initial concept</span><span>Nationwide</span>
           </div>
         </div>

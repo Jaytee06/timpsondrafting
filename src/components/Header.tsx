@@ -14,14 +14,14 @@ export default function Header() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-blueprint text-white shadow-lg">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-blueprint text-white">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:bg-white focus:p-3 focus:text-ink">
         Skip to content
       </a>
       <div className="section-shell flex items-center gap-5 py-3">
         <a href="/" className="mr-auto leading-none" aria-label="Timpson Drafting and Design home">
-          <span className="block font-display text-2xl font-bold uppercase tracking-wide">TDD</span>
-          <span className="hidden text-[10px] font-semibold uppercase tracking-[.16em] text-white/70 sm:block">Timpson Drafting &amp; Design</span>
+          <span className="block font-display text-lg font-semibold tracking-tight sm:text-xl">Timpson</span>
+          <span className="mt-1 block text-xs font-medium tracking-wide text-white/75">Drafting &amp; Design</span>
         </a>
         <nav aria-label="Primary" className="hidden items-center gap-5 lg:flex">
           {navigation.map(([label, href]) => <a key={href} href={href} className="text-sm font-semibold text-white/85 transition hover:text-white">{label}</a>)}
