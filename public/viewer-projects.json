@@ -1,0 +1,36 @@
+[
+  {
+    "id": "model-01",
+    "label": "Custom residence",
+    "modelUrl": "/models/model-01.glb?v=5ede2c4d524e",
+    "version": "1",
+    "featured": true,
+    "image": "/project-assets/model-01-thumbnail.jpg",
+    "projectType": "Custom home",
+    "description": "Explore a custom residential design, room by room.",
+    "imageAlt": "Exterior visualization of a custom courtyard residence"
+  },
+  {
+    "id": "model-02",
+    "label": "Farmhouse",
+    "modelUrl": "/models/model-02.glb?v=87e39506b79b",
+    "version": "2",
+    "featured": true,
+    "profileSlug": "farmhouse-design-visualization",
+    "image": "/project-assets/model-02-thumbnail.jpg",
+    "projectType": "Farmhouse",
+    "description": "Walk through a farmhouse design and compare finishes.",
+    "imageAlt": "Exterior visualization of a single-story farmhouse"
+  },
+  {
+    "id": "model-03",
+    "label": "Duplex",
+    "modelUrl": "/models/model-03.glb?v=3eaaf0802555",
+    "version": "1",
+    "featured": true,
+    "image": "/project-assets/model-03-thumbnail.jpg",
+    "projectType": "Duplex",
+    "description": "Explore a two-unit residential design and compare available finishes.",
+    "imageAlt": "Exterior visualization of a two-story duplex"
+  }
+]

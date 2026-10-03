@@ -1,3 +1,6 @@
+import { cesiumSpawnFrame, DEFAULT_EYE_HEIGHT, ModelSpawn, readGlbModelSpawn } from '../viewer/modelSpawn';
+import { readModelTransfer } from '../viewer/modelTransfer';
+import DropboxModelButton from './DropboxModelButton';
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
   BoundingSphere,
@@ -16,6 +19,7 @@ import {
   KeyboardEventModifier,
   LabelStyle,
   Math as CesiumMath,
+  Matrix4,
   Model,
   Ray,
   Rectangle,
@@ -95,7 +99,6 @@ const polygonCenter = (ring: number[][]) => {
   };
 };
 
-const WALK_EYE_HEIGHT = 1.45;
 const WALK_SPEED = 5.25;
 const JUMP_SPEED = 5.8;
 const GRAVITY = 15;
@@ -373,7 +376,7 @@ const spawnWorldPoint = (spawn: SpawnPoint, placement: Placement, anchorHeight: 
   };
 };
 
-function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, placement, onPlacementChange }: { property: PropertySite; token: string; modelUrl: string; fileName: string; embeddedSiteImageNodes: string[]; placement: Placement; onPlacementChange: (placement: Placement) => void }) {
+function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedSiteImageNodes, placement, onPlacementChange }: { authoredSpawn: ModelSpawn | null; property: PropertySite; token: string; modelUrl: string; fileName: string; embeddedSiteImageNodes: string[]; placement: Placement; onPlacementChange: (placement: Placement) => void }) {
   const container = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer>();
   const modelPrimitive = useRef<Model>();
@@ -389,6 +392,7 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
   const walkPitch = useRef(0);
   const walkCoordinates = useRef({ latitude: placement.latitude, longitude: placement.longitude });
   const walkSurfaceHeight = useRef(0);
+  const walkEyeHeight = useRef(DEFAULT_EYE_HEIGHT);
   const walkVerticalOffset = useRef(0);
   const walkVerticalVelocity = useRef(0);
   const walkJumpCount = useRef(0);
@@ -406,6 +410,7 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
   const [isChoosingSpawn, setIsChoosingSpawn] = useState(false);
   const [spawnPoint, setSpawnPoint] = useState<SpawnPoint | null>(null);
   const [modelStatus, setModelStatus] = useState('');
+  useEffect(() => { setSpawnPoint(null); }, [modelUrl]);
   const [showEmbeddedSiteImagery, setShowEmbeddedSiteImagery] = useState(false);
   const [nudgeFeet, setNudgeFeet] = useState(1);
   const [error, setError] = useState('');
@@ -966,7 +971,7 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
         destination: Cartesian3.fromDegrees(
           walkCoordinates.current.longitude,
           walkCoordinates.current.latitude,
-          walkSurfaceHeight.current + WALK_EYE_HEIGHT + walkVerticalOffset.current,
+          walkSurfaceHeight.current + walkEyeHeight.current + walkVerticalOffset.current,
         ),
         orientation: { heading: walkHeading.current, pitch: walkPitch.current, roll: 0 },
       });
@@ -1063,14 +1068,25 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
   const enterWalkingMode = () => {
     const viewer = viewerRef.current;
     if (!viewer || !modelUrl) return;
-    const start = spawnPoint ? spawnWorldPoint(spawnPoint, placement, placedHeight.current) : {
+    const model = modelPrimitive.current;
+    if (!model?.ready) return;
+    const localSpawn = authoredSpawn ? cesiumSpawnFrame(authoredSpawn) : null;
+    const entryPosition = localSpawn ? Matrix4.multiplyByPoint(model.modelMatrix,
+      new Cartesian3(...localSpawn.position.map((value) => value * model.scale)), new Cartesian3()) : null;
+    const entryCartographic = entryPosition ? Cartographic.fromCartesian(entryPosition) : null;
+    const start = spawnPoint ? spawnWorldPoint(spawnPoint, placement, placedHeight.current) : entryCartographic ? {
+      latitude: CesiumMath.toDegrees(entryCartographic.latitude),
+      longitude: CesiumMath.toDegrees(entryCartographic.longitude),
+      surfaceHeight: entryCartographic.height,
+    } : {
       latitude: placement.latitude,
       longitude: placement.longitude,
       surfaceHeight: placedHeight.current,
     };
     walkCoordinates.current = { latitude: start.latitude, longitude: start.longitude };
-    walkHeading.current = CesiumMath.toRadians(placement.heading);
-    walkPitch.current = 0;
+    walkHeading.current = CesiumMath.toRadians(placement.heading) + (!spawnPoint && localSpawn ? Math.atan2(localSpawn.direction[0], localSpawn.direction[1]) : 0);
+    walkEyeHeight.current = DEFAULT_EYE_HEIGHT;
+    walkPitch.current = !spawnPoint && localSpawn ? Math.atan2(localSpawn.direction[2], Math.hypot(localSpawn.direction[0], localSpawn.direction[1])) : 0;
     walkSurfaceHeight.current = start.surfaceHeight;
     walkVerticalOffset.current = 0;
     walkVerticalVelocity.current = 0;
@@ -1081,9 +1097,9 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
       destination: Cartesian3.fromDegrees(
         start.longitude,
         start.latitude,
-        start.surfaceHeight + WALK_EYE_HEIGHT,
+        start.surfaceHeight + walkEyeHeight.current,
       ),
-      orientation: { heading: walkHeading.current, pitch: 0, roll: 0 },
+      orientation: { heading: walkHeading.current, pitch: walkPitch.current, roll: 0 },
     });
     const pointerLockRequest = viewer.canvas.requestPointerLock();
     if (pointerLockRequest) {
@@ -1127,9 +1143,10 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
   };
 
   return (
-    <div className="relative h-full w-full">
-      <div ref={container} className="h-full w-full" />
-      {!isWalking && <div className="absolute left-4 top-4 z-10 max-h-[calc(100%-2rem)] w-80 overflow-y-auto rounded-xl border border-white/10 bg-slate-950/90 p-4 text-sm shadow-2xl backdrop-blur">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="relative flex min-h-0 flex-1">
+      <div ref={container} className="relative min-h-0 min-w-0 flex-1" />
+      {!isWalking && !isFlying && <div aria-label="Placement tools" className="w-52 shrink-0 overflow-y-auto overscroll-contain border-l border-white/10 bg-slate-900 p-3 text-sm sm:w-80 sm:p-4">
         <div className="font-semibold">Project model</div>
         <div className="mt-1 truncate text-xs text-slate-400">{fileName || 'Open a GLB above to begin'}</div>
         <details className="mt-4 rounded-lg border border-white/10 bg-white/[0.03]">
@@ -1311,13 +1328,15 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
               onClick={resetSpawnToAnchor}
               className="col-span-2 rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:border-white/30"
             >
-              Reset FP spawn to model anchor
+              Reset to model entry
             </button>
           )}
         </div>
         {modelStatus && <div className="mt-2 text-xs text-slate-300">{modelStatus}</div>}
       </div>}
-      {(isFlying || isWalking) && <div className="pointer-events-none absolute bottom-5 left-5 rounded-xl bg-slate-950/80 px-4 py-3 text-xs leading-5 text-slate-200 shadow-xl backdrop-blur">
+      {(isWalking || isFlying) && <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow" />}
+      </div>
+      {(isFlying || isWalking) && <div className="shrink-0 border-t border-white/10 bg-slate-950 px-4 py-2 text-xs leading-5 text-slate-200">
         {isFlying ? (
           <>
             <div>WASD/arrows: fly over site</div>
@@ -1335,22 +1354,19 @@ function Terrain({ property, token, modelUrl, fileName, embeddedSiteImageNodes, 
           </>
         ) : null}
       </div>}
-      {(isWalking || isFlying) && (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow" />
-      )}
-      {!isWalking && (
+      {!isWalking && !isFlying && (
         <button
           type="button"
           onClick={() => {
             if (viewerRef.current) flyToProperty(viewerRef.current);
           }}
-          className="absolute bottom-5 right-5 rounded bg-orange px-4 py-3 text-sm font-semibold text-white shadow-xl hover:bg-[#a94718]"
+          className="shrink-0 self-end rounded border border-white/20 px-4 py-2 text-xs font-semibold text-white hover:border-orange"
         >
           Reset view
         </button>
       )}
       {error && (
-        <div className="absolute left-1/2 top-6 max-w-lg -translate-x-1/2 rounded-xl border border-red-400/40 bg-slate-950/90 px-5 py-4 text-sm text-red-200 shadow-2xl">
+        <div role="alert" className="shrink-0 border-t border-red-400/30 bg-slate-950 px-4 py-2 text-xs text-red-200">
           {error}
         </div>
       )}
@@ -1366,11 +1382,20 @@ export default function CesiumViewer() {
   const [property, setProperty] = useState<PropertySite | null>(presetProperty);
   const [parcelInput, setParcelInput] = useState('');
   const [propertyLabel, setPropertyLabel] = useState('');
+  const transferId = useRef(new URLSearchParams(window.location.search).get('transfer')).current;
+  const [transferNotice, setTransferNotice] = useState('');
   const [isLookingUpParcel, setIsLookingUpParcel] = useState(false);
   const [propertyLookupError, setPropertyLookupError] = useState('');
   const [recentProperties, setRecentProperties] = useState<RecentProperty[]>(readRecentProperties);
   const [modelUrl, setModelUrl] = useState('');
   const [modelBlob, setModelBlob] = useState<Blob | null>(null);
+  const [authoredSpawn, setAuthoredSpawn] = useState<ModelSpawn | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setAuthoredSpawn(null);
+    if (modelBlob) void readGlbModelSpawn(modelBlob).then((spawn) => { if (!cancelled) setAuthoredSpawn(spawn); }).catch(() => { /* Older files may not define a spawn. */ });
+    return () => { cancelled = true; };
+  }, [modelBlob]);
   const [fileName, setFileName] = useState('');
   const [embeddedSiteImageNodes, setEmbeddedSiteImageNodes] = useState<string[]>([]);
   const [cacheStatus, setCacheStatus] = useState('');
@@ -1392,7 +1417,16 @@ export default function CesiumViewer() {
     if (!property) return;
     let cancelled = false;
     setCacheStatus('Checking saved project…');
-    void readCachedProjectModel(propertyStorageId(property))
+    const restore = async () => {
+      if (transferId) {
+        const transfer = await readModelTransfer(transferId);
+        if (!transfer) throw new Error('Customized model handoff expired. Return to the model viewer and send it again.');
+        const prepared = await prepareGlbForCesium(new File([transfer.blob], transfer.fileName, { type: 'model/gltf-binary' }));
+        return { blob: prepared.blob, fileName: transfer.fileName, embeddedSiteImageNodes: prepared.embeddedSiteImageNodes, placement: { latitude: property.latitude, longitude: property.longitude, heading: 0, elevationOffset: 0, scale: 1 } };
+      }
+      return readCachedProjectModel(propertyStorageId(property));
+    };
+    void restore()
       .then((cached) => {
         if (cancelled) return;
         if (!cached) {
@@ -1406,13 +1440,13 @@ export default function CesiumViewer() {
         setEmbeddedSiteImageNodes(cached.embeddedSiteImageNodes ?? []);
         setCacheStatus(`Restored ${cached.fileName}`);
       })
-      .catch(() => {
-        if (!cancelled) setCacheStatus('Project caching is unavailable in this browser.');
+      .catch((error) => {
+        if (!cancelled) setCacheStatus(error instanceof Error ? error.message : 'Project caching is unavailable in this browser.');
       });
     return () => {
       cancelled = true;
     };
-  }, [property]);
+  }, [property, transferId]);
 
   useEffect(() => {
     if (!property || !modelBlob || !fileName) return;
@@ -1430,6 +1464,17 @@ export default function CesiumViewer() {
     }, 300);
     return () => window.clearTimeout(timeout);
   }, [embeddedSiteImageNodes, fileName, modelBlob, placement, property]);
+
+  useEffect(() => {
+    if (!transferId) return;
+    let cancelled = false;
+    void readModelTransfer(transferId).then((transfer) => {
+      if (!cancelled) setTransferNotice(transfer
+        ? `${transfer.fileName} is ready. Enter an address to place your customized model.`
+        : 'Customized model handoff expired. Return to the model viewer and send it again.');
+    }).catch(() => { if (!cancelled) setTransferNotice('The customized model could not be read from browser storage.'); });
+    return () => { cancelled = true; };
+  }, [transferId]);
 
   const submitToken = (event: FormEvent) => {
     event.preventDefault();
@@ -1545,9 +1590,7 @@ export default function CesiumViewer() {
     }
   };
 
-  const loadModel = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const openModelFile = async (file: File) => {
     try {
       const preparedGlb = await prepareGlbForCesium(file);
       setModelUrl(URL.createObjectURL(preparedGlb.blob));
@@ -1557,6 +1600,12 @@ export default function CesiumViewer() {
     } catch (caught) {
       window.alert(caught instanceof Error ? caught.message : 'The GLB could not be prepared for Cesium.');
     }
+  };
+
+  const loadModel = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) await openModelFile(file);
   };
 
   const changeProperty = () => {
@@ -1592,7 +1641,7 @@ export default function CesiumViewer() {
   };
 
   return (
-    <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-950 text-white">
+    <main className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-950 text-white">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
         <div>
           <a href="/viewer" className="text-sm text-[#F3A06F] hover:text-white">
@@ -1621,6 +1670,7 @@ export default function CesiumViewer() {
           >
             Change property
           </button>}
+          <DropboxModelButton onFile={openModelFile} disabled={!property} />
           <label className={`rounded px-5 py-3 font-semibold ${property ? 'cursor-pointer bg-orange hover:bg-[#a94718]' : 'cursor-not-allowed bg-slate-700 text-slate-400'}`}>
             Open house GLB
             <input className="sr-only" type="file" accept=".glb,model/gltf-binary" onChange={loadModel} disabled={!property} />
@@ -1635,6 +1685,7 @@ export default function CesiumViewer() {
             <form onSubmit={lookupParcel} className="mx-auto my-auto w-full max-w-xl rounded-2xl border border-white/10 bg-slate-900 p-7 shadow-2xl">
               <h2 className="text-lg font-semibold">Choose the property</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
+                {transferNotice && <span className="mb-3 block text-[#F3A06F]" role="status">{transferNotice}</span>}
                 Search by the project address or location. Add the parcel number when you have it; the viewer will automatically use supported county boundary data when available.
               </p>
               <label className="mt-5 block text-sm font-medium" htmlFor="property-label">Property address or location</label>
@@ -1696,6 +1747,7 @@ export default function CesiumViewer() {
           </div>
         ) : activeToken ? (
           <Terrain
+            authoredSpawn={authoredSpawn}
             property={property}
             token={activeToken}
             modelUrl={modelUrl}

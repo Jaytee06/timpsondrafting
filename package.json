@@ -20,7 +20,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "verify:sanity": "node scripts/sanity/timpson.mjs",
-    "verify:sanity:live-api": "TIMPSON_LIVE_API_TEST=1 node scripts/sanity/timpson.mjs"
+    "verify:sanity:live-api": "TIMPSON_LIVE_API_TEST=1 node scripts/sanity/timpson.mjs",
+    "test:architecture": "rm -rf .architecture-test && tsc src/architecture/model.ts src/architecture/assemblies.ts src/architecture/registration.ts src/architecture/drawings.ts src/architecture/review.ts src/architecture/dimensions.ts src/architecture/openings.ts src/architecture/finishes.ts --outDir .architecture-test --module ES2022 --target ES2020 --skipLibCheck && node --test scripts/tests/architecture.test.mjs scripts/tests/assemblies.test.mjs scripts/tests/drawings.test.mjs scripts/tests/cad-adapter.test.mjs scripts/tests/review.test.mjs scripts/tests/dimensions.test.mjs scripts/tests/openings.test.mjs scripts/tests/finishes.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.117.3",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@mlightcad/libredwg-web": "0.7.14",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

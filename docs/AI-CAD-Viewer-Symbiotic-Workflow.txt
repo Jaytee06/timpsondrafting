@@ -1,0 +1,168 @@
+AI, CAD, THE BUILDING MODEL, AND THE DESIGNER
+Prepared for Alma's drafting guide — October 3, 2026
+
+PURPOSE
+
+The goal is a coordinated relationship between concept design, customer
+customization, a detailed building model, and construction documentation.
+The designer directs that relationship. AI, the viewer, and CAD each provide
+different ways to propose, inspect, communicate, and document the same design.
+
+The recommended workflow develops the model and documentation together.
+For current projects, established CAD/BIM tools and experienced drafters handle
+construction documentation while this viewer develops its modeling and review
+capabilities. Model-derived drawings can progressively replace repeated manual
+geometry work as the software proves their accuracy.
+
+ONE ACCEPTED DESIGN, MULTIPLE REPRESENTATIONS
+
+The long-term foundation is a semantic building model: objects with identity,
+dimensions, relationships, materials, evidence, and design intent. A wall is
+more than parallel lines or a solid rendered block. It can contain framing,
+voids, insulation, sheathing, barriers, gypsum, cladding, and hosted openings.
+A room has boundaries and meaningful dimensions. A window belongs to a wall
+and has size, location, and product/specification decisions.
+
+The viewer renders these objects. Plans, elevations, sections, and schedules
+are coordinated representations of accepted objects, supplemented by authored
+notes, construction details, engineering information, and sheet organization.
+Rendered meshes and exported CAD linework should not become competing masters.
+
+Imported DWG/PDF content is source evidence until its meaning is interpreted.
+A CAD line might describe a framing face, a finished face, a centerline, a
+dimension extension, or unrelated geometry. Source text and geometry must stay
+available even when a designer chooses a different proposed arrangement.
+
+THE ROLES
+
+Customer:
+Expresses priorities and evaluates spatial, functional, and aesthetic options.
+The interface should make choices understandable without requiring CAD skills.
+
+Designer:
+Interprets intent, selects meaningful alternatives, resolves ambiguities, and
+accepts revisions. The designer decides when a customer conversation should
+focus on layout, technical constraints, appearance, or construction details.
+
+AI:
+Proposes concepts and scoped changes, explains impacts, and helps find missing
+decisions. Proposals carry assumptions and remain distinct from accepted design.
+A plausible concept image does not establish measured geometry or a complete
+construction specification.
+
+Viewer:
+Shows alternatives, physical assemblies, source overlays, dimensions, and
+discrepancies. It should support moving walls, resizing openings and rooms, and
+comparing finishes while previewing dependent changes before acceptance.
+
+Drafters:
+Develop clear, coordinated construction documents, establish drawing standards,
+resolve detailing, and provide corrections that improve the model. Drafting
+knowledge informs modeling rules as much as the model informs the drawings.
+
+Engineers and other project specialists:
+Supply and review the technical decisions within their disciplines. Proposed
+framing layouts and generated geometry do not establish engineering adequacy.
+
+THE FEEDBACK LOOP
+
+1. Concept proposal
+   Start from a customer brief, an AI-assisted concept, or existing plans.
+   Establish dimensions, orientation, levels, and interpreted building objects.
+   Mark missing or assumed information explicitly.
+
+2. Interactive design
+   Designer and customer compare alternatives in the viewer and drawings.
+   A change previews its affected walls, rooms, openings, dimensions, materials,
+   and unresolved constraints. Alternatives remain separate from accepted work.
+
+3. Accepted revision
+   The designer accepts a defined version. Record the starting revision, affected
+   objects, rationale, assumptions, and validation results. Save alternatives
+   and allow reversal without losing original source evidence.
+
+4. Technical documentation
+   Drafters develop the plan set and specialists supply technical information.
+   Generate geometry and views from the accepted model where reliable. Preserve
+   authored details, notes, schedules, sheet layouts, and annotations separately.
+
+5. Reconciliation
+   A drafting or engineering correction becomes an identified model change or
+   review issue. Match by object identity where possible; otherwise interpret
+   and review the changed source geometry. Explain conflicts instead of silently
+   overwriting another revision or averaging contradictory dimensions.
+
+6. Release
+   Review the coordinated package against the applicable jurisdiction and project
+   requirements. Preserve the issued revision, model, drawings, specifications,
+   and supporting documentation together.
+
+EXAMPLE: ENLARGING A WINDOW
+
+The customer requests a wider window. The designer previews the proposed width
+on its host wall. The model checks geometric fit, nearby openings, and affected
+room/finish relationships. Framing and finish voids regenerate together. Header
+and structural implications remain explicit review items. Once accepted, the
+relevant plan, elevation, dimensions, and schedule should update from the same
+object. Drafting and engineering feedback may revise the proposal before release.
+
+EXAMPLE: CHANGING A FINISH
+
+A customer compares appearance options. A color or roughness change affects
+presentation; panel thickness also affects physical geometry and finished-face
+clearances. Each choice should retain its scope, assumptions, and specification
+status. Finish options must not silently shift the framing reference or erase
+the original assembly recipe. Product selection, coating layers, and construction
+performance require more information than a visual appearance label.
+
+HOW ALMA'S DRAFTING GUIDE CAN INFORM BOTH SYSTEMS
+
+For each drafting topic, identify:
+  - The design intent and evidence needed to make the decision.
+  - The building objects and relationships involved.
+  - The drawing conventions and required annotations.
+  - The geometric checks and technical review questions.
+  - What changes together when an object is edited.
+  - What remains authored or specialist-reviewed rather than generated.
+  - How acceptance, revisions, conflicts, and issued documents are handled.
+
+For example, a wall-drafting chapter can inform framing/finish references,
+assembly layers, opening hosting, wall joins, dimensions, section conventions,
+and schedules. A room-planning chapter can inform boundaries, clear dimensions,
+circulation, customer options, and the consequences of moving shared walls.
+These become modeling requirements and independently measurable test cases.
+
+PERMIT DOCUMENTATION
+
+DWG is an editable delivery format, not evidence that a design is approvable.
+The permit package depends on the actual jurisdiction, site, and project.
+It can require architectural drawings, structural documents and calculations,
+site information, energy documentation, construction details, and other items.
+Authority acceptance cannot be promised solely from a rendered model or CAD export.
+
+Sources supporting the workflow discussion:
+Autodesk — Export to DWG or DXF:
+https://help.autodesk.com/cloudhelp/2023/ENU/Revit-DocumentPresent/files/GUID-42C75024-4D71-4831-8910-2747168624A3.htm
+Autodesk — AutoCAD/Revit interoperability guide:
+https://www.autodesk.com/support/technical/article/caas/tsarticles/ts/26alvHJQRYkVbdjBB0vSdS.html
+Washington City — Residential permit submittal requirements (example only;
+not a determination of the Butts project's jurisdiction):
+https://washingtonutah.gov/development/building/residentialpermitrequirements
+
+CURRENT VIEWER STATUS
+
+Implemented and tested: local DWG inspection, optional PDF reference,
+registration controls and written dimension evidence, explicit wall interpretation,
+exterior/interior study assemblies, hosted opening void proposals, physical-layer
+visibility, scoped dynamic finish choices, and versioned review save/restore.
+
+The Butts DWG has been decoded and inspected. A measured reconstruction of the
+house has not yet been accepted. Current assemblies retain documented values,
+assumptions, and unresolved details. Room constraints, coordinated wall junctions,
+roof/vault reconstruction, durable edit transactions, and construction-document
+generation remain development work. Browser export download readback remains
+unverified despite automated JSON round-trip tests.
+
+The next practical proof is one verified Butts room or connected wall section.
+The next software foundation is an auditable, reversible edit workflow that
+preserves source evidence while previewing dependent changes.

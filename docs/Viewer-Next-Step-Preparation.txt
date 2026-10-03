@@ -1,0 +1,131 @@
+NEXT VIEWER STEP — PREPARATION, NOT IMPLEMENTATION
+October 3, 2026
+
+DECISION FOR THE NEXT SESSION
+
+Two entry points are ready:
+
+A. Begin a measured Butts pilot.
+   Interpret one verified room or connected wall section using existing tools.
+   Use the pilot to expose actual source ambiguities and missing editing behavior.
+
+B. Implement scoped, reversible building edits first.
+   Use synthetic fixtures to establish safe wall/opening customization without
+   asserting any new Butts measurements.
+
+Both routes lead toward the same semantic model and coordinated drafting/viewer
+workflow. The user will choose which route to start. No code changes or house
+interpretations are authorized by this preparation document alone.
+
+ROUTE A — BUTTS PILOT
+
+1. Identify the governing plan/revision and isolate its model-space region.
+   The DWG contains multiple plans/copies; layer names alone do not establish
+   which geometry governs. Retain the DWG/PDF identities and decode warnings.
+
+2. Select independently supported written dimensions and at least three control
+   points spanning the chosen region. Establish building coordinates and inspect
+   residuals. Do not treat the DWG's declared inches as independent verification.
+
+3. Interpret a small connected wall section or room boundary. Decide which source
+   lines represent framing versus finish references, outside direction, wall type,
+   and height. Retain unresolved corner conditions rather than implying clean joins.
+
+4. Add source-supported door/window void proposals. Verify offsets, widths, sill
+   and head elevations; keep clear voids distinct from rough openings and products.
+
+5. Compare independently measured spans/opening locations against the sources.
+   Save a review and record unresolved discrepancies. Label the result as a pilot,
+   not a complete or permit-ready house.
+
+Questions that may require the user/designer:
+  - Which plan copy or revision governs?
+  - Which written dimensions establish the selected region?
+  - Does a line refer to framing, finish, centerline, or another object?
+  - Which wall/height/opening specifications govern ambiguous conditions?
+
+ROUTE B — SCOPED EDIT TRANSACTIONS
+
+Objective:
+Let a designer preview and accept a wall translation or hosted-opening size/location
+change while retaining original registered geometry and written source evidence.
+This is the next foundation for dynamic layouts and later room-size editing.
+
+Initial scope:
+  - Translate one accepted wall by an explicitly entered building-space vector.
+  - Edit an existing hosted opening's offset, width, sill, or head.
+  - Preserve stable wall/opening identities and applied finish choices.
+  - Preview affected components, validate, apply, cancel, and undo the transaction.
+  - Persist accepted edit state and audit records in a new review schema version.
+
+Exclude from this increment:
+  - General constraint solving or automatic room resizing.
+  - Automatic joins, roof regeneration, structural adequacy, and permit exports.
+  - Silent edits to neighboring walls or changes to original source/control evidence.
+
+Data/behavior requirements:
+
+1. Separate source, interpretation, and authored design.
+   Current walls are regenerated directly from registered source decisions.
+   Add explicit authored placement/edit state instead of changing DWG entities or
+   registration controls to simulate a design change. Display source and proposed
+   geometry as distinct references where helpful.
+
+2. Introduce an authoritative revision and transaction contract.
+   Each command names its starting revision, affected object IDs, operation,
+   preconditions, and designer rationale. Preview is deterministic and does not
+   mutate accepted state. Applying a stale command fails. Repeated application of
+   the same transaction must not duplicate an edit.
+
+3. Validate dependencies before applying.
+   Rebuild host framing, voids, and finish panels. Reject invalid openings/overlaps.
+   Translation preserves opening offsets along the unchanged wall direction and
+   carries hosted components with the wall. Flag connected-wall/junction impacts
+   for explicit resolution; do not accept a moved wall as a coordinated room.
+
+4. Keep intent and discrepancies visible.
+   Original measurements continue to describe source evidence. Designer edits
+   may intentionally differ; report that difference rather than redefining the
+   original dimension as if it had changed. Preserve assumptions and unresolved
+   engineering decisions.
+
+5. Preserve dynamic finish options.
+   Finish choices stay attached to stable wall/layer/side targets. Rebuilding a wall
+   must not discard appearance, thickness, or decision notes. New finish options
+   remain previewable and reversible. Product catalogs, textures, palettes and
+   room-wide finish application remain separate later extensions.
+
+6. Restore accepted edits reliably.
+   Save original evidence, authored overrides, revision, applied transaction IDs,
+   and audit records. Reconstruct geometry and revalidate on restore. Reject
+   inconsistent records before replacing the current workspace. Migrate existing
+   reviews without inventing authored edits or a historical audit trail.
+
+Likely implementation areas:
+  src/architecture/: pure semantic edit/transaction functions and independent tests.
+  src/architecture/review.ts: schema migration and derived-state validation.
+  src/components/DrawingWorkspace.tsx: scoped edit preview and acceptance controls.
+  scripts/tests/: transaction, propagation, evidence and restore tests.
+
+Acceptance tests:
+  - A known translation moves wall endpoints and every hosted component by the
+    same independently calculated vector; source entities and controls do not move.
+  - An opening resize changes void dimensions in every layer without changing its
+    semantic identity, framing reference, or unrelated walls.
+  - Invalid opening bounds/overlaps, stale revisions and duplicate application
+    cannot mutate accepted state.
+  - Finish choices survive wall/opening edits and geometry regeneration.
+  - Cancel leaves state unchanged; undo restores the preceding accepted geometry
+    and evidence while following the defined monotonic revision policy.
+  - Save/restore reproduces authored geometry and audit identity; older reviews
+    migrate and malformed histories are rejected.
+  - Browser checks exercise preview/apply/cancel/undo and failure messages; actual
+    export download readback is verified if supported, otherwise remains reported.
+  - TypeScript, targeted lint, production build and applicable architecture tests
+    pass. Save visual proof using a clearly labeled synthetic fixture.
+
+DEFINITION OF DONE
+
+A small, measured, auditable customization workflow that can support the Butts
+pilot and later room/layout work. It does not claim a complete house reconstruction,
+automatic CAD synchronization, construction-document generation, or county approval.

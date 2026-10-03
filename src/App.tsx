@@ -7,11 +7,16 @@ import AnalyticsHooks from './components/AnalyticsHooks';
 import { HowItWorks, ProblemAndBundle, ProjectsWhyServices, Walkthrough } from './components/HomeSections';
 
 const ModelViewer = lazy(() => import('./components/ModelViewer'));
+const ArchitecturalViewer = lazy(() => import('./components/ArchitecturalViewer'));
 const CesiumViewer = lazy(() => import('./components/CesiumViewer'));
 
 const viewerFallback = <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-300">Loading viewer…</div>;
 
 function App() {
+  if (window.location.pathname.replace(/\/$/, '') === '/architectural-viewer') {
+    return <Suspense fallback={viewerFallback}><ArchitecturalViewer /></Suspense>;
+  }
+
   if (window.location.pathname.replace(/\/$/, '') === '/viewer') {
     return <Suspense fallback={viewerFallback}><ModelViewer /></Suspense>;
   }

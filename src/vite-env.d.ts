@@ -10,6 +10,7 @@ interface Window {
 }
 
 interface ImportMetaEnv {
+  readonly VITE_DROPBOX_APP_KEY?: string;
   readonly VITE_LEAD_INTAKE_API_URL?: string;
   readonly VITE_LEAD_INTAKE_UPDATE_API_URL?: string;
   readonly VITE_CRM_WEBHOOK_DRY_RUN?: string;
