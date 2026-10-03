@@ -4,7 +4,7 @@ import ContactForm from './components/ContactForm';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import AnalyticsHooks from './components/AnalyticsHooks';
-import { HowItWorks, ProblemAndBundle, ProjectsWhyServices, Walkthrough } from './components/HomeSections';
+import { HowItWorks, InteractiveModels, ProblemAndBundle, ProjectsWhyServices, Walkthrough } from './components/HomeSections';
 
 const ModelViewer = lazy(() => import('./components/ModelViewer'));
 const ArchitecturalViewer = lazy(() => import('./components/ArchitecturalViewer'));
@@ -35,8 +35,9 @@ function App() {
       <Header />
       <main id="main-content">
       <Hero />
-      <ProblemAndBundle />
+      <InteractiveModels />
       <Walkthrough />
+      <ProblemAndBundle />
       <ProjectsWhyServices />
       <HowItWorks />
       <ContactForm />

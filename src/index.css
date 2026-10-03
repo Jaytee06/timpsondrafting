@@ -62,3 +62,39 @@ body {
 
 /* Sentence-case headings keep the drafting identity calm and precise. */
 .font-display.uppercase { text-transform: none; letter-spacing: -0.025em; font-weight: 600; }
+
+/* A quiet spatial stage for the interactive model collection. */
+.spatial-models {
+  background: radial-gradient(ellipse at 70% 0%, #fff 0%, #edf1ef 65%, #e6eceb 100%);
+}
+.spatial-models::before {
+  content: '';
+  position: absolute;
+  inset: 15% -25% -65%;
+  z-index: -1;
+  background-image: linear-gradient(rgba(41,63,80,.065) 1px, transparent 1px), linear-gradient(90deg, rgba(41,63,80,.065) 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: perspective(600px) rotateX(52deg);
+  transform-origin: center top;
+  mask-image: linear-gradient(transparent, #000 35%, transparent);
+  pointer-events: none;
+}
+.spatial-model-card {
+  box-shadow: 0 3px 0 rgba(41,63,80,.04), 0 8px 20px rgba(41,63,80,.06);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.spatial-model-card:hover, .spatial-model-card:focus-within {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 0 rgba(41,63,80,.04), 0 12px 24px rgba(41,63,80,.1);
+}
+.spatial-viewfinder {
+  opacity: .5;
+  background: linear-gradient(#fff,#fff) top left / 16px 1px, linear-gradient(#fff,#fff) top left / 1px 16px,
+    linear-gradient(#fff,#fff) top right / 16px 1px, linear-gradient(#fff,#fff) top right / 1px 16px,
+    linear-gradient(#fff,#fff) bottom left / 16px 1px, linear-gradient(#fff,#fff) bottom left / 1px 16px,
+    linear-gradient(#fff,#fff) bottom right / 16px 1px, linear-gradient(#fff,#fff) bottom right / 1px 16px;
+  background-repeat: no-repeat;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spatial-model-card:hover, .spatial-model-card:focus-within { transform: none; }
+}
