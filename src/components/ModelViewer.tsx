@@ -478,7 +478,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     let materialIndex = 0;
     if (finishMode.current && (mobileMode || isSceneLocked())) {
       interactiveRay.current.setFromCamera(new Vector2(0, 0), camera);
-      interactiveRay.current.far = INTERACTION_DISTANCE_METERS;
+      interactiveRay.current.far = Infinity;
       const hit = interactiveRay.current.intersectObjects(scene.children, true).find((candidate) => {
         let object: Object3D | null = candidate.object;
         while (object) { if (!object.visible) return false; object = object.parent; }
@@ -591,7 +591,7 @@ function TouchLookControls({ enabled }: { enabled: boolean }) {
   return null;
 }
 
-function WalkControls({ frozen, collisionObjects, wallCollisionObjects, groundHeight, mobileMode, onLockChange }: { frozen: boolean; collisionObjects: Object3D[]; wallCollisionObjects: Object3D[]; groundHeight: number; mobileMode: boolean; onLockChange: (locked: boolean) => void }) {
+function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObjects, groundHeight, mobileMode, onLockChange }: { droneMode: boolean; frozen: boolean; collisionObjects: Object3D[]; wallCollisionObjects: Object3D[]; groundHeight: number; mobileMode: boolean; onLockChange: (locked: boolean) => void }) {
   const canvas = useThree((state) => state.gl.domElement);
   const keys = useRef(new Set<string>());
   const isLocked = useRef(false);
@@ -599,6 +599,20 @@ function WalkControls({ frozen, collisionObjects, wallCollisionObjects, groundHe
   const jumpCount = useRef(0);
   const grounded = useRef(true);
   const groundRay = useRef(new Raycaster());
+  const camera = useThree((state) => state.camera);
+  const walkPosition = useRef<Vector3 | null>(null);
+
+  useEffect(() => {
+    keys.current.clear();
+    verticalVelocity.current = 0;
+    jumpCount.current = 0;
+    if (droneMode) walkPosition.current = camera.position.clone();
+    else if (walkPosition.current) {
+      camera.position.copy(walkPosition.current);
+      walkPosition.current = null;
+      grounded.current = true;
+    }
+  }, [camera, droneMode]);
 
   useEffect(() => {
     isLocked.current = mobileMode;
@@ -612,7 +626,7 @@ function WalkControls({ frozen, collisionObjects, wallCollisionObjects, groundHe
         event.preventDefault();
       }
       keys.current.add(event.key.toLowerCase());
-      if (event.code === 'Space' && isLocked.current && !event.repeat && jumpCount.current < 2) {
+      if (!droneMode && event.code === 'Space' && isLocked.current && !event.repeat && jumpCount.current < 2) {
         verticalVelocity.current = 7;
         jumpCount.current += 1;
         grounded.current = false;
@@ -633,7 +647,7 @@ function WalkControls({ frozen, collisionObjects, wallCollisionObjects, groundHe
       window.removeEventListener('blur', clearKeys);
       document.removeEventListener('visibilitychange', visibilityChange);
     };
-  }, [frozen]);
+  }, [frozen, droneMode]);
 
   useEffect(() => {
     const blockPointerSpike = (event: MouseEvent) => {
@@ -652,6 +666,16 @@ function WalkControls({ frozen, collisionObjects, wallCollisionObjects, groundHe
     // A suspended/background tab can report a very large delta on its first frame back.
     // Cap it so one delayed frame cannot teleport the player or blow through the floor.
     const frameDelta = Math.min(delta, 1 / 30);
+    if (droneMode) {
+      if (!isLocked.current) return;
+      const forward = camera.getWorldDirection(new Vector3());
+      const side = new Vector3().crossVectors(forward, camera.up).normalize();
+      const movement = forward.multiplyScalar(Number(keys.current.has('w') || keys.current.has('arrowup')) - Number(keys.current.has('s') || keys.current.has('arrowdown')))
+        .add(side.multiplyScalar(Number(keys.current.has('d') || keys.current.has('arrowright')) - Number(keys.current.has('a') || keys.current.has('arrowleft'))));
+      movement.y += Number(keys.current.has(' ')) - Number(keys.current.has('c'));
+      if (movement.lengthSq()) camera.position.add(movement.normalize().multiplyScalar(frameDelta * 5));
+      return;
+    }
     verticalVelocity.current -= 18 * frameDelta;
     camera.position.y += verticalVelocity.current * frameDelta;
 
@@ -817,15 +841,46 @@ function MobileJoystick() {
   );
 }
 
-function FinishScrollWheel({ finish, activeTheme, walking, onCycle, onApply, onClose }: {
-  finish: FinishOption; activeTheme: FinishTheme; walking: boolean;
+function FinishScrollWheel({ finish, activeTheme, walking, mobile, onCycle, onApply, onClose }: {
+  finish: FinishOption; activeTheme: FinishTheme; walking: boolean; mobile: boolean;
   onCycle: (direction: number) => void; onApply: (theme: FinishTheme) => void; onClose: () => void;
 }) {
+  const gesture = useRef<{ pointer: number; y: number; moved: boolean; button: HTMLButtonElement | null } | null>(null);
   const available = availableFinishThemes(finish.samples);
   const active = available.includes(activeTheme) ? activeTheme : 'original';
   const index = Math.max(0, available.indexOf(active));
   const ordered = available.length >= 3 ? [-1, 0, 1].map((offset) => ({ theme: available[(index + offset + available.length) % available.length], selected: offset === 0 })) : available.map((theme) => ({ theme, selected: theme === active }));
-  return <section aria-label="Finish sample wheel" title={finish.label} className="flex flex-col items-center gap-3 py-3">
+  return <section aria-label="Finish sample wheel" title={finish.label} className={`flex flex-col items-center gap-3 py-3 ${mobile ? 'touch-none select-none' : ''}`}
+    onClickCapture={(event) => {
+      // Browsers may synthesize a primary-touch click; touch actions are handled below.
+      if (mobile && event.detail > 0) { event.preventDefault(); event.stopPropagation(); }
+    }}
+    onPointerDown={(event) => {
+      if (!mobile || event.pointerType !== 'touch' || gesture.current) return;
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      gesture.current = { pointer: event.pointerId, y: event.clientY, moved: false, button: (event.target as HTMLElement).closest('button') };
+    }}
+    onPointerMove={(event) => {
+      const current = gesture.current;
+      if (!current || current.pointer !== event.pointerId) return;
+      event.preventDefault();
+      const distance = event.clientY - current.y;
+      if (Math.abs(distance) < 36) return;
+      current.moved = true;
+      current.y = event.clientY;
+      if (available.length > 1) onCycle(distance < 0 ? 1 : -1);
+    }}
+    onPointerUp={(event) => {
+      const current = gesture.current;
+      if (!current || current.pointer !== event.pointerId) return;
+      event.preventDefault();
+      gesture.current = null;
+      if (!current.moved) current.button?.click();
+    }}
+    onPointerCancel={() => { gesture.current = null; }}
+    onLostPointerCapture={() => { gesture.current = null; }}
+  >
     <button type="button" aria-label="Close finish selection" title="Close finishes" onClick={onClose} className="grid h-11 w-11 place-items-center text-xl text-white/60 hover:text-white">×</button>
     {available.length > 1 && <button type="button" aria-label="Previous finish" onClick={() => onCycle(-1)} className="grid h-11 w-11 place-items-center text-white/60 hover:text-white"><ChevronUp className="h-4 w-4" /></button>}
     <div className="flex flex-col items-center gap-3">
@@ -838,6 +893,7 @@ function FinishScrollWheel({ finish, activeTheme, walking, onCycle, onApply, onC
     {available.length > 1 && <button type="button" aria-label="Next finish" onClick={() => onCycle(1)} className="grid h-11 w-11 place-items-center text-white/60 hover:text-white"><ChevronDown className="h-4 w-4" /></button>}
     <p className="max-w-full px-1.5 text-center text-[10px] leading-4 text-white/70" aria-label="Active finish">{finish.samples?.[active]?.label.split(' · ').slice(0, active.startsWith('viewer:') ? 2 : 1).join(' · ')}</p>
     <span className="text-[10px] tabular-nums text-white/45">{index + 1} / {available.length}</span>
+    {mobile && available.length > 1 && <span className="text-[10px] text-white/70">Swipe ↕</span>}
     <span className="sr-only">{finish.label}. {walking ? 'Hold Shift and scroll to compare. Release Shift to close.' : 'Choose a finish.'} Changes surfaces sharing this finish. {available.length === 1 ? 'No alternate finishes supplied.' : ''}</span>
     <p className="sr-only" role="status">Applied: {finish.samples?.[active]?.label}</p>
   </section>;
@@ -856,6 +912,8 @@ export default function ModelViewer() {
   const [modelUrl, setModelUrl] = useState<string>('');
   const [fileName, setFileName] = useState('');
   const [isWalking, setIsWalking] = useState(false);
+  const [droneMode, setDroneMode] = useState(false);
+  useEffect(() => { setDroneMode(false); }, [modelUrl]);
   const [groundHeight, setGroundHeight] = useState(0);
   const [collisionObjects, setCollisionObjects] = useState<Object3D[]>([]);
   const [wallCollisionObjects, setWallCollisionObjects] = useState<Object3D[]>([]);
@@ -1081,7 +1139,8 @@ export default function ModelViewer() {
       <button type="button" aria-expanded={showSettings} aria-controls="viewer-inspector" onClick={() => { closeInspector(); setShowSettings(!showSettings); }} className={toolbarButton}>Model tools</button>
     </header>
     {modelUrl && <nav aria-label="Model actions" className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/10 px-3 py-2 sm:px-5">
-      {isWalking && !isMobile && <span className="flex items-center text-xs text-slate-400">Walking · Escape to exit</span>}
+      {isWalking && !isMobile && <span className="flex items-center text-xs text-slate-400">{droneMode ? 'Drone' : 'Walking'} · Escape to exit</span>}
+      <button type="button" aria-pressed={droneMode} onClick={() => setDroneMode((current) => !current)} className={toolbarButton}>{droneMode ? 'Return to walk' : 'Drone view'}</button>
       <button type="button" disabled={!exportScene || isSendingToSite} onClick={sendToSite} className={toolbarButton}>{isSendingToSite ? 'Preparing…' : 'Place at an address'}</button>
       {canOpenAppleAr && (usdzUrl ? <a rel="ar" href={usdzUrl} className={toolbarButton}><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" className="hidden" />Open in AR</a> : <button type="button" disabled={!exportScene || isExportingUsdz} onClick={prepareUsdz} className={toolbarButton}>{isExportingUsdz ? 'Preparing AR…' : 'Prepare AR'}</button>)}
     </nav>}
@@ -1133,6 +1192,8 @@ export default function ModelViewer() {
           )}
 
           {exportScene && <WalkControls
+            key={modelUrl}
+            droneMode={droneMode}
             frozen={Boolean(contextTarget?.finish)}
             collisionObjects={collisionObjects}
             wallCollisionObjects={wallCollisionObjects}
@@ -1143,8 +1204,8 @@ export default function ModelViewer() {
         </Canvas>
         {!modelUrl && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center"><div className="max-w-sm"><p className="text-lg font-medium">Open a GLB model to enter the scene</p><p className="mt-3 text-sm leading-6 text-slate-400">Use Model tools to open a file from your device or Dropbox, or drop a GLB here.</p></div></div>}
         {isDraggingFile && <div className="pointer-events-none absolute inset-3 grid place-items-center rounded border-2 border-dashed border-orange bg-slate-950/85 text-lg">Drop GLB to open</div>}
-        {selectedFinish && <div aria-label="Finish samples" className="absolute right-3 top-1/2 z-10 max-h-[calc(100%_-_1.5rem)] w-16 -translate-y-1/2 overflow-y-auto overscroll-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)] sm:right-5">
-          <FinishScrollWheel finish={selectedFinish} activeTheme={selectedTheme} walking={isWalking && !isMobile} onApply={applySelectedFinish} onCycle={(direction) => applySelectedFinish(cycleFinishTheme(selectedTheme, direction, availableFinishThemes(selectedFinish.samples)))} onClose={closeInspector} />
+        {selectedFinish && <div aria-label="Finish samples" className={`absolute top-1/2 z-10 max-h-[calc(100%_-_1.5rem)] w-16 -translate-y-1/2 overflow-y-auto overscroll-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)] ${isMobile ? 'left-3' : 'right-3 sm:right-5'}`}>
+          <FinishScrollWheel mobile={isMobile} finish={selectedFinish} activeTheme={selectedTheme} walking={isWalking && !isMobile} onApply={applySelectedFinish} onCycle={(direction) => applySelectedFinish(cycleFinishTheme(selectedTheme, direction, availableFinishThemes(selectedFinish.samples)))} onClose={closeInspector} />
         </div>}
         {isWalking && <div className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80" />}
       </section>
@@ -1164,7 +1225,7 @@ export default function ModelViewer() {
     </div>
     {isMobile && modelUrl ? <footer aria-label="Walk controls" className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-950 px-3 py-2">
       <MobileJoystick />
-      <div className="grid grid-cols-2 gap-2"><MobileControl label="Interact" keyName="e" code="KeyE" className="h-12 w-20 text-xs" /><MobileControl label="Hold finishes" keyName="Shift" code="ShiftLeft" className="h-12 w-20 text-xs" /><MobileControl label="Jump" keyName=" " code="Space" className="col-span-2 h-12 w-full text-xs" /></div>
-    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{isWalking ? 'WASD: move · Space: jump · E: open door · Hold Shift + scroll: finishes · Escape: exit' : 'Click scene to walk · Hold Shift + scroll: finishes · Escape: exit · Reach: 10 ft'}<span className="sr-only" role="status">{saveNotice}</span></footer>}
+      <div className="grid grid-cols-2 gap-2"><MobileControl label="Interact" keyName="e" code="KeyE" className="h-12 w-20 text-xs" /><MobileControl label="Hold finishes" keyName="Shift" code="ShiftLeft" className="h-12 w-20 text-xs" />{droneMode ? <><MobileControl label="Up" keyName=" " code="Space" className="h-12 w-20 text-xs" /><MobileControl label="Down" keyName="c" code="KeyC" className="h-12 w-20 text-xs" /></> : <MobileControl label="Jump" keyName=" " code="Space" className="col-span-2 h-12 w-full text-xs" />}</div>
+    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{droneMode ? 'Drone · WASD: fly · Space: up · C: down · Hold Shift + scroll: finishes · Escape: release mouse' : isWalking ? 'WASD: move · Space: jump · E: open door · Hold Shift + scroll: finishes · Escape: exit' : 'Click scene to walk · Hold Shift + scroll: finishes · Escape: exit'}<span className="sr-only" role="status">{saveNotice}</span></footer>}
   </main>;
 }
