@@ -11,6 +11,7 @@ export function createPaintVariations(category: string, base?: Material) {
     || base.map || base.transparent || base.opacity < 1 || base.metalness > 0.05) return [];
   return paints.map((paint) => {
     const material = base.clone();
+    material.userData.tddExportBaseMaterial = base.name;
     material.name = `STUDIO_PAINT_${paint.id.toUpperCase()}`;
     material.color.set(paint.color);
     return { theme: `viewer:${paint.id}`, label: paint.label, material };

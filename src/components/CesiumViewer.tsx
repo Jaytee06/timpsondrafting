@@ -1,3 +1,5 @@
+import { MobileControl, MobileJoystick } from './NavigationTouchControls';
+import { canReachSiteSurface, siteSlideCandidates, droneDisplacement } from '../viewer/cesiumNavigation';
 import { cesiumSpawnFrame, DEFAULT_EYE_HEIGHT, ModelSpawn, readGlbModelSpawn } from '../viewer/modelSpawn';
 import { readModelTransfer } from '../viewer/modelTransfer';
 import DropboxModelButton from './DropboxModelButton';
@@ -110,9 +112,9 @@ const RECENT_PROPERTIES_KEY = 'timpson:cesium-recent-properties:v1';
 const MAX_RECENT_PROPERTIES = 8;
 const DEFAULT_SITE_LIMIT_RADIUS_MILES = 10;
 const FLIGHT_DEFAULT_HEIGHT = 9;
-const FLIGHT_MIN_HEIGHT = 3;
-const FLIGHT_MAX_HEIGHT = 45;
-const FLIGHT_SPEED = 12;
+const FLIGHT_MIN_HEIGHT = 0.5;
+const FLIGHT_MAX_HEIGHT = 120;
+const FLIGHT_SPEED = 5.25;
 const FLIGHT_FAST_SPEED = 28;
 
 const projectLimitRectangle = (property: PropertySite) => {
@@ -404,6 +406,14 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
   const inspectionHeading = useRef(CesiumMath.toRadians(placement.heading));
   const inspectionPitch = useRef(CesiumMath.toRadians(-25));
   const [viewerReady, setViewerReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const exitNavigation = useRef<() => void>(() => {});
+  useEffect(() => {
+    const query = window.matchMedia('(pointer: coarse), (max-width: 767px)');
+    const update = () => setIsMobile(query.matches);
+    update(); query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const [isWalking, setIsWalking] = useState(false);
   const [isFlying, setIsFlying] = useState(false);
   const [isChoosingAnchor, setIsChoosingAnchor] = useState(false);
@@ -589,7 +599,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       setError('');
     }, ScreenSpaceEventType.LEFT_CLICK);
 
-    return () => viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
+    return () => { if (!viewer.isDestroyed()) viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK); };
   }, [isChoosingAnchor, onPlacementChange, placement, viewerReady]);
 
   useEffect(() => {
@@ -646,7 +656,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       setError('');
     }, ScreenSpaceEventType.LEFT_CLICK);
 
-    return () => viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
+    return () => { if (!viewer.isDestroyed()) viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK); };
   }, [isChoosingSpawn, placement, viewerReady]);
 
   useEffect(() => {
@@ -766,6 +776,8 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
     const canvas = viewer.canvas;
 
     const stopNavigation = () => {
+      if (viewer.isDestroyed()) return;
+      if (document.pointerLockElement === canvas) document.exitPointerLock();
       walkKeys.current.clear();
       walkVerticalOffset.current = 0;
       walkVerticalVelocity.current = 0;
@@ -773,13 +785,18 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       navigationMode.current = null;
       viewer.resolutionScale = 1;
       viewer.scene.screenSpaceCameraController.enableInputs = true;
+      viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
       setIsWalking(false);
       setIsFlying(false);
     };
+    exitNavigation.current = stopNavigation;
+    const active = () => !viewer.isDestroyed() && navigationMode.current !== null && (isMobile || document.pointerLockElement === canvas);
     const pointerLockChange = () => {
+      if (isMobile) return;
       if (document.pointerLockElement === canvas) {
         lastWalkFrame.current = performance.now();
         viewer.scene.screenSpaceCameraController.enableInputs = false;
+        viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
         setIsWalking(navigationMode.current === 'walk');
         setIsFlying(navigationMode.current === 'flight');
         viewer.resolutionScale = navigationMode.current === 'flight' ? 0.9 : 1;
@@ -788,7 +805,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       }
     };
     const keyDown = (event: KeyboardEvent) => {
-      if (document.pointerLockElement !== canvas) return;
+      if (!active()) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
       if (navigationMode.current === 'walk' && event.code === 'Space' && !event.repeat && walkJumpCount.current < 2) {
         walkVerticalVelocity.current = JUMP_SPEED;
@@ -798,18 +815,18 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
     };
     const keyUp = (event: KeyboardEvent) => walkKeys.current.delete(event.key.toLowerCase());
     const mouseMove = (event: MouseEvent) => {
-      if (document.pointerLockElement !== canvas) return;
+      if (!active()) return;
       walkHeading.current += event.movementX * 0.002;
-      const isFlight = navigationMode.current === 'flight';
       walkPitch.current = CesiumMath.clamp(
         walkPitch.current - event.movementY * 0.002,
         CesiumMath.toRadians(-85),
-        CesiumMath.toRadians(isFlight ? -5 : 85),
+        CesiumMath.toRadians(85),
       );
     };
     const tick = () => {
-      if (document.pointerLockElement !== canvas) return;
+      if (!active()) return;
       const now = performance.now();
+      if (now - lastWalkFrame.current < 1000 / 30) return;
       const delta = Math.min((now - lastWalkFrame.current) / 1000, 1 / 20);
       lastWalkFrame.current = now;
 
@@ -818,11 +835,11 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       const right = Number(walkKeys.current.has('d') || walkKeys.current.has('arrowright'))
         - Number(walkKeys.current.has('a') || walkKeys.current.has('arrowleft'));
       if (navigationMode.current === 'flight') {
-        const length = Math.hypot(forward, right) || 1;
         const speed = walkKeys.current.has('shift') ? FLIGHT_FAST_SPEED : FLIGHT_SPEED;
-        const distance = speed * delta;
-        const northMeters = ((forward * Math.cos(walkHeading.current)) - (right * Math.sin(walkHeading.current))) / length * distance;
-        const eastMeters = ((forward * Math.sin(walkHeading.current)) + (right * Math.cos(walkHeading.current))) / length * distance;
+        const vertical = Number(walkKeys.current.has(' ') || walkKeys.current.has('e')) - Number(walkKeys.current.has('c') || walkKeys.current.has('q'));
+        const movement = droneDisplacement(forward, right, vertical, walkHeading.current, walkPitch.current, speed * delta);
+        const northMeters = movement.north;
+        const eastMeters = movement.east;
         const latitudeRadians = CesiumMath.toRadians(flightCoordinates.current.latitude);
         const unclampedLatitude = flightCoordinates.current.latitude + (northMeters / 111_320);
         const unclampedLongitude = flightCoordinates.current.longitude + (eastMeters / (111_320 * Math.cos(latitudeRadians)));
@@ -832,9 +849,8 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
           projectLimitRectangle(property),
         );
 
-        const vertical = Number(walkKeys.current.has('e')) - Number(walkKeys.current.has('q'));
         flightHeight.current = CesiumMath.clamp(
-          flightHeight.current + (vertical * 8 * delta),
+          flightHeight.current + movement.up,
           FLIGHT_MIN_HEIGHT,
           FLIGHT_MAX_HEIGHT,
         );
@@ -869,7 +885,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
           new Cartesian3(),
         );
         const maximumProbeDistance = MAX_STEP_HEIGHT + MAX_STEP_DOWN + 0.05;
-        const hit = rayPicker.drillPickFromRay(new Ray(probeOrigin, probeDirection), 32).find((candidate) => {
+        const hit = rayPicker.drillPickFromRay(new Ray(probeOrigin, probeDirection), 8).find((candidate) => {
           if (!candidate.position || Cartesian3.distance(probeOrigin, candidate.position) > maximumProbeDistance) return false;
           const hitId = candidate.object?.id ?? candidate.object?.primitive?.id;
           return hitId === MODEL_PICK_ID && isWalkableNode(pickedNodeName(candidate));
@@ -886,47 +902,48 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
         const northMeters = ((forward * Math.cos(walkHeading.current)) - (right * Math.sin(walkHeading.current))) / length * distance;
         const eastMeters = ((forward * Math.sin(walkHeading.current)) + (right * Math.cos(walkHeading.current))) / length * distance;
         const latitudeRadians = CesiumMath.toRadians(walkCoordinates.current.latitude);
-        const nextLatitude = walkCoordinates.current.latitude + (northMeters / 111_320);
-        const nextLongitude = walkCoordinates.current.longitude + (eastMeters / (111_320 * Math.cos(latitudeRadians)));
-        const movementLength = Math.hypot(northMeters, eastMeters) || 1;
-        const northDirection = northMeters / movementLength;
-        const eastDirection = eastMeters / movementLength;
-        const blocked = [-WALK_COLLISION_PADDING, 0, WALK_COLLISION_PADDING].some((sideOffset) => [0.45, 1.25].some((height) => {
-          const sideNorthMeters = -eastDirection * sideOffset;
-          const sideEastMeters = northDirection * sideOffset;
-          const sideLatitude = sideNorthMeters / 111_320;
-          const sideLongitude = sideEastMeters / (111_320 * Math.cos(latitudeRadians));
-          const origin = Cartesian3.fromDegrees(
-            walkCoordinates.current.longitude + sideLongitude,
-            walkCoordinates.current.latitude + sideLatitude,
-            walkSurfaceHeight.current + height + walkVerticalOffset.current,
-          );
-          const target = Cartesian3.fromDegrees(
-            nextLongitude + sideLongitude,
-            nextLatitude + sideLatitude,
-            walkSurfaceHeight.current + height + walkVerticalOffset.current,
-          );
-          const direction = Cartesian3.normalize(Cartesian3.subtract(target, origin, new Cartesian3()), new Cartesian3());
-          return rayPicker.drillPickFromRay(new Ray(origin, direction), 24).some((hit) => {
-            if (!hit.position || Cartesian3.distance(origin, hit.position) > distance + WALK_COLLISION_PADDING) return false;
-            const hitId = hit.object?.id ?? hit.object?.primitive?.id;
-            const nodeName = pickedNodeName(hit);
-            return hitId === MODEL_PICK_ID && isWallNode(nodeName) && !isDoorNode(nodeName);
-          });
-        }));
-        const candidateSurface = findWalkableSurface(nextLongitude, nextLatitude, walkSurfaceHeight.current);
-        const candidateTerrainPosition = Cartographic.fromDegrees(nextLongitude, nextLatitude);
-        const candidateTerrainHeight = viewer.scene.globe.getHeight(candidateTerrainPosition);
-        const candidateHeight = candidateSurface?.height ?? candidateTerrainHeight;
-        const stepUp = candidateHeight === undefined ? 0 : candidateHeight - walkSurfaceHeight.current;
-        const hasReachableSurface = candidateHeight === undefined
-          || (stepUp <= MAX_STEP_HEIGHT + 0.05 && stepUp >= -MAX_STEP_DOWN - 0.1);
-        if (!blocked && hasReachableSurface) {
-          walkCoordinates.current.latitude = nextLatitude;
-          walkCoordinates.current.longitude = nextLongitude;
-          nextSurface = candidateSurface;
-          if (!nextSurface && candidateTerrainHeight !== undefined) {
-            nextSurface = { height: candidateTerrainHeight, nodeName: 'terrain' };
+        for (const [candidateNorth, candidateEast] of siteSlideCandidates(northMeters, eastMeters)) {
+          const candidateDistance = Math.hypot(candidateNorth, candidateEast);
+          const nextLatitude = walkCoordinates.current.latitude + (candidateNorth / 111_320);
+          const nextLongitude = walkCoordinates.current.longitude + (candidateEast / (111_320 * Math.cos(latitudeRadians)));
+          const movementLength = candidateDistance || 1;
+          const northDirection = candidateNorth / movementLength;
+          const eastDirection = candidateEast / movementLength;
+          const blocked = [-WALK_COLLISION_PADDING, 0, WALK_COLLISION_PADDING].some((sideOffset) => [0.45, 1.25].some((height) => {
+            const sideNorthMeters = -eastDirection * sideOffset;
+            const sideEastMeters = northDirection * sideOffset;
+            const sideLatitude = sideNorthMeters / 111_320;
+            const sideLongitude = sideEastMeters / (111_320 * Math.cos(latitudeRadians));
+            const origin = Cartesian3.fromDegrees(
+              walkCoordinates.current.longitude + sideLongitude,
+              walkCoordinates.current.latitude + sideLatitude,
+              walkSurfaceHeight.current + height + walkVerticalOffset.current,
+            );
+            const target = Cartesian3.fromDegrees(
+              nextLongitude + sideLongitude,
+              nextLatitude + sideLatitude,
+              walkSurfaceHeight.current + height + walkVerticalOffset.current,
+            );
+            const direction = Cartesian3.normalize(Cartesian3.subtract(target, origin, new Cartesian3()), new Cartesian3());
+            return rayPicker.drillPickFromRay(new Ray(origin, direction), 4).some((hit) => {
+              if (!hit.position || Cartesian3.distance(origin, hit.position) > candidateDistance + WALK_COLLISION_PADDING) return false;
+              const hitId = hit.object?.id ?? hit.object?.primitive?.id;
+              const nodeName = pickedNodeName(hit);
+              return hitId === MODEL_PICK_ID && isWallNode(nodeName) && !isDoorNode(nodeName);
+            });
+          }));
+          const candidateSurface = findWalkableSurface(nextLongitude, nextLatitude, walkSurfaceHeight.current);
+          const candidateTerrainPosition = Cartographic.fromDegrees(nextLongitude, nextLatitude);
+          const candidateTerrainHeight = viewer.scene.globe.getHeight(candidateTerrainPosition);
+          const hasReachableSurface = canReachSiteSurface(candidateSurface?.height, walkSurfaceHeight.current, MAX_STEP_HEIGHT, MAX_STEP_DOWN);
+          if (!blocked && hasReachableSurface) {
+            walkCoordinates.current.latitude = nextLatitude;
+            walkCoordinates.current.longitude = nextLongitude;
+            nextSurface = candidateSurface;
+            if (!nextSurface && candidateTerrainHeight !== undefined) {
+              nextSurface = { height: candidateTerrainHeight, nodeName: 'terrain' };
+            }
+            break;
           }
         }
       }
@@ -956,7 +973,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       let targetSurfaceHeight = walkSurfaceHeight.current;
       if (floorSurface) {
         targetSurfaceHeight = floorSurface.height;
-      } else if (Math.abs(terrainHeight - walkSurfaceHeight.current) <= MAX_STEP_DOWN + 0.1) {
+      } else {
         targetSurfaceHeight = terrainHeight;
       }
       const maximumSurfaceChange = /collider[_ -]?stairs?|stair|step/.test(floorSurface?.nodeName ?? '')
@@ -977,21 +994,45 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       });
     };
 
+    let touch: { id: number; x: number; y: number } | null = null;
+    const touchStart = (event: PointerEvent) => {
+      if (!isMobile || !active() || event.pointerType !== 'touch' || touch) return;
+      event.preventDefault(); canvas.setPointerCapture(event.pointerId);
+      touch = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    };
+    const touchMove = (event: PointerEvent) => {
+      if (!touch || touch.id !== event.pointerId) return;
+      walkHeading.current += (event.clientX - touch.x) * 0.004;
+      walkPitch.current = CesiumMath.clamp(walkPitch.current - (event.clientY - touch.y) * 0.004, CesiumMath.toRadians(-85), CesiumMath.toRadians(85));
+      touch.x = event.clientX; touch.y = event.clientY;
+    };
+    const touchStop = (event: PointerEvent) => { if (touch?.id === event.pointerId) touch = null; };
+    const previousTouchAction = canvas.style.touchAction;
+    if (isMobile) canvas.style.touchAction = 'none';
+    canvas.addEventListener('pointerdown', touchStart);
+    canvas.addEventListener('pointermove', touchMove);
+    canvas.addEventListener('pointerup', touchStop);
+    canvas.addEventListener('pointercancel', touchStop);
     document.addEventListener('pointerlockchange', pointerLockChange);
     document.addEventListener('mousemove', mouseMove);
     window.addEventListener('keydown', keyDown);
     window.addEventListener('keyup', keyUp);
     window.addEventListener('blur', stopNavigation);
-    viewer.clock.onTick.addEventListener(tick);
+    const removeTick = viewer.clock.onTick.addEventListener(tick);
     return () => {
+      canvas.style.touchAction = previousTouchAction;
+      canvas.removeEventListener('pointerdown', touchStart);
+      canvas.removeEventListener('pointermove', touchMove);
+      canvas.removeEventListener('pointerup', touchStop);
+      canvas.removeEventListener('pointercancel', touchStop);
       document.removeEventListener('pointerlockchange', pointerLockChange);
       document.removeEventListener('mousemove', mouseMove);
       window.removeEventListener('keydown', keyDown);
       window.removeEventListener('keyup', keyUp);
       window.removeEventListener('blur', stopNavigation);
-      viewer.clock.onTick.removeEventListener(tick);
+      removeTick();
     };
-  }, [placement.elevationOffset, property, viewerReady]);
+  }, [isMobile, placement.elevationOffset, property, viewerReady]);
 
   const updatePlacement = (key: keyof Placement, value: number) => {
     if (!Number.isFinite(value)) return;
@@ -1092,6 +1133,9 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
     walkVerticalVelocity.current = 0;
     walkJumpCount.current = 0;
     lastWalkFrame.current = performance.now();
+    viewer.camera.cancelFlight();
+    walkKeys.current.clear();
+    viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
     navigationMode.current = 'walk';
     viewer.camera.setView({
       destination: Cartesian3.fromDegrees(
@@ -1101,11 +1145,19 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       ),
       orientation: { heading: walkHeading.current, pitch: walkPitch.current, roll: 0 },
     });
+    if (isMobile) {
+      viewer.scene.screenSpaceCameraController.enableInputs = false;
+      setIsWalking(true);
+      setIsFlying(false);
+      return;
+    }
     const pointerLockRequest = viewer.canvas.requestPointerLock();
     if (pointerLockRequest) {
       void pointerLockRequest.catch(() => {
+        navigationMode.current = null;
         viewer.scene.screenSpaceCameraController.enableInputs = true;
-        setError('Walking mode needs pointer lock. Click Enter walking and allow mouse control.');
+        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+        setError('Walking mode needs pointer lock. Click Walk house and allow mouse control.');
       });
     }
   };
@@ -1113,15 +1165,19 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
   const enterSiteFlight = () => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    const bounded = clampToRectangle(placement.longitude, placement.latitude, projectLimitRectangle(property));
+    viewer.camera.cancelFlight();
+    const currentPosition = viewer.camera.positionCartographic;
+    const bounded = clampToRectangle(CesiumMath.toDegrees(currentPosition.longitude), CesiumMath.toDegrees(currentPosition.latitude), projectLimitRectangle(property));
     flightCoordinates.current = bounded;
     const groundPosition = Cartographic.fromDegrees(bounded.longitude, bounded.latitude);
     const groundHeight = viewer.scene.globe.getHeight(groundPosition)
       ?? siteGroundHeight.current;
     flightGroundHeight.current = groundHeight;
-    flightHeight.current = FLIGHT_DEFAULT_HEIGHT;
-    walkHeading.current = CesiumMath.toRadians(placement.heading);
-    walkPitch.current = CesiumMath.toRadians(-18);
+    flightHeight.current = CesiumMath.clamp(currentPosition.height - groundHeight, FLIGHT_MIN_HEIGHT, FLIGHT_MAX_HEIGHT);
+    walkHeading.current = viewer.camera.heading;
+    walkPitch.current = CesiumMath.clamp(viewer.camera.pitch, CesiumMath.toRadians(-85), CesiumMath.toRadians(85));
+    walkKeys.current.clear();
+    viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
     lastWalkFrame.current = performance.now();
     navigationMode.current = 'flight';
     viewer.camera.setView({
@@ -1132,12 +1188,19 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       ),
       orientation: { heading: walkHeading.current, pitch: walkPitch.current, roll: 0 },
     });
+    if (isMobile) {
+      viewer.scene.screenSpaceCameraController.enableInputs = false;
+      setIsWalking(false);
+      setIsFlying(true);
+      return;
+    }
     const pointerLockRequest = viewer.canvas.requestPointerLock();
     if (pointerLockRequest) {
       void pointerLockRequest.catch(() => {
         navigationMode.current = null;
         viewer.scene.screenSpaceCameraController.enableInputs = true;
-        setError('Site flight needs pointer lock. Click Site flight and allow mouse control.');
+        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+        setError('Drone view needs pointer lock. Click Drone view and allow mouse control.');
       });
     }
   };
@@ -1282,7 +1345,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
             onClick={enterSiteFlight}
             className="col-span-2 rounded bg-orange px-3 py-2.5 font-semibold hover:bg-[#a94718] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Enter site flight
+            Drone view
           </button>
           <button
             type="button"
@@ -1337,11 +1400,14 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       {(isWalking || isFlying) && <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow" />}
       </div>
       {(isFlying || isWalking) && <div className="shrink-0 border-t border-white/10 bg-slate-950 px-4 py-2 text-xs leading-5 text-slate-200">
-        {isFlying ? (
+        <div className="mb-2 flex gap-2">
+          {isMobile && <><button type="button" onClick={isFlying ? enterWalkingMode : enterSiteFlight} disabled={isFlying && (!modelUrl || modelStatus !== 'Model placed')} className="rounded border border-white/25 px-3 py-2">{isFlying ? 'Walk house' : 'Drone view'}</button><button type="button" onClick={() => exitNavigation.current()} className="rounded border border-white/25 px-3 py-2">Exit controls</button></>}
+        </div>
+        {isMobile ? <div className="flex items-center justify-between gap-3"><MobileJoystick /><div className="flex gap-2">{isFlying ? <><MobileControl label="Up" keyName=" " code="Space" /><MobileControl label="Down" keyName="c" code="KeyC" /></> : <MobileControl label="Jump" keyName=" " code="Space" />}</div></div> : isFlying ? (
           <>
-            <div>WASD/arrows: fly over site</div>
+            <div>WASD/arrows: fly in viewing direction</div>
             <div>Shift: move faster</div>
-            <div>Q / E: lower / raise altitude</div>
+            <div>Space: up · C: down (Q/E also work)</div>
             <div>Mouse: look · Escape: exit</div>
             <div className="mt-1 text-orange-200">Limited to the project area</div>
           </>

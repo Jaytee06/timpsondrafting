@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import { BoxGeometry, Color, Mesh, MeshStandardMaterial, Scene } from 'three';
+import { BoxGeometry, Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Scene } from 'three';
+import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
+import { unzipSync, strFromU8 } from 'three/examples/jsm/libs/fflate.module.js';
 async function loadModule(path) {
  const source = readFileSync(new URL(path, import.meta.url), 'utf8');
  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText
@@ -11,7 +13,27 @@ async function loadModule(path) {
  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 }
 const { parseFinishPreferences } = await loadModule('../../src/viewer/finishPreferences.ts');
-const { snapshotModel, exportCustomizedGlb } = await loadModule('../../src/viewer/exportModel.ts');
+const { snapshotModel, snapshotAppleArModel, exportCustomizedGlb } = await loadModule('../../src/viewer/exportModel.ts');
+test('Apple AR keeps shared customized materials and exports transmission glass as see-through opacity', async () => {
+ const scene = new Scene(), geometry = new BoxGeometry();
+ const glass = new MeshPhysicalMaterial({ transmission: 1, roughness: 0.06 });
+ const paint = new MeshStandardMaterial({ color: '#bcc4c7' });
+ const appliance = new MeshStandardMaterial({ color: '#121212' });
+ scene.add(new Mesh(geometry, glass), new Mesh(geometry, glass), new Mesh(geometry, paint), new Mesh(geometry, paint), new Mesh(geometry, appliance));
+ const snapshot = snapshotAppleArModel(scene);
+ assert.equal(snapshot.children[0].material, snapshot.children[1].material);
+ assert.equal(snapshot.children[2].material, snapshot.children[3].material);
+ assert.notEqual(snapshot.children[0].material, glass);
+ assert.ok(Math.abs(snapshot.children[0].material.opacity - 0.06) < 1e-10);
+ assert.equal(snapshot.children[4].material.opacity, 1);
+ assert.equal(glass.opacity, 1); assert.equal(glass.transmission, 1);
+ assert.deepEqual(snapshot.children[2].material.color, paint.color);
+ const files = unzipSync(await new USDZExporter().parseAsync(snapshot, { quickLookCompatible: true }));
+ const usd = strFromU8(files['model.usda']);
+ assert.match(usd, /float inputs:opacity = 0.06/);
+ assert.equal((usd.match(/def Material /g) ?? []).length, 3);
+ assert.equal(Object.keys(files).filter(name => name.startsWith('geometries/')).length, 1);
+});
 // The exporter uses the browser FileReader API; supply its Blob reader for Node tests.
 globalThis.FileReader = class {
  readAsArrayBuffer(blob) { blob.arrayBuffer().then((buffer) => { this.result = buffer; this.onloadend?.(); }); }

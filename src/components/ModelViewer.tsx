@@ -1,15 +1,17 @@
+import { exportSourceGlb, registerSourceGlb } from '../viewer/sourceGlbExport';
+import { MobileControl, MobileJoystick } from './NavigationTouchControls';
 import { DEFAULT_EYE_HEIGHT, sceneModelSpawn } from '../viewer/modelSpawn';
 import { createPaintVariations } from '../viewer/paintVariations';
 import { INTERACTION_DISTANCE_METERS, availableFinishThemes, cycleFinishTheme, parseModelFinish, parseModelVariant, walkAction } from '../viewer/finishControls';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { exportCustomizedGlb, snapshotModel } from '../viewer/exportModel';
+import { exportCustomizedGlb, snapshotAppleArModel } from '../viewer/exportModel';
 import { saveModelTransfer } from '../viewer/modelTransfer';
 import { parseFinishPreferences } from '../viewer/finishPreferences';
 import { slideMovement } from '../viewer/walkMovement';
 import DropboxModelButton from './DropboxModelButton';
 import { Grid, PointerLockControls, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ChangeEvent, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent as ReactDragEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box3, Color, Euler, Group, Material, MeshBasicMaterial, MathUtils, Mesh, MeshStandardMaterial, Object3D, Quaternion, Raycaster, Vector2, Vector3 } from 'three';
 
 const EYE_HEIGHT = DEFAULT_EYE_HEIGHT;
@@ -78,7 +80,7 @@ type ViewerManifestDoor = {
 type ViewerManifest = { doors?: ViewerManifestDoor[] };
 
 function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapingChange, onCapabilitiesChange, onSceneReady, onGroundChange, onCollisionChange, onWallCollisionChange, onWalkFinishChange, onApplyWalkFinish, mobileMode }: { url: string; showLandscaping: boolean; finishTheme: FinishTheme; finishOverrides: Record<string, FinishTheme>; onLandscapingChange: (count: number) => void; onCapabilitiesChange: (doors: number, finishes: FinishOption[]) => void; onContextTarget: (target: ContextTarget | null) => void; onSceneReady: (scene: Object3D | null) => void; onGroundChange: (height: number) => void; onCollisionChange: (objects: Object3D[]) => void; onWallCollisionChange: (objects: Object3D[]) => void; onWalkFinishChange: (finish: FinishOption | null) => void; onApplyWalkFinish: (key: string, theme: FinishTheme) => void; mobileMode: boolean }) {
-  const { scene } = useGLTF(url);
+  const { scene, parser } = useGLTF(url);
   const camera = useThree((state) => state.camera);
   const canvas = useThree((state) => state.gl.domElement);
   const isSceneLocked = () => Boolean(document.pointerLockElement && (document.pointerLockElement === canvas || document.pointerLockElement.contains(canvas)));
@@ -102,9 +104,10 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
   const availableFinishes = useRef<FinishOption[]>([]);
 
   useEffect(() => {
+    const unregister = registerSourceGlb(scene, { json: parser.json, associations: parser.associations, binary: () => parser.getDependency('buffer', 0) });
     onSceneReady(scene);
-    return () => onSceneReady(null);
-  }, [onSceneReady, scene]);
+    return () => { unregister(); onSceneReady(null); };
+  }, [onSceneReady, parser, scene]);
 
   const toggleDoor = (object: Object3D) => {
     let current: Object3D | null = object;
@@ -745,102 +748,6 @@ function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObject
   );
 }
 
-const sendControlKey = (type: 'keydown' | 'keyup', key: string, code = '') => {
-  window.dispatchEvent(new KeyboardEvent(type, { key, code, bubbles: true }));
-};
-
-function MobileControl({ label, keyName, code, className = '' }: { label: string; keyName: string; code?: string; className?: string }) {
-  const handleDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    sendControlKey('keydown', keyName, code);
-  };
-  const handleUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    sendControlKey('keyup', keyName, code);
-  };
-
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className={`grid h-14 w-14 touch-none select-none place-items-center rounded border border-white/25 bg-slate-950/75 text-xl font-bold shadow-xl backdrop-blur active:bg-orange/80 ${className}`}
-      onPointerDown={handleDown}
-      onPointerUp={handleUp}
-      onPointerCancel={handleUp}
-      onLostPointerCapture={handleUp}
-    >
-      {label}
-    </button>
-  );
-}
-
-function MobileJoystick() {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const activeKeys = useRef(new Set<string>());
-
-  const updateKeys = (x: number, y: number) => {
-    const next = new Set<string>();
-    if (y < -0.25) next.add('w');
-    if (y > 0.25) next.add('s');
-    if (x < -0.25) next.add('a');
-    if (x > 0.25) next.add('d');
-
-    for (const key of activeKeys.current) {
-      if (!next.has(key)) sendControlKey('keyup', key);
-    }
-    for (const key of next) {
-      if (!activeKeys.current.has(key)) sendControlKey('keydown', key);
-    }
-    activeKeys.current = next;
-  };
-
-  const move = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    event.preventDefault();
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const radius = bounds.width / 2;
-    let x = event.clientX - (bounds.left + radius);
-    let y = event.clientY - (bounds.top + radius);
-    const distance = Math.hypot(x, y);
-    const travel = radius * 0.58;
-    if (distance > travel) {
-      x = (x / distance) * travel;
-      y = (y / distance) * travel;
-    }
-    setPosition({ x, y });
-    updateKeys(x / travel, y / travel);
-  };
-
-  const release = () => {
-    for (const key of activeKeys.current) sendControlKey('keyup', key);
-    activeKeys.current.clear();
-    setPosition({ x: 0, y: 0 });
-  };
-
-  return (
-    <div
-      role="group"
-      aria-label="Movement joystick"
-      className="relative h-24 w-24 shrink-0 touch-none select-none rounded-full border border-white/25 bg-slate-950/65 shadow-2xl backdrop-blur"
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        move(event);
-      }}
-      onPointerMove={move}
-      onPointerUp={release}
-      onPointerCancel={release}
-      onLostPointerCapture={release}
-    >
-      <div className="pointer-events-none absolute inset-5 rounded-full border border-white/10" />
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35 bg-orange/85 shadow-lg"
-        style={{ marginLeft: position.x, marginTop: position.y }}
-      />
-    </div>
-  );
-}
-
 function FinishScrollWheel({ finish, activeTheme, walking, mobile, onCycle, onApply, onClose }: {
   finish: FinishOption; activeTheme: FinishTheme; walking: boolean; mobile: boolean;
   onCycle: (direction: number) => void; onApply: (theme: FinishTheme) => void; onClose: () => void;
@@ -992,7 +899,7 @@ export default function ModelViewer() {
     if (!exportScene || isSendingToSite) return;
     setIsSendingToSite(true); setSiteError('');
     try {
-      const blob = await exportCustomizedGlb(exportScene);
+      const blob = await exportSourceGlb(exportScene) ?? await exportCustomizedGlb(exportScene);
       const id = await saveModelTransfer(blob, fileName.replace(/\.glb$/i, '') + '-customized.glb');
       window.location.assign(`/cesium-viewer?transfer=${encodeURIComponent(id)}`);
     } catch (error) { setSiteError(error instanceof Error ? error.message : 'The customized model could not be sent to the site viewer.'); }
@@ -1041,7 +948,7 @@ export default function ModelViewer() {
       exportScene.updateMatrixWorld(true);
       const { USDZExporter } = await import('three/examples/jsm/exporters/USDZExporter.js');
       const exporter = new USDZExporter();
-      const bytes = await exporter.parseAsync(snapshotModel(exportScene), {
+      const bytes = await exporter.parseAsync(snapshotAppleArModel(exportScene), {
         onlyVisible: true,
         quickLookCompatible: true,
         maxTextureSize: 1024,

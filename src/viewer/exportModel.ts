@@ -1,11 +1,40 @@
-import { Mesh, Object3D } from 'three';
+import { Material, Mesh, MeshPhysicalMaterial, Object3D } from 'three';
 
 export function snapshotModel(scene: Object3D) {
   scene.updateMatrixWorld(true);
   const snapshot = scene.clone(true);
+  const materials = new Map<Material, Material>();
+  const copyMaterial = (material: Material) => {
+    let copy = materials.get(material);
+    if (!copy) { copy = material.clone(); materials.set(material, copy); }
+    return copy;
+  };
   snapshot.traverse((object) => {
     if (object instanceof Mesh) object.material = Array.isArray(object.material)
-      ? object.material.map((material) => material.clone()) : object.material.clone();
+      ? object.material.map(copyMaterial) : copyMaterial(object.material);
+  });
+  return snapshot;
+}
+
+export function snapshotAppleArModel(scene: Object3D) {
+  const snapshot = snapshotModel(scene);
+  const adjusted = new Set<Material>();
+  snapshot.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (adjusted.has(material)) continue;
+      adjusted.add(material);
+      // USDZExporter omits transmission. Approximate it with Preview Surface opacity
+      // in this AR-only copy, leaving opaque appliance glass and the viewer untouched.
+      if (material instanceof MeshPhysicalMaterial && material.transmission > 0) {
+        const retainedOpacity = Math.max(0.06, Math.min(0.3, material.roughness * 0.7));
+        material.opacity *= 1 - material.transmission * (1 - retainedOpacity);
+        material.transparent = true;
+        material.transmission = 0;
+        material.depthWrite = false;
+      }
+    }
   });
   return snapshot;
 }
