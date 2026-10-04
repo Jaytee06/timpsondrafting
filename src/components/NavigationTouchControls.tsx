@@ -1,12 +1,35 @@
-import { PointerEvent as ReactPointerEvent, useRef, useState } from 'react';
+import { PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
 
 const sendControlKey = (type: 'keydown' | 'keyup', key: string, code = '') => {
   window.dispatchEvent(new KeyboardEvent(type, { key, code, bubbles: true }));
 };
 
+// Native non-passive listeners stop long-press selection on mobile Safari.
+function useTouchControl<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const prevent = (event: Event) => { if (event.cancelable) event.preventDefault(); };
+    element.addEventListener('touchstart', prevent, { passive: false });
+    element.addEventListener('touchmove', prevent, { passive: false });
+    element.addEventListener('selectstart', prevent);
+    element.addEventListener('contextmenu', prevent);
+    return () => {
+      element.removeEventListener('touchstart', prevent);
+      element.removeEventListener('touchmove', prevent);
+      element.removeEventListener('selectstart', prevent);
+      element.removeEventListener('contextmenu', prevent);
+    };
+  }, []);
+  return ref;
+}
+
 export function MobileControl({ label, keyName, code, className = '' }: { label: string; keyName: string; code?: string; className?: string }) {
+  const controlRef = useTouchControl<HTMLButtonElement>();
   const handleDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    window.getSelection()?.removeAllRanges();
     event.currentTarget.setPointerCapture(event.pointerId);
     sendControlKey('keydown', keyName, code);
   };
@@ -17,6 +40,7 @@ export function MobileControl({ label, keyName, code, className = '' }: { label:
 
   return (
     <button
+      ref={controlRef}
       type="button"
       aria-label={label}
       className={`grid h-14 w-14 touch-none select-none place-items-center rounded border border-white/25 bg-slate-950/75 text-xl font-bold shadow-xl backdrop-blur active:bg-orange/80 ${className}`}
@@ -31,6 +55,7 @@ export function MobileControl({ label, keyName, code, className = '' }: { label:
 }
 
 export function MobileJoystick() {
+  const controlRef = useTouchControl<HTMLDivElement>();
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const activeKeys = useRef(new Set<string>());
 
@@ -75,10 +100,13 @@ export function MobileJoystick() {
 
   return (
     <div
+      ref={controlRef}
       role="group"
       aria-label="Movement joystick"
-      className="relative h-24 w-24 shrink-0 touch-none select-none rounded-full border border-white/25 bg-slate-950/65 shadow-2xl backdrop-blur"
+      className="mobile-viewer-joystick relative h-24 w-24 shrink-0 touch-none select-none rounded-full border border-white/25 bg-slate-950/65 shadow-2xl backdrop-blur"
       onPointerDown={(event) => {
+        event.preventDefault();
+        window.getSelection()?.removeAllRanges();
         event.currentTarget.setPointerCapture(event.pointerId);
         move(event);
       }}

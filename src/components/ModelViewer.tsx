@@ -827,7 +827,7 @@ export default function ModelViewer() {
   const [isMobile, setIsMobile] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [fileError, setFileError] = useState('');
-  const [showLandscaping, setShowLandscaping] = useState(true);
+  const [showLandscaping, setShowLandscaping] = useState(false);
   const [landscapingCount, setLandscapingCount] = useState(0);
   const [finishTheme, setFinishTheme] = useState<FinishTheme>('original');
   const [doorCount, setDoorCount] = useState(0);
@@ -876,7 +876,7 @@ export default function ModelViewer() {
       const saved = parseFinishPreferences(localStorage.getItem(preferenceKey));
       setFinishTheme(saved?.theme ?? 'original');
       setFinishOverrides(saved?.overrides ?? {});
-      setShowLandscaping(saved?.landscaping ?? true);
+      setShowLandscaping(saved?.landscaping ?? false);
       setSaveNotice(saved ? 'Saved choices restored on this device.' : 'Choices are saved on this device.');
     } catch { setSaveNotice('Browser storage is unavailable; choices will last for this visit.'); }
     setLoadedPreferenceKey(preferenceKey);
@@ -889,7 +889,7 @@ export default function ModelViewer() {
   }, [finishTheme, finishOverrides, showLandscaping, preferenceKey, loadedPreferenceKey]);
 
   const resetFinishes = () => {
-    setFinishTheme('original'); setFinishOverrides({}); setShowLandscaping(true);
+    setFinishTheme('original'); setFinishOverrides({}); setShowLandscaping(false);
     window.dispatchEvent(new Event('viewer-clear-finish'));
     setContextTarget(null); setWalkFinish(null); clearUsdz();
     setSaveNotice('Default finishes restored.');
@@ -899,7 +899,14 @@ export default function ModelViewer() {
     if (!exportScene || isSendingToSite) return;
     setIsSendingToSite(true); setSiteError('');
     try {
-      const blob = await exportSourceGlb(exportScene) ?? await exportCustomizedGlb(exportScene);
+      if (linkedProject?.modelUrl === modelUrl && finishTheme === 'original' && Object.keys(finishOverrides).length === 0) {
+        window.location.assign(`/cesium-viewer?project=${encodeURIComponent(linkedProject.id)}`);
+        return;
+      }
+      let blob: Blob | null;
+      try { blob = await exportSourceGlb(exportScene, true); }
+      catch { blob = null; }
+      blob ??= await exportCustomizedGlb(exportScene, true);
       const id = await saveModelTransfer(blob, fileName.replace(/\.glb$/i, '') + '-customized.glb');
       window.location.assign(`/cesium-viewer?transfer=${encodeURIComponent(id)}`);
     } catch (error) { setSiteError(error instanceof Error ? error.message : 'The customized model could not be sent to the site viewer.'); }
@@ -973,7 +980,7 @@ export default function ModelViewer() {
       return;
     }
     setFileError('');
-    setShowLandscaping(true);
+    setShowLandscaping(false);
     setLandscapingCount(0);
     setFinishTheme('original');
     setFinishOverrides({});
@@ -1040,7 +1047,7 @@ export default function ModelViewer() {
   const hasInspector = !selectedFinish && Boolean(contextTarget?.doorAction || showSettings);
   const toolbarButton = 'shrink-0 rounded border border-white/20 px-3 py-2 text-xs font-semibold transition hover:border-orange disabled:opacity-40';
 
-  return <main className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-950 text-white" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+  return <main className="viewer-touch-surface flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-950 text-white" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
     <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-3 py-3 sm:px-5">
       <div className="min-w-0"><a href="/" className="text-xs text-[#F3A06F]">← Timpson Drafting &amp; Design</a><h1 className="mt-1 truncate text-sm font-semibold sm:text-lg">{fileName || '3D model viewer'}</h1></div>
       <button type="button" aria-expanded={showSettings} aria-controls="viewer-inspector" onClick={() => { closeInspector(); setShowSettings(!showSettings); }} className={toolbarButton}>Model tools</button>
@@ -1049,7 +1056,7 @@ export default function ModelViewer() {
       {isWalking && !isMobile && <span className="flex items-center text-xs text-slate-400">{droneMode ? 'Drone' : 'Walking'} · Escape to exit</span>}
       <button type="button" aria-pressed={droneMode} onClick={() => setDroneMode((current) => !current)} className={toolbarButton}>{droneMode ? 'Return to walk' : 'Drone view'}</button>
       <button type="button" disabled={!exportScene || isSendingToSite} onClick={sendToSite} className={toolbarButton}>{isSendingToSite ? 'Preparing…' : 'Place at an address'}</button>
-      {canOpenAppleAr && (usdzUrl ? <a rel="ar" href={usdzUrl} className={toolbarButton}><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" className="hidden" />Open in AR</a> : <button type="button" disabled={!exportScene || isExportingUsdz} onClick={prepareUsdz} className={toolbarButton}>{isExportingUsdz ? 'Preparing AR…' : 'Prepare AR'}</button>)}
+      {canOpenAppleAr && (usdzUrl ? <a rel="ar" href={usdzUrl} className={toolbarButton}><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" className="inline-block h-4 w-4" />Open in AR</a> : <button type="button" disabled={!exportScene || isExportingUsdz} onClick={prepareUsdz} className={toolbarButton}>{isExportingUsdz ? 'Preparing AR…' : 'Prepare AR'}</button>)}
     </nav>}
     {(siteError || usdzError || fileError) && <p className="shrink-0 border-b border-red-400/20 px-3 py-2 text-xs text-red-200" role="alert">{siteError || usdzError || fileError}</p>}
     <div className="flex min-h-0 flex-1">

@@ -98,3 +98,24 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .spatial-model-card:hover, .spatial-model-card:focus-within { transform: none; }
 }
+
+/* Keep viewer gestures from turning into browser text-selection gestures. */
+.viewer-touch-surface,
+.viewer-touch-surface * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Model tools and placement fields still support normal editing. */
+.viewer-touch-surface input,
+.viewer-touch-surface textarea,
+.viewer-touch-surface [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.mobile-viewer-joystick {
+  margin-left: max(1rem, env(safe-area-inset-left, 0px));
+}

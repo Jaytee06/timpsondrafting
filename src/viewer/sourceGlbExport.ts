@@ -14,7 +14,7 @@ export function registerSourceGlb(scene: Object3D, source: SourceGlb) {
 
 // Patch bindings and transforms only. Keep embedded image/geometry bytes as supplied,
 // avoiding the large decoded-image canvases needed by a full GLTFExporter round trip.
-export async function exportSourceGlb(scene: Object3D): Promise<Blob | null> {
+export async function exportSourceGlb(scene: Object3D, preserveLandscaping = false): Promise<Blob | null> {
   const source = sources.get(scene);
   if (!source) return null;
   const document = JSON.parse(JSON.stringify(source.json)) as Document;
@@ -44,7 +44,7 @@ export async function exportSourceGlb(scene: Object3D): Promise<Blob | null> {
     const reference = source.associations.get(object);
     if (reference?.nodes !== undefined) {
       const node = document.nodes[reference.nodes];
-      if (!object.visible) excluded.add(reference.nodes);
+      if (!object.visible && !(preserveLandscaping && /LANDSCAPING/i.test(object.name))) excluded.add(reference.nodes);
       object.updateMatrix();
       node.matrix = Array.from(object.matrix.elements);
       delete node.translation; delete node.rotation; delete node.scale;

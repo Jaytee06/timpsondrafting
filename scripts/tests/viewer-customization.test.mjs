@@ -94,3 +94,24 @@ test('viewer paints reject textured, transparent, metallic, or unrelated surface
  const textured = new MeshStandardMaterial(); textured.map = { isTexture: true };
  assert.deepEqual(createPaintVariations('walls', textured), []);
 });
+
+
+test('Apple AR includes every material group without changing viewer geometry', async () => {
+ const scene = new Scene(), geometry = new BoxGeometry();
+ const materials = Array.from({ length: 6 }, (_, i) => new MeshStandardMaterial({ color: i % 2 ? '#ffffff' : '#777777' }));
+ const mesh = new Mesh(geometry, materials); mesh.position.set(2, 0, 3); scene.add(mesh);
+ const snapshot = snapshotAppleArModel(scene);
+ assert.equal(snapshot.children[0].children.length, 6);
+ assert.equal(mesh.geometry, geometry); assert.equal(mesh.children.length, 0);
+ const files = unzipSync(await new USDZExporter().parseAsync(snapshot));
+ assert.equal((strFromU8(files['model.usda']).match(/def Material /g) ?? []).length, 6);
+});
+test('site handoff can preserve landscaping for the Cesium toggle', async () => {
+ const scene = new Scene(); const landscape = new Mesh(new BoxGeometry(), new MeshStandardMaterial());
+ landscape.name = 'LANDSCAPING'; landscape.visible = false; scene.add(landscape);
+ const bytes = await (await exportCustomizedGlb(scene, true)).arrayBuffer();
+ const view = new DataView(bytes);
+ const json = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, 20, view.getUint32(12, true))).trim());
+ assert.ok(json.nodes.some(node => node.name === 'LANDSCAPING'));
+ assert.equal(landscape.visible, false);
+});

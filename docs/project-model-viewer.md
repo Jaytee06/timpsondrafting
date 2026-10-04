@@ -12,7 +12,7 @@ Register the owner-provided GLBs in `public/viewer-projects.json`. Set `modelUrl
 
 Finish and landscaping preferences are stored in localStorage per project/version. A manually opened GLB under a project link uses that project's preference key; an ordinary uploaded GLB uses its filename/size/last-modified identity. Reset to default writes original finish choices. This is device/browser-local persistence, not cross-device customer accounts.
 
-Place at an address exports a material/transform snapshot of the live scene as GLB, stores the handoff in IndexedDB, and navigates to the Cesium address form. Choosing a property prepares and places that snapshot and then uses Cesium's existing per-property cache. A new handoff replaces the previous handoff to limit browser storage growth. The transfer link is for this browser only, not a public model-sharing URL.
+Place at an address sends unchanged linked presets by project ID, and Cesium fetches the bundled GLB without saving a large handoff or model cache in browser storage. Customized or manually opened models export a material/transform snapshot as GLB and store its binary bytes in IndexedDB before navigating to the Cesium address form. Choosing a property prepares and places that snapshot and then uses Cesium's existing per-property cache. A new handoff replaces the previous handoff to limit browser storage growth. The transfer link is for this browser only, not a public model-sharing URL.
 
 Apple AR uses a snapshot of the same live scene, including current finishes and visible landscaping. Native AR and terrain placement still need device testing with the real GLBs and a working Cesium token.
 

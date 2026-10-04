@@ -1,7 +1,8 @@
+import { configureCesiumModel } from '../viewer/cesiumModelControls';
 import { MobileControl, MobileJoystick } from './NavigationTouchControls';
 import { canReachSiteSurface, siteSlideCandidates, droneDisplacement } from '../viewer/cesiumNavigation';
 import { cesiumSpawnFrame, DEFAULT_EYE_HEIGHT, ModelSpawn, readGlbModelSpawn } from '../viewer/modelSpawn';
-import { readModelTransfer } from '../viewer/modelTransfer';
+import { loadPresetModel, ModelTransfer, readModelTransfer } from '../viewer/modelTransfer';
 import DropboxModelButton from './DropboxModelButton';
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -421,6 +422,9 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
   const [spawnPoint, setSpawnPoint] = useState<SpawnPoint | null>(null);
   const [modelStatus, setModelStatus] = useState('');
   useEffect(() => { setSpawnPoint(null); }, [modelUrl]);
+  const modelControls = useRef<ReturnType<typeof configureCesiumModel> | null>(null);
+  const [showLandscaping, setShowLandscaping] = useState(false);
+  const [landscapingNodes, setLandscapingNodes] = useState<string[]>([]);
   const [showEmbeddedSiteImagery, setShowEmbeddedSiteImagery] = useState(false);
   const [nudgeFeet, setNudgeFeet] = useState(1);
   const [error, setError] = useState('');
@@ -711,6 +715,14 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
             viewer.scene.primitives.remove(modelPrimitive.current);
             modelPrimitive.current = undefined;
           }
+          modelControls.current = null;
+          setLandscapingNodes([]);
+          setShowLandscaping(false);
+          const metadataResponse = await fetch(modelUrl);
+          if (!metadataResponse.ok) throw new Error('Model metadata could not be loaded.');
+          const metadataBuffer = await metadataResponse.arrayBuffer();
+          const metadataView = new DataView(metadataBuffer);
+          const metadata = JSON.parse(new TextDecoder().decode(new Uint8Array(metadataBuffer, 20, metadataView.getUint32(12, true))).trim());
           const loadedModel = await Model.fromGltfAsync({
             url: modelUrl,
             modelMatrix,
@@ -727,6 +739,9 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
           shouldFrameModel = true;
           await waitForModelReady(loadedModel);
           if (requestId !== placementRequest.current || viewer.isDestroyed() || modelPrimitive.current !== loadedModel) return;
+          modelControls.current = configureCesiumModel(loadedModel, metadata.nodes ?? []);
+          modelControls.current.landscaping.forEach((name) => { loadedModel.getNode(name).show = false; });
+          setLandscapingNodes(modelControls.current.landscaping);
         } else {
           const activeModel = modelPrimitive.current;
           activeModel.modelMatrix = modelMatrix;
@@ -755,6 +770,13 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
 
     void place();
   }, [fileName, modelUrl, placement, viewerReady]);
+
+  useEffect(() => {
+    const model = modelPrimitive.current;
+    if (!model?.ready) return;
+    landscapingNodes.forEach((name) => { model.getNode(name).show = showLandscaping; });
+    viewerRef.current?.scene.requestRender();
+  }, [landscapingNodes, showLandscaping]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -806,6 +828,15 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
     };
     const keyDown = (event: KeyboardEvent) => {
       if (!active()) return;
+      if (event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable=true]')) return;
+      if (event.code === 'KeyE' && !event.repeat) {
+        event.preventDefault();
+        const hit = (viewer.scene as unknown as { pickFromRay: (ray: Ray) => CesiumRayHit | undefined }).pickFromRay(new Ray(viewer.camera.positionWC, viewer.camera.directionWC));
+        if ((hit?.object?.id ?? hit?.object?.primitive?.id) === MODEL_PICK_ID && hit?.position && Cartesian3.distance(viewer.camera.positionWC, hit.position) <= 3 * placement.scale) {
+          if (modelControls.current?.toggleDoor(pickedNodeName(hit))) viewer.scene.requestRender();
+        }
+        return;
+      }
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
       if (navigationMode.current === 'walk' && event.code === 'Space' && !event.repeat && walkJumpCount.current < 2) {
         walkVerticalVelocity.current = JUMP_SPEED;
@@ -836,7 +867,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
         - Number(walkKeys.current.has('a') || walkKeys.current.has('arrowleft'));
       if (navigationMode.current === 'flight') {
         const speed = walkKeys.current.has('shift') ? FLIGHT_FAST_SPEED : FLIGHT_SPEED;
-        const vertical = Number(walkKeys.current.has(' ') || walkKeys.current.has('e')) - Number(walkKeys.current.has('c') || walkKeys.current.has('q'));
+        const vertical = Number(walkKeys.current.has(' ')) - Number(walkKeys.current.has('c') || walkKeys.current.has('q'));
         const movement = droneDisplacement(forward, right, vertical, walkHeading.current, walkPitch.current, speed * delta);
         const northMeters = movement.north;
         const eastMeters = movement.east;
@@ -1032,7 +1063,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
       window.removeEventListener('blur', stopNavigation);
       removeTick();
     };
-  }, [isMobile, placement.elevationOffset, property, viewerReady]);
+  }, [isMobile, placement.elevationOffset, placement.scale, property, viewerReady]);
 
   const updatePlacement = (key: keyof Placement, value: number) => {
     if (!Number.isFinite(value)) return;
@@ -1206,7 +1237,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
   };
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
+    <div className="viewer-touch-surface flex h-full min-h-0 w-full flex-col">
       <div className="relative flex min-h-0 flex-1">
       <div ref={container} className="relative min-h-0 min-w-0 flex-1" />
       {!isWalking && !isFlying && <div aria-label="Placement tools" className="w-52 shrink-0 overflow-y-auto overscroll-contain border-l border-white/10 bg-slate-900 p-3 text-sm sm:w-80 sm:p-4">
@@ -1323,6 +1354,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
             ))}
           </div>
         </div>
+        {landscapingNodes.length > 0 && <label className="mt-4 flex items-center justify-between text-xs">Landscaping<input type="checkbox" checked={showLandscaping} onChange={(event) => setShowLandscaping(event.target.checked)} className="h-5 w-5 accent-orange" /></label>}
         {embeddedSiteImageNodes.length > 0 && (
           <label className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-sky-300/20 bg-sky-400/5 px-3 py-2.5 text-xs text-slate-200">
             <span>
@@ -1403,11 +1435,11 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
         <div className="mb-2 flex gap-2">
           {isMobile && <><button type="button" onClick={isFlying ? enterWalkingMode : enterSiteFlight} disabled={isFlying && (!modelUrl || modelStatus !== 'Model placed')} className="rounded border border-white/25 px-3 py-2">{isFlying ? 'Walk house' : 'Drone view'}</button><button type="button" onClick={() => exitNavigation.current()} className="rounded border border-white/25 px-3 py-2">Exit controls</button></>}
         </div>
-        {isMobile ? <div className="flex items-center justify-between gap-3"><MobileJoystick /><div className="flex gap-2">{isFlying ? <><MobileControl label="Up" keyName=" " code="Space" /><MobileControl label="Down" keyName="c" code="KeyC" /></> : <MobileControl label="Jump" keyName=" " code="Space" />}</div></div> : isFlying ? (
+        {isMobile ? <div className="flex items-center justify-between gap-3"><MobileJoystick /><div className="grid grid-cols-2 gap-2"><MobileControl label="Interact" keyName="e" code="KeyE" />{isFlying ? <><MobileControl label="Up" keyName=" " code="Space" /><MobileControl label="Down" keyName="c" code="KeyC" /></> : <MobileControl label="Jump" keyName=" " code="Space" />}</div></div> : isFlying ? (
           <>
             <div>WASD/arrows: fly in viewing direction</div>
             <div>Shift: move faster</div>
-            <div>Space: up · C: down (Q/E also work)</div>
+            <div>Space: up · C/Q: down · E: interact</div>
             <div>Mouse: look · Escape: exit</div>
             <div className="mt-1 text-orange-200">Limited to the project area</div>
           </>
@@ -1415,7 +1447,7 @@ function Terrain({ authoredSpawn, property, token, modelUrl, fileName, embeddedS
           <>
             <div>WASD/arrows: walk</div>
             <div>Space: jump / double jump</div>
-            <div>Mouse: look</div>
+            <div>Mouse: look · E: interact</div>
             <div>Escape: leave walking mode</div>
           </>
         ) : null}
@@ -1449,6 +1481,8 @@ export default function CesiumViewer() {
   const [parcelInput, setParcelInput] = useState('');
   const [propertyLabel, setPropertyLabel] = useState('');
   const transferId = useRef(new URLSearchParams(window.location.search).get('transfer')).current;
+  const projectId = useRef(new URLSearchParams(window.location.search).get('project')).current;
+  const incomingPreset = useRef<Promise<ModelTransfer> | null>(null);
   const [transferNotice, setTransferNotice] = useState('');
   const [isLookingUpParcel, setIsLookingUpParcel] = useState(false);
   const [propertyLookupError, setPropertyLookupError] = useState('');
@@ -1484,8 +1518,10 @@ export default function CesiumViewer() {
     let cancelled = false;
     setCacheStatus('Checking saved project…');
     const restore = async () => {
-      if (transferId) {
-        const transfer = await readModelTransfer(transferId);
+      if (transferId || projectId) {
+        const transfer = transferId
+          ? await readModelTransfer(transferId)
+          : await (incomingPreset.current ??= loadPresetModel(projectId!));
         if (!transfer) throw new Error('Customized model handoff expired. Return to the model viewer and send it again.');
         const prepared = await prepareGlbForCesium(new File([transfer.blob], transfer.fileName, { type: 'model/gltf-binary' }));
         return { blob: prepared.blob, fileName: transfer.fileName, embeddedSiteImageNodes: prepared.embeddedSiteImageNodes, placement: { latitude: property.latitude, longitude: property.longitude, heading: 0, elevationOffset: 0, scale: 1 } };
@@ -1504,7 +1540,7 @@ export default function CesiumViewer() {
         setModelUrl(URL.createObjectURL(cached.blob));
         setFileName(cached.fileName);
         setEmbeddedSiteImageNodes(cached.embeddedSiteImageNodes ?? []);
-        setCacheStatus(`Restored ${cached.fileName}`);
+        setCacheStatus(`${projectId && !transferId ? 'Loaded' : 'Restored'} ${cached.fileName}`);
       })
       .catch((error) => {
         if (!cancelled) setCacheStatus(error instanceof Error ? error.message : 'Project caching is unavailable in this browser.');
@@ -1512,10 +1548,10 @@ export default function CesiumViewer() {
     return () => {
       cancelled = true;
     };
-  }, [property, transferId]);
+  }, [property, transferId, projectId]);
 
   useEffect(() => {
-    if (!property || !modelBlob || !fileName) return;
+    if (!property || !modelBlob || !fileName || (projectId && !transferId)) return;
     const timeout = window.setTimeout(() => {
       void writeCachedProjectModel({
         propertyId: propertyStorageId(property),
@@ -1529,18 +1565,22 @@ export default function CesiumViewer() {
         .catch(() => setCacheStatus('The model is loaded, but browser storage could not save it.'));
     }, 300);
     return () => window.clearTimeout(timeout);
-  }, [embeddedSiteImageNodes, fileName, modelBlob, placement, property]);
+  }, [embeddedSiteImageNodes, fileName, modelBlob, placement, property, projectId, transferId]);
 
   useEffect(() => {
-    if (!transferId) return;
+    if (!transferId && !projectId) return;
     let cancelled = false;
-    void readModelTransfer(transferId).then((transfer) => {
+    const incoming = transferId ? readModelTransfer(transferId) : (incomingPreset.current ??= loadPresetModel(projectId!));
+    void incoming.then((transfer) => {
       if (!cancelled) setTransferNotice(transfer
-        ? `${transfer.fileName} is ready. Enter an address to place your customized model.`
+        ? `${transfer.fileName} is ready. Enter an address to place your model.`
         : 'Customized model handoff expired. Return to the model viewer and send it again.');
-    }).catch(() => { if (!cancelled) setTransferNotice('The customized model could not be read from browser storage.'); });
+    }).catch((error) => {
+      if (!transferId) incomingPreset.current = null;
+      if (!cancelled) setTransferNotice(error instanceof Error ? error.message : 'The model could not be loaded.');
+    });
     return () => { cancelled = true; };
-  }, [transferId]);
+  }, [transferId, projectId]);
 
   const submitToken = (event: FormEvent) => {
     event.preventDefault();
