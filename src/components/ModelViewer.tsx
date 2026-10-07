@@ -1,3 +1,6 @@
+import ViewerReview from './ViewerReview';
+import type { RootState } from '@react-three/fiber';
+import { inheritedModelFinish, isVisibleModelHit } from '../viewer/finishPicking';
 import { exportSourceGlb, registerSourceGlb } from '../viewer/sourceGlbExport';
 import { MobileControl, MobileJoystick } from './NavigationTouchControls';
 import { DEFAULT_EYE_HEIGHT, sceneModelSpawn } from '../viewer/modelSpawn';
@@ -275,13 +278,14 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
           const isDoorFinish = isInsideNamedHierarchy(object, 'DOOR_SWING')
             && !/glass|glaz|handle|hardware|hinge|lever|lock|rose|jamb|casing|frame/i.test(`${object.name} ${material.name}`)
             && !(material instanceof MeshStandardMaterial && material.transparent && material.opacity < 0.95);
-          if (material.name.toUpperCase().includes('FINISH_') || normalizedName.includes('FINISH_') || isDoorFinish) {
+          const inheritedFinish = inheritedModelFinish(object);
+          if (material.name.toUpperCase().includes('FINISH_') || normalizedName.includes('FINISH_') || inheritedFinish || isDoorFinish) {
             detectedMaterials.add(material);
-            const taggedFinish = material.name.toUpperCase().includes('FINISH_') || normalizedName.includes('FINISH_');
-            const explicitFinish = parseModelFinish(material.name) ?? parseModelFinish(object.name);
+            const taggedFinish = material.name.toUpperCase().includes('FINISH_') || normalizedName.includes('FINISH_') || Boolean(inheritedFinish);
+            const explicitFinish = parseModelFinish(material.name) ?? inheritedFinish;
             const category = explicitFinish ? finishCategory(explicitFinish.category) : taggedFinish ? finishCategory(`${object.name} ${material.name}`) : 'doors';
             const sourceName = material.name.toUpperCase().startsWith('FINISH_') ? material.name : isDoorFinish ? `Door ${material.name || object.name}` : object.name;
-            targets.push({ mesh: object, index, original: material, category, surface: finishSurface(sourceName) });
+            targets.push({ mesh: object, index, original: material, category, surface: explicitFinish?.surface ?? finishSurface(sourceName) });
             if (material instanceof MeshStandardMaterial && !originalMaterials.current.has(material.uuid)) {
               originalMaterials.current.set(material.uuid, {
                 material,
@@ -403,14 +407,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
       interactiveRay.current.setFromCamera(new Vector2(0, 0), camera);
       interactiveRay.current.far = INTERACTION_DISTANCE_METERS;
       // Only the nearest visible surface is reachable; never select through a wall.
-      const hit = interactiveRay.current.intersectObjects(scene.children, true).find((candidate) => {
-        let object: Object3D | null = candidate.object;
-        while (object) {
-          if (!object.visible) return false;
-          object = object.parent;
-        }
-        return true;
-      });
+      const hit = interactiveRay.current.intersectObjects(scene.children, true).find(isVisibleModelHit);
       if (!hit) return;
       toggleDoor(hit.object);
     };
@@ -482,11 +479,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     if (finishMode.current && (mobileMode || isSceneLocked())) {
       interactiveRay.current.setFromCamera(new Vector2(0, 0), camera);
       interactiveRay.current.far = Infinity;
-      const hit = interactiveRay.current.intersectObjects(scene.children, true).find((candidate) => {
-        let object: Object3D | null = candidate.object;
-        while (object) { if (!object.visible) return false; object = object.parent; }
-        return true;
-      });
+      const hit = interactiveRay.current.intersectObjects(scene.children, true).find(isVisibleModelHit);
       aimed = hit?.object ?? null;
       materialIndex = hit?.face?.materialIndex ?? 0;
     }
@@ -817,6 +810,8 @@ export default function ModelViewer() {
     && typeof document !== 'undefined'
     && document.createElement('a').relList.supports('ar');
   const [modelUrl, setModelUrl] = useState<string>('');
+  const [reviewRuntime, setReviewRuntime] = useState<RootState | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [fileName, setFileName] = useState('');
   const [isWalking, setIsWalking] = useState(false);
   const [droneMode, setDroneMode] = useState(false);
@@ -1061,7 +1056,7 @@ export default function ModelViewer() {
     {(siteError || usdzError || fileError) && <p className="shrink-0 border-b border-red-400/20 px-3 py-2 text-xs text-red-200" role="alert">{siteError || usdzError || fileError}</p>}
     <div className="flex min-h-0 flex-1">
       <section id="model-scene" aria-label="Model scene" className="relative min-h-0 min-w-0 flex-1">
-        <Canvas className="h-full w-full" shadows camera={{ position: [8, 6, 8], fov: 45 }}>
+        <Canvas onCreated={setReviewRuntime} className="h-full w-full" shadows camera={{ position: [8, 6, 8], fov: 45 }}>
           <color attach="background" args={['#0f172a']} />
           <ambientLight intensity={1.1} />
           <directionalLight
@@ -1108,7 +1103,7 @@ export default function ModelViewer() {
           {exportScene && <WalkControls
             key={modelUrl}
             droneMode={droneMode}
-            frozen={Boolean(contextTarget?.finish)}
+            frozen={reviewBusy || Boolean(contextTarget?.finish)}
             collisionObjects={collisionObjects}
             wallCollisionObjects={wallCollisionObjects}
             groundHeight={groundHeight}
@@ -1116,6 +1111,7 @@ export default function ModelViewer() {
             onLockChange={handleWalkLock}
           />}
         </Canvas>
+        {modelUrl && exportScene && <ViewerReview runtime={reviewRuntime} model={fileName || "Model"} modelUrl={modelUrl} onBusy={setReviewBusy} />}
         {!modelUrl && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center"><div className="max-w-sm"><p className="text-lg font-medium">Open a GLB model to enter the scene</p><p className="mt-3 text-sm leading-6 text-slate-400">Use Model tools to open a file from your device or Dropbox, or drop a GLB here.</p></div></div>}
         {isDraggingFile && <div className="pointer-events-none absolute inset-3 grid place-items-center rounded border-2 border-dashed border-orange bg-slate-950/85 text-lg">Drop GLB to open</div>}
         {selectedFinish && <div aria-label="Finish samples" className={`absolute top-1/2 z-10 max-h-[calc(100%_-_1.5rem)] w-16 -translate-y-1/2 overflow-y-auto overscroll-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)] ${isMobile ? 'left-3' : 'right-3 sm:right-5'}`}>
@@ -1140,6 +1136,6 @@ export default function ModelViewer() {
     {isMobile && modelUrl ? <footer aria-label="Walk controls" className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-950 px-3 py-2">
       <MobileJoystick />
       <div className="grid grid-cols-2 gap-2"><MobileControl label="Interact" keyName="e" code="KeyE" className="h-12 w-20 text-xs" /><MobileControl label="Hold finishes" keyName="Shift" code="ShiftLeft" className="h-12 w-20 text-xs" />{droneMode ? <><MobileControl label="Up" keyName=" " code="Space" className="h-12 w-20 text-xs" /><MobileControl label="Down" keyName="c" code="KeyC" className="h-12 w-20 text-xs" /></> : <MobileControl label="Jump" keyName=" " code="Space" className="col-span-2 h-12 w-full text-xs" />}</div>
-    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{droneMode ? 'Drone · WASD: fly · Space: up · C: down · Hold Shift + scroll: finishes · Escape: release mouse' : isWalking ? 'WASD: move · Space: jump · E: open door · Hold Shift + scroll: finishes · Escape: exit' : 'Click scene to walk · Hold Shift + scroll: finishes · Escape: exit'}<span className="sr-only" role="status">{saveNotice}</span></footer>}
+    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{droneMode ? 'Drone · WASD: fly · Space: up · C: down · Hold Shift + scroll: finishes · Escape: release mouse' : isWalking ? 'WASD: move · Space: jump · E: open door · Hold Shift + scroll: finishes · Escape: exit' : 'Click scene to walk · Hold Shift + scroll: finishes · Escape: exit'} · Hold Q + drag: callout<span className="sr-only" role="status">{saveNotice}</span></footer>}
   </main>;
 }

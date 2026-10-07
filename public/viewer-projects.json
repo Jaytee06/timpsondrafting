@@ -13,8 +13,8 @@
   {
     "id": "model-02",
     "label": "Farmhouse",
-    "modelUrl": "/models/model-02.glb?v=c59de8a3e63c",
-    "version": "2",
+    "modelUrl": "/models/model-02.glb?v=3e5fff2c36f3",
+    "version": "3",
     "featured": true,
     "profileSlug": "farmhouse-design-visualization",
     "image": "/project-assets/model-02-thumbnail.jpg",
@@ -25,8 +25,8 @@
   {
     "id": "model-03",
     "label": "Duplex",
-    "modelUrl": "/models/model-03.glb?v=3ca1c880f192",
-    "version": "1",
+    "modelUrl": "/models/model-03.glb?v=fcf65b0e0cad",
+    "version": "2",
     "featured": true,
     "image": "/project-assets/model-03-thumbnail.jpg",
     "projectType": "Duplex",

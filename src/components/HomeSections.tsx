@@ -18,9 +18,9 @@ export function ProblemAndBundle() {
 }
 
 export function Walkthrough() {
-  const youtubeId = 'd0XkRXjcppw';
+  const youtubeId = 'fV5b3TQft-8';
   const videoSrc = import.meta.env.VITE_WALKTHROUGH_VIDEO_URL;
-  return <section id="demo" className="blueprint-grid scroll-mt-24 bg-ink py-10 text-white sm:py-14"><div className="section-shell grid items-center gap-6 lg:grid-cols-[.8fr_1.4fr] lg:gap-10"><div><p className="plan-label text-[#F3A06F]">Watch the demo</p><h2 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">See your plans come to life.</h2><p className="mt-4 leading-7 text-white/70">Take a guided look at the 3D walk-through included with every TDD project.</p><a href="#interactive-models" className="mt-5 inline-flex items-center gap-2 font-semibold text-white">Try an interactive model <ArrowRight className="h-4 w-4" /></a></div><VideoEmbed title="TDD sample project 3D walk-through" youtubeId={youtubeId} videoSrc={videoSrc} poster="/hero-sequence/frame-1.webp" /></div></section>;
+  return <section id="demo" className="blueprint-grid scroll-mt-24 bg-ink py-10 text-white sm:py-14"><div className="section-shell grid items-center gap-6 lg:grid-cols-[.8fr_1.4fr] lg:gap-10"><div><p className="plan-label text-[#F3A06F]">Watch the demo</p><h2 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">See your plans come to life.</h2><p className="mt-4 leading-7 text-white/70">Take a guided look at the 3D walk-through included with every TDD project.</p><a href="#interactive-models" className="mt-5 inline-flex items-center gap-2 font-semibold text-white">Try an interactive model <ArrowRight className="h-4 w-4" /></a></div><VideoEmbed title="TDD sample project 3D walk-through" youtubeId={youtubeId} videoSrc={videoSrc} poster="/project-assets/model-02-thumbnail.jpg" /></div></section>;
 }
 
 function Value({ icon: Icon, title, body }: { icon: typeof ShieldCheck; title: string; body: string }) {

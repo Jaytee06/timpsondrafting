@@ -29,11 +29,11 @@ test('published models expose their actual surface variants', () => {
   if (id === 'model-01') assert.ok(variants.some((variant) => variant.theme === 'model:earthen_tuscan'));
   if (id === 'model-02') {
    const originals = model.materials.map((material) => parseModelFinish(material.name ?? '')).filter(Boolean);
-   assert.equal(originals.length, 337);
-   assert.equal(variants.length, 637);
-   assert.equal(new Set(variants.map((variant) => variant.theme)).size, 21);
+   assert.equal(originals.length, 72);
+   assert.equal(variants.length, 146);
+   assert.equal(new Set(variants.map((variant) => variant.theme)).size, 12);
    assert.ok(originals.some((finish) => finish.category === 'DOORS'));
-   assert.ok(variants.some((variant) => variant.category === 'WALLS' && variant.surface === '*' && variant.theme === 'model:warm_white'));
+   assert.ok(variants.some((variant) => variant.theme === 'model:white_oak'));
 
   }
  }

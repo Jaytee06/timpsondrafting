@@ -47,3 +47,13 @@ Drone view starts at the current camera and flies toward its aim. WASD/arrows mo
 At phone width or with coarse touch input, walking and drone view use the shared joystick and buttons without pointer lock. Drag the scene to look; walking has Jump, drone has Up/Down. Exit controls restores map interaction, and the mode button switches between walking and drone.
 
 Checks: `node --test scripts/tests/cesium-navigation.test.mjs scripts/tests/walk-movement.test.mjs scripts/tests/model-spawn.test.mjs`. A farmhouse at a public test location was loaded in the browser at phone width; walking entry, joystick motion, switching to drone, and height controls were exercised. Physical phone testing and detailed indoor/stair collision testing remain owner checks.
+
+The farmhouse and single-duplex interactive GLBs were refreshed on 2026-10-06. Their catalog cache keys and finish versions were updated because the exported finish identifiers changed. Embedded binary geometry and textures are preserved during anonymization.
+
+## Screenshot review callouts
+
+On desktop, hold Q and drag the primary mouse button to mark the current view. A virtual cursor begins at the crosshair during pointer lock; drawing consumes mouse-look input and pauses movement without a separate capture step. Release Q to capture the marked screenshot and focus an optional note. Enter saves, Shift+Enter adds a line, and Escape cancels. Click the scene to resume walking after saving.
+
+Review collects independent callouts across views and models in the current viewer session. Notes can be edited or deleted. Export ZIP includes `review.md`, numbered annotated PNG screenshots, and `review.json` with model URL/cache identity, camera position/quaternion, normalized mark coordinates and timestamps. Copy summary copies text only; use ZIP for visual context. No backend or external transmission is involved. Drafts are in memory; export before leaving or reloading. Existing callouts have a browser unload warning. This initial shortcut requires a keyboard and mouse and does not yet provide touch drawing, persistent draft storage, or review import.
+
+Callouts require no room/area entry. The annotated screenshot and JSON camera pose provide location context for an agent with the same model. Copied summaries include camera position in meters and viewing direction, without image links. The ZIP Markdown includes those references and image links; JSON retains the full camera pose.
