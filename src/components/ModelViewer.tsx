@@ -1,3 +1,5 @@
+import { authoredDoorPlayers } from '../viewer/authoredDoors';
+import { sceneGroundHeight } from '../viewer/modelGround';
 import ViewerReview from './ViewerReview';
 import type { RootState } from '@react-three/fiber';
 import { inheritedModelFinish, isVisibleModelHit } from '../viewer/finishPicking';
@@ -46,6 +48,7 @@ type DoorState = {
   targetProgress: number;
   duration: number;
   pairGroup?: string;
+  sample?: (fraction: number) => void;
 };
 
 const finishCategory = (name: string) => {
@@ -83,7 +86,7 @@ type ViewerManifestDoor = {
 type ViewerManifest = { doors?: ViewerManifestDoor[] };
 
 function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapingChange, onCapabilitiesChange, onSceneReady, onGroundChange, onCollisionChange, onWallCollisionChange, onWalkFinishChange, onApplyWalkFinish, mobileMode }: { url: string; showLandscaping: boolean; finishTheme: FinishTheme; finishOverrides: Record<string, FinishTheme>; onLandscapingChange: (count: number) => void; onCapabilitiesChange: (doors: number, finishes: FinishOption[]) => void; onContextTarget: (target: ContextTarget | null) => void; onSceneReady: (scene: Object3D | null) => void; onGroundChange: (height: number) => void; onCollisionChange: (objects: Object3D[]) => void; onWallCollisionChange: (objects: Object3D[]) => void; onWalkFinishChange: (finish: FinishOption | null) => void; onApplyWalkFinish: (key: string, theme: FinishTheme) => void; mobileMode: boolean }) {
-  const { scene, parser } = useGLTF(url);
+  const { scene, parser, animations } = useGLTF(url);
   const camera = useThree((state) => state.camera);
   const canvas = useThree((state) => state.gl.domElement);
   const isSceneLocked = () => Boolean(document.pointerLockElement && (document.pointerLockElement === canvas || document.pointerLockElement.contains(canvas)));
@@ -146,7 +149,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     if (bounds.isEmpty()) bounds.setFromObject(scene);
     const center = bounds.getCenter(new Vector3());
     const size = bounds.getSize(new Vector3());
-    const groundHeight = bounds.min.y;
+    const groundHeight = sceneGroundHeight(scene, bounds.min.y);
     const walkingHeight = groundHeight + EYE_HEIGHT;
     const approachDistance = Math.max(size.x, size.z) * 0.7;
 
@@ -167,7 +170,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     const collectCollisionMeshes = (object: Object3D, insideCollisionGroup = false, insideInteractiveDoor = false) => {
       if (isInsideNamedHierarchy(object, 'MATERIAL_LIBRARY') || object.userData.excludeFromCollision) return;
       const isCollisionGroup = insideCollisionGroup || object.name.toUpperCase().startsWith('COLLISION');
-      const isInteractiveDoor = insideInteractiveDoor || object.name.toUpperCase().includes('DOOR_SWING');
+      const isInteractiveDoor = insideInteractiveDoor || object.name.toUpperCase().includes('DOOR_SWING') || object.userData.interactionType === 'door';
       const normalizedName = object.name.toLowerCase();
       const isWalkable = /floor|stair.*tread|tread.*stair|landing/.test(normalizedName) || Boolean(object.userData.walkable);
       if ('isMesh' in object && (isCollisionGroup || (isWalkable && !isInteractiveDoor))) collisionObjects.push(object);
@@ -220,6 +223,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
       const key = door.node ?? door.id;
       return key ? [[key, door] as const] : [];
     }));
+    const authored = authoredDoorPlayers(scene, animations);
     const modelThemes = new Set<FinishTheme>(['original']);
     scene.traverse((object) => {
       if (object.name.toUpperCase().includes('MATERIAL_LIBRARY')) object.visible = false;
@@ -236,7 +240,12 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     });
     scene.traverse((object) => {
       const normalizedName = object.name.toUpperCase();
-      if (normalizedName.includes('DOOR_SWING')) {
+      const player = authored.get(object.userData.animationClip);
+      if (object.userData.interactionType === 'door' && player) {
+        const progress = object.userData.initialState === 'open' ? 1 : MathUtils.clamp(Number(object.userData.initialOpenFraction) || 0, 0, 1);
+        player.sample(progress);
+        detectedDoors.push({ object, closedQuaternion: object.quaternion.clone(), openQuaternion: object.quaternion.clone(), progress, targetProgress: progress, duration: player.duration, pairGroup: `clip:${object.userData.animationClip}`, sample: player.sample });
+      } else if (normalizedName.includes('DOOR_SWING')) {
         const metadata = manifestDoors.get(object.name);
         const extras = object.userData as {
           openAngleDegrees?: number;
@@ -355,13 +364,14 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
         else mesh.material = original;
       });
       viewerMaterials.forEach((material) => material.dispose());
+      authored.forEach(player => player.dispose());
       doors.current = [];
       finishTargets.current = [];
       availableFinishes.current = [];
       finishVariants.current.clear();
       onCapabilitiesChange(0, []);
     };
-  }, [onCapabilitiesChange, scene]);
+  }, [onCapabilitiesChange, scene, animations]);
 
   useEffect(() => {
     finishTargets.current.forEach(({ mesh, index, original, category, surface }) => {
@@ -528,7 +538,8 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
         0,
         1,
       );
-      door.object.quaternion.slerpQuaternions(door.closedQuaternion, door.openQuaternion, door.progress);
+      if (door.sample) door.sample(door.progress);
+      else door.object.quaternion.slerpQuaternions(door.closedQuaternion, door.openQuaternion, door.progress);
       door.object.updateMatrixWorld(true);
     });
   });

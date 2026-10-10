@@ -8,7 +8,7 @@ export function anonymizeGlb(bytes, id, privateTerms = []) {
   if (source.readUInt32LE(16) !== 0x4e4f534a) throw new Error('GLB JSON chunk is missing.');
   const document = JSON.parse(source.subarray(20, 20 + length).toString());
   const expressions = privateTerms.filter(Boolean).map((term) => new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'));
-  const allowedExtras = new Set(['viewerOptionsJSON', 'finishCategoriesJSON', 'tddFinishMaterialsJSON', 'tddFinish', 'tddDoor', 'openAngleDegrees', 'initialState', 'closedQuaternionGLTF', 'excludeFromCollision', 'collisionOnly', 'collisionType', 'walkable', 'viewerHidden', 'forwardAxis', 'eyeHeightMeters', 'upAxis']);
+  const allowedExtras = new Set(['viewerOptionsJSON', 'finishCategoriesJSON', 'tddFinishMaterialsJSON', 'tddFinish', 'tddDoor', 'interactionType', 'doorType', 'doorId', 'animationClip', 'closedPosition', 'openPosition', 'closedQuaternion', 'openQuaternion', 'slideDirection', 'travelMeters', 'initialOpenFraction', 'openAngleDegrees', 'initialState', 'closedQuaternionGLTF', 'excludeFromCollision', 'collisionOnly', 'collisionType', 'walkable', 'viewerHidden', 'forwardAxis', 'eyeHeightMeters', 'viewerGroundHeightMeters', 'upAxis']);
   function clean(value) {
     if (typeof value === 'string') {
       if (value.startsWith('{') || value.startsWith('[')) {

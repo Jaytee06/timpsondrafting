@@ -57,3 +57,13 @@ On desktop, hold Q and drag the primary mouse button to mark the current view. A
 Review collects independent callouts across views and models in the current viewer session. Notes can be edited or deleted. Export ZIP includes `review.md`, numbered annotated PNG screenshots, and `review.json` with model URL/cache identity, camera position/quaternion, normalized mark coordinates and timestamps. Copy summary copies text only; use ZIP for visual context. No backend or external transmission is involved. Drafts are in memory; export before leaving or reloading. Existing callouts have a browser unload warning. This initial shortcut requires a keyboard and mouse and does not yet provide touch drawing, persistent draft storage, or review import.
 
 Callouts require no room/area entry. The annotated screenshot and JSON camera pose provide location context for an agent with the same model. Copied summaries include camera position in meters and viewing direction, without image links. The ZIP Markdown includes those references and image links; JSON retains the full camera pose.
+
+## Site grade and underground geometry
+
+Export an empty named `GROUND_DATUM` at intended site grade. The Three.js viewer uses its transformed world Y elevation for the ground grid and fallback walking level, independently of pool excavation, foundations or buried tanks. Author in Blender Z-up; the GLB exporter converts the marker to Y-up. Parent transforms are honored, and geometry is not shifted. Actual floor collision surfaces still determine walking height where available.
+
+Without that marker, a numeric `viewerGroundHeightMeters` on `SPAWN_FRONT` is accepted as a ground elevation in exported scene Y-up coordinates (meters). Otherwise legacy models retain the bounding-box minimum fallback. The anonymizer preserves this field. Keep the spawn itself on its walking surface, which can differ from site grade. Include real site geometry with the appropriate pool opening. This change applies to the standalone Three.js viewer; Cesium terrain placement is separate.
+
+## Authored door clips
+
+Nodes tagged `interactionType: "door"` and `animationClip` use their embedded opening clip through E/Interact. Nodes sharing a clip toggle together. Closing samples the same clip in reverse, including sectional and sliding movement. Moving door descendants remain wall-collision candidates and their world transforms update with playback. Legacy named swing doors remain supported. Direct door metadata survives anonymization. This support applies to Three.js; Cesium remains separate.
