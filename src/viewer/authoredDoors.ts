@@ -9,9 +9,10 @@ export function authoredDoorPlayers(scene: Object3D, clips: AnimationClip[]) {
     if (!clip || !Number.isFinite(clip.duration) || clip.duration <= 0) return;
     const mixer = new AnimationMixer(scene), action = mixer.clipAction(clip);
     action.setLoop(LoopOnce, 1); action.clampWhenFinished = true;
+    let lastFraction = NaN;
     players.set(name, {
       duration: clip.duration,
-      sample(fraction) { action.reset().play(); mixer.setTime(Math.max(0, Math.min(1, fraction)) * clip.duration); },
+      sample(fraction) { const next = Math.max(0, Math.min(1, fraction)); if (next === lastFraction) return; lastFraction = next; action.reset().play(); mixer.setTime(next * clip.duration); },
       dispose() { mixer.stopAllAction(); mixer.uncacheRoot(scene); },
     });
   });

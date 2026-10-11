@@ -36,6 +36,7 @@ export default function ViewerReview({ runtime, model, modelUrl, onBusy }: { run
       if (g.points.length < 3) { setPoints([]); return; }
       try {
         runtime.gl.render(runtime.scene, runtime.camera);
+        window.dispatchEvent(new Event('viewer-capture-shading'));
         const image = document.createElement('canvas'); image.width = canvas.width; image.height = canvas.height;
         const ctx = image.getContext('2d'); if (!ctx) throw new Error('Screenshot unavailable.');
         ctx.drawImage(canvas, 0, 0); ctx.strokeStyle = '#ff5b35'; ctx.lineWidth = Math.max(3, image.width / 400); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath();

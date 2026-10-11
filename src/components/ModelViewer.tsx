@@ -1,3 +1,5 @@
+import ViewerContactShading from './ViewerContactShading';
+import ViewerDaylight from './ViewerDaylight';
 import { authoredDoorPlayers } from '../viewer/authoredDoors';
 import { sceneGroundHeight } from '../viewer/modelGround';
 import ViewerReview from './ViewerReview';
@@ -89,6 +91,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
   const { scene, parser, animations } = useGLTF(url);
   const camera = useThree((state) => state.camera);
   const canvas = useThree((state) => state.gl.domElement);
+  const renderer = useThree((state) => state.gl);
   const isSceneLocked = () => Boolean(document.pointerLockElement && (document.pointerLockElement === canvas || document.pointerLockElement.contains(canvas)));
   const walkFinish = useRef<FinishOption | null>(null);
   const highlight = useRef(new Group());
@@ -532,6 +535,8 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
       while (object) { if (!object.visible) overlay.visible = false; object = object.parent; }
     });
     doors.current.forEach((door) => {
+      if (door.progress === door.targetProgress) return;
+      renderer.shadowMap.needsUpdate = true;
       const step = Math.min(delta, 1 / 20) / Math.max(0.1, door.duration);
       door.progress = MathUtils.clamp(
         door.progress + Math.sign(door.targetProgress - door.progress) * Math.min(step, Math.abs(door.targetProgress - door.progress)),
@@ -1069,13 +1074,8 @@ export default function ModelViewer() {
       <section id="model-scene" aria-label="Model scene" className="relative min-h-0 min-w-0 flex-1">
         <Canvas onCreated={setReviewRuntime} className="h-full w-full" shadows camera={{ position: [8, 6, 8], fov: 45 }}>
           <color attach="background" args={['#0f172a']} />
-          <ambientLight intensity={1.1} />
-          <directionalLight
-            castShadow
-            intensity={2.2}
-            position={[8, 12, 6]}
-            shadow-mapSize={[2048, 2048]}
-          />
+          <ViewerDaylight model={exportScene} mobile={isMobile} revision={`${showLandscaping}:${finishTheme}:${JSON.stringify(finishOverrides)}`} />
+          <ViewerContactShading mobile={isMobile} revision={`${modelUrl}:${showLandscaping}:${finishTheme}:${JSON.stringify(finishOverrides)}`} />
           <Grid
             infiniteGrid
             position={[0, groundHeight, 0]}
@@ -1146,7 +1146,12 @@ export default function ModelViewer() {
     </div>
     {isMobile && modelUrl ? <footer aria-label="Walk controls" className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-slate-950 px-3 py-2">
       <MobileJoystick />
-      <div className="grid grid-cols-2 gap-2"><MobileControl label="Interact" keyName="e" code="KeyE" className="h-12 w-20 text-xs" /><MobileControl label="Hold finishes" keyName="Shift" code="ShiftLeft" className="h-12 w-20 text-xs" />{droneMode ? <><MobileControl label="Up" keyName=" " code="Space" className="h-12 w-20 text-xs" /><MobileControl label="Down" keyName="c" code="KeyC" className="h-12 w-20 text-xs" /></> : <MobileControl label="Jump" keyName=" " code="Space" className="col-span-2 h-12 w-full text-xs" />}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <MobileControl label="Interact" keyName="e" code="KeyE" className="h-12 w-20 text-xs" />
+        <MobileControl label="Hold finishes" keyName="Shift" code="ShiftLeft" className="h-12 w-20 text-xs" />
+        {droneMode && <><MobileControl label="Up" keyName=" " code="Space" className="h-12 w-20 text-xs" /><MobileControl label="Down" keyName="c" code="KeyC" className="h-12 w-20 text-xs" /></>}
+        <button type="button" aria-pressed={droneMode} onClick={() => setDroneMode(current => !current)} className={`${toolbarButton} col-span-2 h-12 w-full touch-manipulation select-none text-xs`}>{droneMode ? 'Human control' : 'Drone control'}</button>
+      </div>
     </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{droneMode ? 'Drone · WASD: fly · Space: up · C: down · Hold Shift + scroll: finishes · Escape: release mouse' : isWalking ? 'WASD: move · Space: jump · E: open door · Hold Shift + scroll: finishes · Escape: exit' : 'Click scene to walk · Hold Shift + scroll: finishes · Escape: exit'} · Hold Q + drag: callout<span className="sr-only" role="status">{saveNotice}</span></footer>}
   </main>;
 }

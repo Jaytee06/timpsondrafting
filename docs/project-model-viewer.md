@@ -67,3 +67,19 @@ Without that marker, a numeric `viewerGroundHeightMeters` on `SPAWN_FRONT` is ac
 ## Authored door clips
 
 Nodes tagged `interactionType: "door"` and `animationClip` use their embedded opening clip through E/Interact. Nodes sharing a clip toggle together. Closing samples the same clip in reverse, including sectional and sliding movement. Moving door descendants remain wall-collision candidates and their world transforms update with playback. Legacy named swing doors remain supported. Direct door metadata survives anonymization. This support applies to Three.js; Cesium remains separate.
+
+## Lightweight daylight rendering
+
+The standalone Three.js viewer uses one directional daylight shadow, broad hemisphere/ambient fill, and a low-intensity packaged RoomEnvironment reflection map. No fixture-light controls, night presets, texture downsampling, or geometry simplification are added. The reflection map is generated once per renderer and disposed on unmount. Sun bounds fit visible building geometry, excluding landscaping/collision/material-library branches, with 2048px desktop and 1024px mobile shadow maps.
+
+Shadow maps are cached while the model is unchanged; model/finish/landscaping changes and moving doors invalidate the cache. Idle door clips no longer resample or update their world matrices every frame; multiple panels sharing a clip reuse the same sample. The October 11 Sierra Bella 4AM GLB was inspected and loaded locally for an exterior rendering check. Its approximately 628k triangles and 2976 mesh primitives are retained; actual frame rate remains hardware/view dependent. Blender/SketchUp presentation lighting and indirect bounce are not reproduced exactly by this lightweight layer. Interior and physical-device visual checks remain required.
+
+Depth separation uses a faint neutral distance tint through Three.js material fog (density 0.005), approximately 0.25% at 10m and 2.2% at 30m. Direct shadow intensity is reduced to 0.3. Contact shading is described below; the distance tint itself requires no additional render pass. This is a depth cue, not baked corner occlusion or Blender bounced lighting.
+
+A low-intensity, unshadowed directional studio fill and reduced uniform ambient fill improve front/side separation on interior cabinetry and trim. The fill is a presentation aid rather than physically simulated indoor illumination; it adds one light calculation but no additional shadow map or rendering pass.
+
+## Cached contact shading
+
+Restrained screen-space ambient occlusion adds definition at cabinet panels, trim, corners and nearby surface intersections. It uses 8 samples on mobile / 12 on desktop, half-resolution targets capped at 512 / 768 pixels on the longest edge, and a local 0.18m sampling radius. It affects visible geometry generally, rather than selecting walls only. Glass and fine subpixel details remain limitations of screen-space shading.
+
+To prioritize navigation, the normal/depth and occlusion passes run only after the camera and doors have settled for 250ms. The cached result fades in and is reused until the camera, doors, model, finishes, landscaping or viewport changes. Moving views use the original direct rendering without stale occlusion. Review captures composite the same cached contact shading. This introduces occasional work after stopping and a cached full-screen composite while stationary; physical-device performance and interior visual comparison still require checking.

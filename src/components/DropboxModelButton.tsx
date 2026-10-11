@@ -37,12 +37,26 @@ export default function DropboxModelButton({ onFile, disabled = false }: {
   onFile: (file: File) => void | Promise<void>; disabled?: boolean;
 }) {
   const key = import.meta.env.VITE_DROPBOX_APP_KEY?.trim();
+  const useFilesPicker = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const [chooser, setChooser] = useState<DropboxChooser>();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const controller = useRef<AbortController>();
+  const returnFocusTimer = useRef<number>();
+
+  const returnToViewer = () => {
+    // Dropbox closes its popup before invoking these callbacks. Ask the
+    // originating tab to regain focus; mobile browsers may decline this.
+    window.focus();
+    window.clearTimeout(returnFocusTimer.current);
+    returnFocusTimer.current = window.setTimeout(() => {
+      window.focus();
+      returnFocusTimer.current = undefined;
+    }, 150);
+  };
 
   useEffect(() => {
     let active = true;
@@ -60,7 +74,10 @@ export default function DropboxModelButton({ onFile, disabled = false }: {
     return () => { active = false; };
   }, [key, attempt]);
 
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => () => {
+    controller.current?.abort();
+    window.clearTimeout(returnFocusTimer.current);
+  }, []);
   useEffect(() => { if (disabled) controller.current?.abort(); }, [disabled]);
 
   const choose = () => {
@@ -72,8 +89,9 @@ export default function DropboxModelButton({ onFile, disabled = false }: {
       // Keep this synchronous with the click so browsers permit the popup.
       chooser.choose({
         linkType: 'direct', multiselect: false, extensions: ['.glb'],
-        cancel: () => { setBusy(false); setStatus(''); },
+        cancel: () => { returnToViewer(); setBusy(false); setStatus(''); },
         success: (files) => {
+          returnToViewer();
           void (async () => {
             try {
               const selected = files[0];
@@ -109,12 +127,31 @@ export default function DropboxModelButton({ onFile, disabled = false }: {
     }
   };
 
+  const openDeviceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError('');
+    setBusy(true);
+    setStatus(`Opening ${file.name}…`);
+    try { await onFile(file); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'The model could not be opened.'); }
+    finally { setBusy(false); setStatus(''); }
+  };
+
   return <div className="flex max-w-xs flex-col items-end gap-1">
+    {useFilesPicker && <>
+      <label className={`rounded border border-white/20 px-4 py-3 font-semibold text-slate-200 ${disabled || busy ? 'opacity-50' : 'cursor-pointer hover:border-orange hover:text-white'}`}>
+        {busy ? 'Opening model…' : 'Open from Dropbox / Files'}
+        <input className="sr-only" type="file" accept=".glb,model/gltf-binary" disabled={disabled || busy}
+          onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void openDeviceFile(file); }} />
+      </label>
+      <span className="text-right text-xs text-slate-300">In Files, choose Browse → Locations → Dropbox. Enable Dropbox there if its app is installed.</span>
+    </>}
+
     <button type="button" onClick={choose} disabled={disabled || busy || !chooser}
       className="rounded border border-white/20 px-4 py-3 font-semibold text-slate-200 hover:border-orange hover:text-white disabled:cursor-not-allowed disabled:opacity-50">
-      {busy ? 'Loading from Dropbox…' : key && !chooser && !error ? 'Connecting to Dropbox…' : 'Open from Dropbox'}
+      {useFilesPicker ? 'Use Dropbox website (opens a tab)' : busy ? 'Loading from Dropbox…' : key && !chooser && !error ? 'Connecting to Dropbox…' : 'Open from Dropbox'}
     </button>
-    {!key && <span className="text-right text-xs text-amber-300">Dropbox setup required: add VITE_DROPBOX_APP_KEY.</span>}
+    {!key && !useFilesPicker && <span className="text-right text-xs text-amber-300">Dropbox setup required: add VITE_DROPBOX_APP_KEY.</span>}
     {status && <span role="status" className="text-right text-xs text-slate-300">{status}</span>}
     {error && <div role="alert" className="text-right text-xs text-red-300">{error}
       {!chooser && key && <button type="button" className="ml-2 underline" onClick={() => setAttempt((value) => value + 1)}>Retry</button>}
