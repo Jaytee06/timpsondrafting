@@ -1,5 +1,5 @@
-import ViewerContactShading from './ViewerContactShading';
 import ViewerDaylight from './ViewerDaylight';
+import ViewerAmbientOcclusion from './ViewerAmbientOcclusion';
 import { authoredDoorPlayers } from '../viewer/authoredDoors';
 import { sceneGroundHeight } from '../viewer/modelGround';
 import ViewerReview from './ViewerReview';
@@ -16,7 +16,7 @@ import { saveModelTransfer } from '../viewer/modelTransfer';
 import { parseFinishPreferences } from '../viewer/finishPreferences';
 import { slideMovement } from '../viewer/walkMovement';
 import DropboxModelButton from './DropboxModelButton';
-import { Grid, PointerLockControls, useGLTF } from '@react-three/drei';
+import { Grid, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ChangeEvent, DragEvent as ReactDragEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box3, Color, Euler, Group, Material, MeshBasicMaterial, MathUtils, Mesh, MeshStandardMaterial, Object3D, Quaternion, Raycaster, Vector2, Vector3 } from 'three';
@@ -87,12 +87,12 @@ type ViewerManifestDoor = {
 
 type ViewerManifest = { doors?: ViewerManifestDoor[] };
 
-function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapingChange, onCapabilitiesChange, onSceneReady, onGroundChange, onCollisionChange, onWallCollisionChange, onWalkFinishChange, onApplyWalkFinish, mobileMode }: { url: string; showLandscaping: boolean; finishTheme: FinishTheme; finishOverrides: Record<string, FinishTheme>; onLandscapingChange: (count: number) => void; onCapabilitiesChange: (doors: number, finishes: FinishOption[]) => void; onContextTarget: (target: ContextTarget | null) => void; onSceneReady: (scene: Object3D | null) => void; onGroundChange: (height: number) => void; onCollisionChange: (objects: Object3D[]) => void; onWallCollisionChange: (objects: Object3D[]) => void; onWalkFinishChange: (finish: FinishOption | null) => void; onApplyWalkFinish: (key: string, theme: FinishTheme) => void; mobileMode: boolean }) {
+function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapingChange, onCapabilitiesChange, onSceneReady, onGroundChange, onCollisionChange, onWallCollisionChange, onWalkFinishChange, onApplyWalkFinish, mobileMode, navigationActive }: { url: string; showLandscaping: boolean; finishTheme: FinishTheme; finishOverrides: Record<string, FinishTheme>; onLandscapingChange: (count: number) => void; onCapabilitiesChange: (doors: number, finishes: FinishOption[]) => void; onContextTarget: (target: ContextTarget | null) => void; onSceneReady: (scene: Object3D | null) => void; onGroundChange: (height: number) => void; onCollisionChange: (objects: Object3D[]) => void; onWallCollisionChange: (objects: Object3D[]) => void; onWalkFinishChange: (finish: FinishOption | null) => void; onApplyWalkFinish: (key: string, theme: FinishTheme) => void; mobileMode: boolean; navigationActive: boolean }) {
   const { scene, parser, animations } = useGLTF(url);
   const camera = useThree((state) => state.camera);
   const canvas = useThree((state) => state.gl.domElement);
   const renderer = useThree((state) => state.gl);
-  const isSceneLocked = () => Boolean(document.pointerLockElement && (document.pointerLockElement === canvas || document.pointerLockElement.contains(canvas)));
+  const isSceneActive = () => navigationActive;
   const walkFinish = useRef<FinishOption | null>(null);
   const highlight = useRef(new Group());
   const highlighted = useRef<Array<{ source: Mesh; overlay: Mesh }>>([]);
@@ -409,7 +409,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     const interact = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable=true]')) return;
       const action = walkAction(event.code || (event.key === 'Shift' ? 'Shift' : `Key${event.key.toUpperCase()}`));
-      if ((!mobileMode && !isSceneLocked()) || !action || event.repeat) return;
+      if ((!mobileMode && !isSceneActive()) || !action || event.repeat) return;
       event.preventDefault();
       if (action === 'finish') {
         if (!finishMode.current) previewedFinishKey.current = null;
@@ -434,7 +434,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
     const scroll = (event: WheelEvent) => {
       const finish = walkFinish.current;
       const wheelDelta = event.deltaY || event.deltaX;
-      if (!finishMode.current || !isSceneLocked() || !finish || event.ctrlKey || !wheelDelta) return;
+      if (!finishMode.current || !isSceneActive() || !finish || event.ctrlKey || !wheelDelta) return;
       event.preventDefault();
       const now = performance.now();
       if (now - lastWheelChange.current < 180) return;
@@ -449,7 +449,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
       lastWheelChange.current = now;
     };
     const unlock = () => {
-      if (!mobileMode && !isSceneLocked()) clearSelection();
+      if (!mobileMode && !isSceneActive()) clearSelection();
     };
     const cycleTouchFinish = (event: Event) => {
       const finish = walkFinish.current;
@@ -489,7 +489,7 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
   useFrame((_, delta) => {
     let aimed: Object3D | null = null;
     let materialIndex = 0;
-    if (finishMode.current && (mobileMode || isSceneLocked())) {
+    if (finishMode.current && (mobileMode || isSceneActive())) {
       interactiveRay.current.setFromCamera(new Vector2(0, 0), camera);
       interactiveRay.current.far = Infinity;
       const hit = interactiveRay.current.intersectObjects(scene.children, true).find(isVisibleModelHit);
@@ -552,58 +552,121 @@ function Model({ url, showLandscaping, finishTheme, finishOverrides, onLandscapi
   return <><primitive object={highlight.current} /><primitive object={scene} /></>;
 }
 
-function TouchLookControls({ enabled }: { enabled: boolean }) {
+function CursorLookControls({ enabled, onActivate, onFallbackChange }: { enabled: boolean; onActivate: () => void; onFallbackChange: (fallback: boolean) => void }) {
   const { camera, gl } = useThree();
 
   useEffect(() => {
     if (!enabled) return;
 
     const canvas = gl.domElement;
+    const ownerDocument = canvas.ownerDocument;
     const previousTouchAction = canvas.style.touchAction;
+    const previousCursor = canvas.style.cursor;
+    const previousTabIndex = canvas.tabIndex;
     const rotation = new Euler(0, 0, 0, 'YXZ');
     let activePointer: number | null = null;
     let lastX = 0;
     let lastY = 0;
+    let dragged = false;
+    let touch = false;
+    let captureFailed = false;
 
     const start = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch' || activePointer !== null) return;
+      if ((event.pointerType !== 'touch' && event.button !== 0) || activePointer !== null || ownerDocument.pointerLockElement === canvas) return;
+      onActivate();
+      dragged = false;
+      touch = event.pointerType === 'touch';
+      canvas.focus({ preventScroll: true });
       activePointer = event.pointerId;
       lastX = event.clientX;
       lastY = event.clientY;
       rotation.setFromQuaternion(camera.quaternion);
       canvas.setPointerCapture(event.pointerId);
+      canvas.style.cursor = 'grabbing';
+    };
+    const rotate = (x: number, y: number, speed: number) => {
+      rotation.setFromQuaternion(camera.quaternion);
+      rotation.y -= x * speed;
+      rotation.x -= y * speed;
+      rotation.x = MathUtils.clamp(rotation.x, -Math.PI / 2 + .01, Math.PI / 2 - .01);
+      camera.quaternion.setFromEuler(rotation);
     };
     const move = (event: PointerEvent) => {
-      if (event.pointerId !== activePointer) return;
-      rotation.y -= (event.clientX - lastX) * 0.004;
-      rotation.x -= (event.clientY - lastY) * 0.004;
-      rotation.x = MathUtils.clamp(rotation.x, -Math.PI / 2, Math.PI / 2);
-      camera.quaternion.setFromEuler(rotation);
+      if (event.pointerId !== activePointer || ownerDocument.pointerLockElement === canvas) return;
+      if (Math.abs(event.clientX - lastX) + Math.abs(event.clientY - lastY) > 2) dragged = true;
+      rotate(event.clientX - lastX, event.clientY - lastY, event.pointerType === 'touch' ? .004 : .003);
       lastX = event.clientX;
       lastY = event.clientY;
     };
     const stop = (event: PointerEvent) => {
-      if (event.pointerId === activePointer) activePointer = null;
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      canvas.style.cursor = 'grab';
     };
+    const lockedMove = (event: MouseEvent) => {
+      if (ownerDocument.pointerLockElement !== canvas || Math.abs(event.movementX) > 250 || Math.abs(event.movementY) > 250) return;
+      rotate(event.movementX, event.movementY, .002);
+    };
+    const fallback = () => {
+      captureFailed = true;
+      canvas.style.cursor = 'grab';
+      onFallbackChange(true);
+    };
+    const captureMouse = () => {
+      onActivate();
+      canvas.focus({ preventScroll: true });
+      try {
+        const request = canvas.requestPointerLock() as Promise<void> | undefined;
+        // Capturing is optional; drag navigation continues if the browser rejects it.
+        request?.catch(fallback);
+      } catch { fallback(); }
+    };
+    const enter = () => {
+      if (!touch && !dragged && !captureFailed && ownerDocument.pointerLockElement !== canvas) captureMouse();
+    };
+    const captured = () => {
+      if (ownerDocument.pointerLockElement === canvas) {
+        captureFailed = false; onFallbackChange(false); canvas.style.cursor = 'none';
+      } else canvas.style.cursor = 'grab';
+    };
+    const captureButton = ownerDocument.getElementById('viewer-mouse-lock');
 
     canvas.style.touchAction = 'none';
+    canvas.style.cursor = 'grab';
+    canvas.tabIndex = 0;
     canvas.addEventListener('pointerdown', start);
     canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', stop);
     canvas.addEventListener('pointercancel', stop);
+    canvas.addEventListener('lostpointercapture', stop);
+    canvas.addEventListener('click', enter);
+    ownerDocument.addEventListener('mousemove', lockedMove);
+    ownerDocument.addEventListener('pointerlockerror', fallback);
+    ownerDocument.addEventListener('pointerlockchange', captured);
+    captureButton?.addEventListener('click', captureMouse);
     return () => {
       canvas.style.touchAction = previousTouchAction;
+      canvas.style.cursor = previousCursor;
+      canvas.tabIndex = previousTabIndex;
+      if (activePointer !== null && canvas.hasPointerCapture(activePointer)) canvas.releasePointerCapture(activePointer);
       canvas.removeEventListener('pointerdown', start);
       canvas.removeEventListener('pointermove', move);
       canvas.removeEventListener('pointerup', stop);
       canvas.removeEventListener('pointercancel', stop);
+      canvas.removeEventListener('lostpointercapture', stop);
+      canvas.removeEventListener('click', enter);
+      ownerDocument.removeEventListener('mousemove', lockedMove);
+      ownerDocument.removeEventListener('pointerlockerror', fallback);
+      ownerDocument.removeEventListener('pointerlockchange', captured);
+      captureButton?.removeEventListener('click', captureMouse);
     };
-  }, [camera, enabled, gl]);
+  }, [camera, enabled, gl, onActivate, onFallbackChange]);
 
   return null;
 }
 
-function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObjects, groundHeight, mobileMode, onLockChange }: { droneMode: boolean; frozen: boolean; collisionObjects: Object3D[]; wallCollisionObjects: Object3D[]; groundHeight: number; mobileMode: boolean; onLockChange: (locked: boolean) => void }) {
+function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObjects, groundHeight, mobileMode, onLockChange, onFallbackChange }: { droneMode: boolean; frozen: boolean; collisionObjects: Object3D[]; wallCollisionObjects: Object3D[]; groundHeight: number; mobileMode: boolean; onLockChange: (locked: boolean) => void; onFallbackChange: (fallback: boolean) => void }) {
   const canvas = useThree((state) => state.gl.domElement);
   const keys = useRef(new Set<string>());
   const isLocked = useRef(false);
@@ -612,27 +675,48 @@ function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObject
   const grounded = useRef(true);
   const groundRay = useRef(new Raycaster());
   const camera = useThree((state) => state.camera);
-  const walkPosition = useRef<Vector3 | null>(null);
+  const walkPose = useRef<{ position: Vector3; quaternion: Quaternion } | null>(null);
+  const activate = useCallback(() => {
+    if (isLocked.current) return;
+    isLocked.current = true;
+    onLockChange(true);
+  }, [onLockChange]);
+
+  useEffect(() => {
+    const ownerDocument = canvas.ownerDocument;
+    const change = () => {
+      isLocked.current = ownerDocument.pointerLockElement === canvas;
+      keys.current.clear();
+      onLockChange(isLocked.current);
+    };
+    ownerDocument.addEventListener('pointerlockchange', change);
+    return () => ownerDocument.removeEventListener('pointerlockchange', change);
+  }, [canvas, onLockChange]);
 
   useEffect(() => {
     keys.current.clear();
     verticalVelocity.current = 0;
     jumpCount.current = 0;
-    if (droneMode) walkPosition.current = camera.position.clone();
-    else if (walkPosition.current) {
-      camera.position.copy(walkPosition.current);
-      walkPosition.current = null;
+    if (droneMode) walkPose.current = { position: camera.position.clone(), quaternion: camera.quaternion.clone() };
+    else if (walkPose.current) {
+      camera.position.copy(walkPose.current.position);
+      camera.quaternion.copy(walkPose.current.quaternion);
+      walkPose.current = null;
       grounded.current = true;
     }
   }, [camera, droneMode]);
 
   useEffect(() => {
     isLocked.current = mobileMode;
-    if (mobileMode) onLockChange(true);
+    onLockChange(mobileMode);
   }, [mobileMode, onLockChange]);
 
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable=true]')) return;
+      if (event.code === 'Escape' && !mobileMode && !canvas.ownerDocument.pointerLockElement) {
+        isLocked.current = false; keys.current.clear(); onLockChange(false); return;
+      }
       if (frozen) return;
       if (isLocked.current && ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
         event.preventDefault();
@@ -659,7 +743,7 @@ function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObject
       window.removeEventListener('blur', clearKeys);
       document.removeEventListener('visibilitychange', visibilityChange);
     };
-  }, [frozen, droneMode]);
+  }, [frozen, droneMode, mobileMode, canvas, onLockChange]);
 
   useEffect(() => {
     const blockPointerSpike = (event: MouseEvent) => {
@@ -734,27 +818,7 @@ function WalkControls({ droneMode, frozen, collisionObjects, wallCollisionObject
     }
   });
 
-  return (
-    <>
-      {!mobileMode && (
-        <PointerLockControls
-          domElement={canvas}
-          selector="#model-scene canvas"
-          pointerSpeed={frozen ? 0 : 1}
-          onLock={() => {
-            isLocked.current = true;
-            onLockChange(true);
-          }}
-          onUnlock={() => {
-            isLocked.current = false;
-            keys.current.clear();
-            onLockChange(false);
-          }}
-        />
-      )}
-      <TouchLookControls enabled={mobileMode && !frozen} />
-    </>
-  );
+  return <CursorLookControls enabled={!frozen} onActivate={activate} onFallbackChange={onFallbackChange} />;
 }
 
 function FinishScrollWheel({ finish, activeTheme, walking, mobile, onCycle, onApply, onClose }: {
@@ -830,6 +894,8 @@ export default function ModelViewer() {
   const [reviewBusy, setReviewBusy] = useState(false);
   const [fileName, setFileName] = useState('');
   const [isWalking, setIsWalking] = useState(false);
+  const [cursorFallback, setCursorFallback] = useState(false);
+  useEffect(() => { setIsWalking(false); setCursorFallback(false); }, [modelUrl]);
   const [droneMode, setDroneMode] = useState(false);
   useEffect(() => { setDroneMode(false); }, [modelUrl]);
   const [groundHeight, setGroundHeight] = useState(0);
@@ -845,6 +911,7 @@ export default function ModelViewer() {
   const [finishOptions, setFinishOptions] = useState<FinishOption[]>([]);
   const [finishOverrides, setFinishOverrides] = useState<Record<string, FinishTheme>>({});
   const [showSettings, setShowSettings] = useState(false);
+  const [shading, setShading] = useState<'baseline' | 'lighting' | 'ao'>('ao');
   const [surfaceSearch, setSurfaceSearch] = useState('');
   const [walkFinish, setWalkFinish] = useState<FinishOption | null>(null);
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
@@ -998,15 +1065,17 @@ export default function ModelViewer() {
 
     setContextTarget(null);
     setExportScene(null);
+    setShowSettings(false);
+    setWalkFinish(null);
+    setLinkedProject(null);
+    if (document.pointerLockElement) document.exitPointerLock();
     clearUsdz();
     setDoorCount(0);
     setFinishOptions([]);
     setLoadedPreferenceKey('');
-    setPreferenceKey(requestedProject
-      ? `tdd-finishes:project:${requestedProject}:${linkedProject?.version ?? '1'}`
-      : `tdd-finishes:file:${file.name}:${file.size}:${file.lastModified}`);
+    setPreferenceKey(`tdd-finishes:file:${file.name}:${file.size}:${file.lastModified}`);
     setModelUrl(URL.createObjectURL(file));
-    setFileName(linkedProject?.label ?? file.name);
+    setFileName(file.name);
   };
 
   const loadModel = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1054,6 +1123,7 @@ export default function ModelViewer() {
   const handleWalkLock = useCallback((locked: boolean) => {
     setIsWalking(locked);
     if (locked) closeInspector();
+    else window.dispatchEvent(new Event('viewer-clear-finish'));
   }, [closeInspector]);
   const hasInspector = !selectedFinish && Boolean(contextTarget?.doorAction || showSettings);
   const toolbarButton = 'shrink-0 rounded border border-white/20 px-3 py-2 text-xs font-semibold transition hover:border-orange disabled:opacity-40';
@@ -1065,24 +1135,30 @@ export default function ModelViewer() {
     </header>
     {modelUrl && <nav aria-label="Model actions" className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/10 px-3 py-2 sm:px-5">
       {isWalking && !isMobile && <span className="flex items-center text-xs text-slate-400">{droneMode ? 'Drone' : 'Walking'} · Escape to exit</span>}
+      <label className="flex shrink-0 items-center gap-2 text-xs">Shading<select aria-label="Viewer shading" value={shading} onChange={event => setShading(event.target.value as typeof shading)} className="rounded border border-white/20 bg-slate-950 px-2 py-2"><option value="baseline">Current lighting</option><option value="lighting">Tuned lighting</option><option value="ao">Tuned + depth</option></select></label>
       <button type="button" aria-pressed={droneMode} onClick={() => setDroneMode((current) => !current)} className={toolbarButton}>{droneMode ? 'Return to walk' : 'Drone view'}</button>
+      {!isMobile && <button type="button" id="viewer-mouse-lock" disabled={!exportScene || reviewBusy} className={toolbarButton}>Capture mouse</button>}
       <button type="button" disabled={!exportScene || isSendingToSite} onClick={sendToSite} className={toolbarButton}>{isSendingToSite ? 'Preparing…' : 'Place at an address'}</button>
       {canOpenAppleAr && (usdzUrl ? <a rel="ar" href={usdzUrl} className={toolbarButton}><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" className="inline-block h-4 w-4" />Open in AR</a> : <button type="button" disabled={!exportScene || isExportingUsdz} onClick={prepareUsdz} className={toolbarButton}>{isExportingUsdz ? 'Preparing AR…' : 'Prepare AR'}</button>)}
     </nav>}
     {(siteError || usdzError || fileError) && <p className="shrink-0 border-b border-red-400/20 px-3 py-2 text-xs text-red-200" role="alert">{siteError || usdzError || fileError}</p>}
     <div className="flex min-h-0 flex-1">
       <section id="model-scene" aria-label="Model scene" className="relative min-h-0 min-w-0 flex-1">
-        <Canvas onCreated={setReviewRuntime} className="h-full w-full" shadows camera={{ position: [8, 6, 8], fov: 45 }}>
+        <Canvas onCreated={setReviewRuntime} className="h-full w-full" shadows
+          dpr={[1, isMobile ? 1.25 : 1.5]}
+          gl={{ antialias: true, powerPreference: 'high-performance' }}
+          camera={{ position: [8, 6, 8], fov: 45 }}>
           <color attach="background" args={['#0f172a']} />
-          <ViewerDaylight model={exportScene} mobile={isMobile} revision={`${showLandscaping}:${finishTheme}:${JSON.stringify(finishOverrides)}`} />
-          <ViewerContactShading mobile={isMobile} revision={`${modelUrl}:${showLandscaping}:${finishTheme}:${JSON.stringify(finishOverrides)}`} />
+          <ViewerDaylight model={exportScene} mobile={isMobile} tuned={shading !== 'baseline'} revision={`${showLandscaping}:${finishTheme}:${JSON.stringify(finishOverrides)}`} />
+          <ViewerAmbientOcclusion model={exportScene} mobile={isMobile} enabled={shading === 'ao'} />
           <Grid
             infiniteGrid
-            position={[0, groundHeight, 0]}
-            fadeDistance={80}
+            // Keep the reference grid below authored grade to prevent coplanar lines.
+            position={[0, groundHeight - 0.01, 0]}
+            fadeDistance={40}
             fadeStrength={5}
-            cellColor="#334155"
-            sectionColor="#C8581E"
+            cellColor="#253044"
+            sectionColor="#475569"
           />
 
           {modelUrl && (
@@ -1101,6 +1177,7 @@ export default function ModelViewer() {
                 onCollisionChange={setCollisionObjects}
                 onWallCollisionChange={setWallCollisionObjects}
                 mobileMode={isMobile}
+                navigationActive={isWalking}
                 onWalkFinishChange={setWalkFinish}
                 onApplyWalkFinish={(key, theme) => {
                   window.dispatchEvent(new CustomEvent('viewer-preview-finish', { detail: key }));
@@ -1114,12 +1191,13 @@ export default function ModelViewer() {
           {exportScene && <WalkControls
             key={modelUrl}
             droneMode={droneMode}
-            frozen={reviewBusy || Boolean(contextTarget?.finish)}
+            frozen={reviewBusy || showSettings || Boolean(contextTarget)}
             collisionObjects={collisionObjects}
             wallCollisionObjects={wallCollisionObjects}
             groundHeight={groundHeight}
             mobileMode={isMobile}
             onLockChange={handleWalkLock}
+            onFallbackChange={setCursorFallback}
           />}
         </Canvas>
         {modelUrl && exportScene && <ViewerReview runtime={reviewRuntime} model={fileName || "Model"} modelUrl={modelUrl} onBusy={setReviewBusy} />}
@@ -1152,6 +1230,6 @@ export default function ModelViewer() {
         {droneMode && <><MobileControl label="Up" keyName=" " code="Space" className="h-12 w-20 text-xs" /><MobileControl label="Down" keyName="c" code="KeyC" className="h-12 w-20 text-xs" /></>}
         <button type="button" aria-pressed={droneMode} onClick={() => setDroneMode(current => !current)} className={`${toolbarButton} col-span-2 h-12 w-full touch-manipulation select-none text-xs`}>{droneMode ? 'Human control' : 'Drone control'}</button>
       </div>
-    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{droneMode ? 'Drone · WASD: fly · Space: up · C: down · Hold Shift + scroll: finishes · Escape: release mouse' : isWalking ? 'WASD: move · Space: jump · E: open door · Hold Shift + scroll: finishes · Escape: exit' : 'Click scene to walk · Hold Shift + scroll: finishes · Escape: exit'} · Hold Q + drag: callout<span className="sr-only" role="status">{saveNotice}</span></footer>}
+    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{cursorFallback ? 'Mouse capture unavailable here · Drag to look' : isWalking ? 'Move mouse to look' : 'Click scene to enter'} · {droneMode ? 'WASD: fly · Space: up · C: down' : 'WASD: move · Space: jump · E: open door'} · Escape: exit · Hold Shift + scroll: finishes · Hold Q + drag: callout<span className="sr-only" role="status">{saveNotice}</span></footer>}
   </main>;
 }

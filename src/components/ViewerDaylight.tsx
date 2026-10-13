@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
-import { Box3, FogExp2, Mesh, Object3D, PMREMGenerator, Vector3 } from 'three';
+import { Box3, Mesh, Object3D, PMREMGenerator, Vector3 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
-/** One cached sun shadow and a low-intensity packaged environment; no postprocessing. */
-export default function ViewerDaylight({ model, mobile, revision }: { model: Object3D | null; mobile: boolean; revision: unknown }) {
+/** One cached sun shadow and a low-intensity packaged environment. */
+export default function ViewerDaylight({ model, mobile, revision, tuned = true }: { model: Object3D | null; mobile: boolean; revision: unknown; tuned?: boolean }) {
   const { gl, scene } = useThree();
   const target = useMemo(() => new Object3D(), []);
   const bounds = useMemo(() => {
@@ -34,13 +34,7 @@ export default function ViewerDaylight({ model, mobile, revision }: { model: Obj
     scene.environment = environment.texture; scene.environmentIntensity = .15;
     return () => { scene.environment = originalEnvironment; scene.environmentIntensity = intensity; environment.dispose(); };
   }, [gl, scene]);
-  // Material-shader distance tint: no render target or extra scene pass.
-  // About 0.25% at 10m and 2.2% at 30m; nearby finishes remain nearly unchanged.
-  useEffect(() => {
-    const originalFog = scene.fog;
-    scene.fog = new FogExp2('#d8dde2', .005);
-    return () => { scene.fog = originalFog; };
-  }, [scene]);
+  useEffect(() => { scene.environmentIntensity = tuned ? .12 : .15; }, [scene, tuned]);
   useEffect(() => {
     const autoUpdate = gl.shadowMap.autoUpdate;
     gl.shadowMap.autoUpdate = false; gl.shadowMap.needsUpdate = true;
@@ -58,23 +52,23 @@ export default function ViewerDaylight({ model, mobile, revision }: { model: Obj
     gl.shadowMap.needsUpdate = true;
     return () => { original.forEach(({ mesh, cast, receive }) => { mesh.castShadow = cast; mesh.receiveShadow = receive; }); gl.shadowMap.needsUpdate = true; };
   }, [model, gl]);
-  useEffect(() => { gl.shadowMap.needsUpdate = true; }, [revision, mobile, gl]);
+  useEffect(() => { gl.shadowMap.needsUpdate = true; }, [revision, mobile, gl, tuned]);
   const { center, radius } = bounds;
   return <>
     <primitive object={target} />
-    <hemisphereLight args={['#f4f7ff', '#b9b1a4', .9]} />
-    <ambientLight intensity={.15} />
+    <hemisphereLight args={['#f4f7ff', '#b9b1a4', tuned ? .48 : .65]} />
+    <ambientLight intensity={tuned ? .04 : .08} />
     {/* Broad studio fill gives vertical faces different brightness indoors.
         No shadow map: deliberately a presentation cue, not a fixture simulation. */}
-    <directionalLight intensity={.45} color="#f4f7ff" target={target}
+    <directionalLight intensity={tuned ? .6 : .35} color="#f4f7ff" target={target}
       position={[center.x - radius, center.y + radius * .6, center.z + radius * .35]} />
-    <directionalLight castShadow intensity={1.5} color="#fff8ed" target={target}
+    <directionalLight castShadow intensity={1.8} color="#fff8ed" target={target}
       position={[center.x + radius, center.y + radius * 1.5, center.z + radius * .75]}
       shadow-mapSize={[mobile ? 1024 : 2048, mobile ? 1024 : 2048]}
       shadow-camera-left={-radius} shadow-camera-right={radius}
       shadow-camera-top={radius} shadow-camera-bottom={-radius}
       shadow-camera-near={.1} shadow-camera-far={radius * 5}
-      shadow-intensity={.3}
-      shadow-normalBias={.035} shadow-bias={-.0001} />
+      shadow-intensity={.55}
+      shadow-normalBias={.015} shadow-bias={-.0001} />
   </>;
 }
