@@ -1,7 +1,8 @@
 export type ReviewCallout = {
   id: string; createdAt: string; model: string; modelUrl: string; note: string;
   camera: { position: number[]; quaternion: number[]; fov?: number };
-  points: { x: number; y: number }[]; screenshot: string;
+  points: { x: number; y: number }[];
+  strokes?: { x: number; y: number }[][]; screenshot: string;
 };
 export function reviewSummary(items: ReviewCallout[], includeImages = false) {
   return '# Model review\n\n' + items.map((item, i) => {
@@ -21,7 +22,7 @@ function crc32(bytes: Uint8Array) {
 // Uncompressed ZIP, keeping screenshot bytes intact without a runtime dependency.
 export function reviewZip(items: ReviewCallout[]): Blob {
   const encoder = new TextEncoder();
-  const files = [{ name: 'review.md', bytes: encoder.encode(reviewSummary(items, true)) }, { name: 'review.json', bytes: encoder.encode(JSON.stringify({ schema: 'tdd-review-v1', callouts: items.map(({ screenshot, ...item }, i) => ({ ...item, screenshot: `callout-${i + 1}.png` })) }, null, 2)) }, ...items.map((item, i) => ({ name: `callout-${i + 1}.png`, bytes: Uint8Array.from(atob(item.screenshot.split(',')[1]), c => c.charCodeAt(0)) }))];
+  const files = [{ name: 'review.md', bytes: encoder.encode(reviewSummary(items, true)) }, { name: 'review.json', bytes: encoder.encode(JSON.stringify({ schema: 'tdd-review-v1', callouts: items.map((item, i) => ({ ...item, screenshot: `callout-${i + 1}.png` })) }, null, 2)) }, ...items.map((item, i) => ({ name: `callout-${i + 1}.png`, bytes: Uint8Array.from(atob(item.screenshot.split(',')[1]), c => c.charCodeAt(0)) }))];
   const parts: Uint8Array[] = [], central: Uint8Array[] = []; let offset = 0, centralSize = 0;
   for (const file of files) {
     const name = encoder.encode(file.name), crc = crc32(file.bytes);

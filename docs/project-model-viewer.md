@@ -105,3 +105,9 @@ Desktop navigation defaults to clicking the scene to capture the mouse, free mou
 Capture mouse also allows explicitly retrying capture. It uses the canvas owner's document and handles a rejected pointer-lock request by retaining cursor navigation. Failed automatic requests are not retried on each click until controls are reinitialized or capture is explicitly requested. Direct cursor look and captured mouse look share pitch limits and avoid double-applying movement. Review drawing continues to consume its own input before normal look controls.
 
 Opening a local/Dropbox GLB closes Model tools and clears the previous finish inspector, allowing navigation to resume. Loaded files use their actual filename and file-specific finish preferences rather than inheriting the linked project's identity. Model-03 camera shortcuts appear only while its catalog GLB is loaded. Local verification opened a separate Butts walkthrough GLB through the file chooser, confirmed the tools panel closed, and exercised entry, backward movement, turning and Escape. The embedded automated browser rejects pointer lock, so those checks used the explicitly indicated fallback; free mouse capture remains a regular-browser check.
+
+### Separate annotation strokes
+
+Hold Q while drawing, releasing the mouse between strokes to draw disconnected lines in one callout. Press Z while holding Q to undo the latest stroke. Release Q to add the note. Both the live overlay and exported screenshot preserve stroke boundaries; review JSON includes normalized `strokes` alongside the existing flattened `points` field.
+
+The bottom controls include a remembered drawing mode: click the underlined Hold/Toggle word in “Hold Q to Draw” / “Toggle Q to Draw” to switch modes. Hold is the default. Toggle Q starts drawing on the first press and opens the note on the second press; key repeats are ignored. Escape and window blur cancel drawing in either mode.

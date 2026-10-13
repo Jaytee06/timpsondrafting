@@ -892,6 +892,13 @@ export default function ModelViewer() {
   const [modelUrl, setModelUrl] = useState<string>('');
   const [reviewRuntime, setReviewRuntime] = useState<RootState | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewQMode, setReviewQMode] = useState<'hold' | 'toggle'>(() => {
+    try { return localStorage.getItem('viewer-review-q-mode') === 'toggle' ? 'toggle' : 'hold'; }
+    catch { return 'hold'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('viewer-review-q-mode', reviewQMode); } catch { /* Keep the setting for this session when storage is unavailable. */ }
+  }, [reviewQMode]);
   const [fileName, setFileName] = useState('');
   const [isWalking, setIsWalking] = useState(false);
   const [cursorFallback, setCursorFallback] = useState(false);
@@ -1200,7 +1207,7 @@ export default function ModelViewer() {
             onFallbackChange={setCursorFallback}
           />}
         </Canvas>
-        {modelUrl && exportScene && <ViewerReview runtime={reviewRuntime} model={fileName || "Model"} modelUrl={modelUrl} onBusy={setReviewBusy} />}
+        {modelUrl && exportScene && <ViewerReview runtime={reviewRuntime} model={fileName || "Model"} modelUrl={modelUrl} onBusy={setReviewBusy} qMode={reviewQMode} />}
         {!modelUrl && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center"><div className="max-w-sm"><p className="text-lg font-medium">Open a GLB model to enter the scene</p><p className="mt-3 text-sm leading-6 text-slate-400">Use Model tools to open a file from your device or Dropbox, or drop a GLB here.</p></div></div>}
         {isDraggingFile && <div className="pointer-events-none absolute inset-3 grid place-items-center rounded border-2 border-dashed border-orange bg-slate-950/85 text-lg">Drop GLB to open</div>}
         {selectedFinish && <div aria-label="Finish samples" className={`absolute top-1/2 z-10 max-h-[calc(100%_-_1.5rem)] w-16 -translate-y-1/2 overflow-y-auto overscroll-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)] ${isMobile ? 'left-3' : 'right-3 sm:right-5'}`}>
@@ -1230,6 +1237,6 @@ export default function ModelViewer() {
         {droneMode && <><MobileControl label="Up" keyName=" " code="Space" className="h-12 w-20 text-xs" /><MobileControl label="Down" keyName="c" code="KeyC" className="h-12 w-20 text-xs" /></>}
         <button type="button" aria-pressed={droneMode} onClick={() => setDroneMode(current => !current)} className={`${toolbarButton} col-span-2 h-12 w-full touch-manipulation select-none text-xs`}>{droneMode ? 'Human control' : 'Drone control'}</button>
       </div>
-    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{cursorFallback ? 'Mouse capture unavailable here · Drag to look' : isWalking ? 'Move mouse to look' : 'Click scene to enter'} · {droneMode ? 'WASD: fly · Space: up · C: down' : 'WASD: move · Space: jump · E: open door'} · Escape: exit · Hold Shift + scroll: finishes · Hold Q + drag: callout<span className="sr-only" role="status">{saveNotice}</span></footer>}
+    </footer> : <footer className="shrink-0 border-t border-white/10 px-3 py-2 text-[11px] leading-5 text-slate-400 sm:px-5">{cursorFallback ? 'Mouse capture unavailable here · Drag to look' : isWalking ? 'Move mouse to look' : 'Click scene to enter'} · {droneMode ? 'WASD: fly · Space: up · C: down' : 'WASD: move · Space: jump · E: open door'} · Escape: exit · Hold Shift + scroll: finishes · <button type="button" disabled={reviewBusy} onClick={() => setReviewQMode(mode => mode === 'hold' ? 'toggle' : 'hold')} className="underline underline-offset-2 hover:text-white disabled:cursor-default" aria-label={`Drawing mode: ${reviewQMode}. Switch to ${reviewQMode === 'hold' ? 'toggle' : 'hold'} Q`}>{reviewQMode === 'hold' ? 'Hold' : 'Toggle'}</button> Q to Draw<span className="sr-only" role="status">{saveNotice}</span></footer>}
   </main>;
 }
