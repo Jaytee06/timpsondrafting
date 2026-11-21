@@ -1,3 +1,4 @@
+import { prepareGlbForCesium } from '../viewer/cesiumGlb';
 import { configureCesiumModel } from '../viewer/cesiumModelControls';
 import { MobileControl, MobileJoystick } from './NavigationTouchControls';
 import { canReachSiteSurface, siteSlideCandidates, droneDisplacement } from '../viewer/cesiumNavigation';
@@ -203,77 +204,6 @@ const pickedNodeName = (hit: CesiumRayHit) => (
 const isDoorNode = (name: string) => /door|leaf|jamb|trim|handle|lever|rose/.test(name);
 const isWallNode = (name: string) => /collider[_ -]?wall|wall|sill infill|above header/.test(name);
 const isWalkableNode = (name: string) => /collider[_ -]?(floor|stairs?)|floor|stair|step|landing|walkable/.test(name);
-
-const CESIUM_UNSUPPORTED_GLTF_EXTENSIONS = new Set(['KHR_lights_punctual']);
-const EMBEDDED_SITE_IMAGE_PATTERN = /aerial|orthophoto|ortho photo|satellite|site imagery|parcel imagery/i;
-
-type PreparedGlb = {
-  blob: Blob;
-  embeddedSiteImageNodes: string[];
-};
-
-async function prepareGlbForCesium(file: File): Promise<PreparedGlb> {
-  const buffer = await file.arrayBuffer();
-  const view = new DataView(buffer);
-  if (view.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
-    return { blob: file, embeddedSiteImageNodes: [] };
-  }
-
-  const jsonLength = view.getUint32(12, true);
-  const jsonType = view.getUint32(16, true);
-  if (jsonType !== 0x4e4f534a || 20 + jsonLength > view.byteLength) {
-    return { blob: file, embeddedSiteImageNodes: [] };
-  }
-
-  const bytes = new Uint8Array(buffer);
-  const gltf = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)).trim()) as Record<string, unknown>;
-  const embeddedSiteImageNodes = Array.isArray(gltf.nodes)
-    ? (gltf.nodes as Array<{ name?: unknown }>).flatMap((node) => (
-      typeof node.name === 'string' && EMBEDDED_SITE_IMAGE_PATTERN.test(node.name) ? [node.name] : []
-    ))
-    : [];
-  let changed = false;
-
-  const stripUnsupportedExtensions = (value: unknown) => {
-    if (Array.isArray(value)) {
-      value.forEach(stripUnsupportedExtensions);
-      return;
-    }
-    if (!value || typeof value !== 'object') return;
-    const object = value as Record<string, unknown>;
-
-    for (const listName of ['extensionsUsed', 'extensionsRequired']) {
-      if (!Array.isArray(object[listName])) continue;
-      const filtered = (object[listName] as unknown[]).filter((extension) => (
-        typeof extension !== 'string' || !CESIUM_UNSUPPORTED_GLTF_EXTENSIONS.has(extension)
-      ));
-      if (filtered.length !== (object[listName] as unknown[]).length) changed = true;
-      if (filtered.length) object[listName] = filtered;
-      else delete object[listName];
-    }
-
-    if (object.extensions && typeof object.extensions === 'object' && !Array.isArray(object.extensions)) {
-      const extensions = object.extensions as Record<string, unknown>;
-      for (const extension of CESIUM_UNSUPPORTED_GLTF_EXTENSIONS) {
-        if (extension in extensions) {
-          delete extensions[extension];
-          changed = true;
-        }
-      }
-      if (!Object.keys(extensions).length) delete object.extensions;
-    }
-    Object.values(object).forEach(stripUnsupportedExtensions);
-  };
-
-  stripUnsupportedExtensions(gltf);
-  if (!changed) return { blob: file, embeddedSiteImageNodes };
-
-  const cleanedJson = new TextEncoder().encode(JSON.stringify(gltf));
-  if (cleanedJson.length > jsonLength) throw new Error('The Cesium-safe GLB metadata did not fit in the source file.');
-  bytes.fill(0x20, 20, 20 + jsonLength);
-  bytes.set(cleanedJson, 20);
-  return { blob: new Blob([bytes], { type: 'model/gltf-binary' }), embeddedSiteImageNodes };
-}
 
 const waitForModelReady = (model: Model) => {
   if (model.ready) return Promise.resolve();
@@ -1523,10 +1453,13 @@ export default function CesiumViewer() {
           ? await readModelTransfer(transferId)
           : await (incomingPreset.current ??= loadPresetModel(projectId!));
         if (!transfer) throw new Error('Customized model handoff expired. Return to the model viewer and send it again.');
-        const prepared = await prepareGlbForCesium(new File([transfer.blob], transfer.fileName, { type: 'model/gltf-binary' }));
+        const prepared = await prepareGlbForCesium(transfer.blob);
         return { blob: prepared.blob, fileName: transfer.fileName, embeddedSiteImageNodes: prepared.embeddedSiteImageNodes, placement: { latitude: property.latitude, longitude: property.longitude, heading: 0, elevationOffset: 0, scale: 1 } };
       }
-      return readCachedProjectModel(propertyStorageId(property));
+      const cached = await readCachedProjectModel(propertyStorageId(property));
+      if (!cached || cancelled) return cached;
+      const prepared = await prepareGlbForCesium(cached.blob);
+      return { ...cached, ...prepared };
     };
     void restore()
       .then((cached) => {
